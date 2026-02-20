@@ -2,6 +2,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+// 加载环境变量
+require('dotenv').config();
+
 process.env.TZ = 'Asia/Shanghai';
 
 const PORT = 8000;
@@ -91,6 +94,96 @@ function saveImage(base64Data, prompt, aspectRatio, imageSize) {
 }
 
 const server = http.createServer((req, res) => {
+    if (req.url === '/clear-env' && req.method === 'POST') {
+        try {
+            const envContent = `GEMINI_API_KEY=\nGEMINI_MODEL_NAME=gemini-3-flash-preview\nGEMINI_IMAGE_MODEL_NAME=gemini-3-pro-image-preview\n`;
+            fs.writeFileSync('.env', envContent, 'utf-8');
+            
+            envConfig.GEMINI_API_KEY = '';
+            envConfig.GEMINI_MODEL_NAME = 'gemini-3-flash-preview';
+            envConfig.GEMINI_IMAGE_MODEL_NAME = 'gemini-3-pro-image-preview';
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+                success: true, 
+                message: 'API Key cleared successfully' 
+            }));
+        } catch (error) {
+            console.error('Error clearing .env file:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: error.message }));
+        }
+        
+        return;
+    }
+    
+    if (req.url === '/reload-env' && req.method === 'POST') {
+        try {
+            delete require.cache[require.resolve('dotenv')];
+            const dotenv = require('dotenv');
+            dotenv.config();
+            
+            envConfig.GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+            envConfig.GEMINI_MODEL_NAME = process.env.GEMINI_MODEL_NAME || 'gemini-3-flash-preview';
+            envConfig.GEMINI_IMAGE_MODEL_NAME = process.env.GEMINI_IMAGE_MODEL_NAME || 'gemini-3-pro-image-preview';
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+                success: true, 
+                message: 'Environment variables reloaded successfully',
+                config: envConfig
+            }));
+        } catch (error) {
+            console.error('Error reloading environment:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: error.message }));
+        }
+        
+        return;
+    }
+    
+    if (req.url === '/save-env' && req.method === 'POST') {
+        let body = '';
+        
+        req.on('data', chunk => {
+            body += chunk.toString();
+        });
+        
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                const apiKey = data.apiKey?.trim();
+                const modelName = data.modelName?.trim() || 'gemini-3-flash-preview';
+                const imageModelName = data.imageModelName?.trim() || 'gemini-3-pro-image-preview';
+                
+                if (!apiKey) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'API key is required' }));
+                    return;
+                }
+                
+                const envContent = `GEMINI_API_KEY=${apiKey}\nGEMINI_MODEL_NAME=${modelName}\nGEMINI_IMAGE_MODEL_NAME=${imageModelName}\n`;
+                fs.writeFileSync('.env', envContent, 'utf-8');
+                
+                envConfig.GEMINI_API_KEY = apiKey;
+                envConfig.GEMINI_MODEL_NAME = modelName;
+                envConfig.GEMINI_IMAGE_MODEL_NAME = imageModelName;
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ 
+                    success: true, 
+                    message: '.env file created successfully' 
+                }));
+            } catch (error) {
+                console.error('Error saving .env file:', error);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: error.message }));
+            }
+        });
+        
+        return;
+    }
+    
     if (req.url === '/save-image' && req.method === 'POST') {
         let body = '';
         
@@ -168,8 +261,18 @@ const server = http.createServer((req, res) => {
                 res.end('Server Error: ' + error.code, 'utf-8');
             }
         } else {
-            if (filePath === './index.html' && Object.keys(envConfig).length > 0) {
-                const envScript = `<script>window.ENV = ${JSON.stringify(envConfig)};</script>`;
+            if (filePath === './index.html') {
+                delete require.cache[require.resolve('dotenv')];
+                const dotenv = require('dotenv');
+                dotenv.config();
+                
+                const currentEnvConfig = {
+                    GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+                    GEMINI_MODEL_NAME: process.env.GEMINI_MODEL_NAME || 'gemini-3-flash-preview',
+                    GEMINI_IMAGE_MODEL_NAME: process.env.GEMINI_IMAGE_MODEL_NAME || 'gemini-3-pro-image-preview'
+                };
+                
+                const envScript = `<script>window.ENV = ${JSON.stringify(currentEnvConfig)};</script>`;
                 const modifiedContent = content.toString().replace('</head>', `${envScript}</head>`);
                 res.writeHead(200, { 'Content-Type': contentType });
                 res.end(modifiedContent, 'utf-8');

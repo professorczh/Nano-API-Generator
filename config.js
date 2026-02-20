@@ -5,8 +5,8 @@ export const CONFIG = {
 };
 
 function getEnvValue(key) {
-    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-        return window.ENV?.[key];
+    if (typeof window !== 'undefined' && window.ENV && key in window.ENV) {
+        return window.ENV[key];
     }
     return null;
 }

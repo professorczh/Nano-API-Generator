@@ -92,9 +92,12 @@
         <main class="space-y-6">
             <div class="glass-card rounded-2xl p-6 shadow-sm">
                 <div class="flex items-center justify-between mb-2">
-                    <label class="block text-sm font-medium text-gray-700">API Key</label>
-                    <button id="toggleApiKeyPanel" class="text-sm text-blue-600 hover:text-blue-700">折叠</button>
-                </div>
+                        <div class="flex items-center gap-2">
+                            <label class="block text-sm font-medium text-gray-700">API Key</label>
+                            <a href="https://aistudio.google.com/api-keys" target="_blank" class="text-xs text-blue-600 hover:text-blue-700 underline">获取 API Key</a>
+                        </div>
+                        <button id="toggleApiKeyPanel" class="text-sm text-blue-600 hover:text-blue-700">折叠</button>
+                    </div>
                 <div id="apiKeyPanel">
                     <div class="flex gap-3">
                         <input type="text" id="apiKeyInput" 
@@ -107,6 +110,17 @@
                         </button>
                     </div>
                     <div id="apiStatus" class="mt-2 text-sm text-gray-500"></div>
+                    
+                    <div class="mt-3 flex gap-3">
+                        <button id="saveApiKeyBtn" 
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm text-sm">
+                            存储 API
+                        </button>
+                        <button id="clearApiKeyBtn" 
+                            class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm text-sm">
+                            清除 API
+                        </button>
+                    </div>
                     
                     <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
@@ -328,8 +342,18 @@
         });
 
         apiKeyInput.addEventListener('blur', () => {
-            CONFIG.API_KEY = apiKeyInput.value;
+            const newValue = apiKeyInput.value.trim();
+            if (newValue && newValue !== maskApiKey(CONFIG.API_KEY)) {
+                CONFIG.API_KEY = newValue;
+            }
             updateApiKeyDisplay();
+        });
+
+        apiKeyInput.addEventListener('input', () => {
+            const newValue = apiKeyInput.value.trim();
+            if (newValue && !newValue.includes('*')) {
+                CONFIG.API_KEY = newValue;
+            }
         });
 
         toggleApiKeyPanel.addEventListener('click', () => {
@@ -542,10 +566,10 @@
         });
 
         async function testApiKey() {
-            const apiKey = apiKeyInput.value.trim();
+            const apiKey = CONFIG.API_KEY.trim();
             
-            if (!apiKey) {
-                apiStatus.innerHTML = '<span class="text-red-600">请输入 API Key</span>';
+            if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
+                apiStatus.innerHTML = '<span class="text-red-600">请输入有效的 API Key</span>';
                 return;
             }
 
@@ -570,15 +594,93 @@
             }
         }
 
+        async function saveApiKey() {
+            const apiKey = CONFIG.API_KEY.trim();
+            
+            if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
+                apiStatus.innerHTML = '<span class="text-red-600">请输入有效的 API Key</span>';
+                return;
+            }
+
+            try {
+                const saveEnvResponse = await fetch('/save-env', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        apiKey: apiKey,
+                        modelName: textModelName.value,
+                        imageModelName: imageModelName.value
+                    })
+                });
+                
+                const saveEnvResult = await saveEnvResponse.json();
+                
+                if (saveEnvResult.success) {
+                    const reloadEnvResponse = await fetch('/reload-env', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const reloadEnvResult = await reloadEnvResponse.json();
+                    
+                    if (reloadEnvResult.success) {
+                        CONFIG.API_KEY = apiKey;
+                        CONFIG.MODEL_NAME = textModelName.value;
+                        CONFIG.IMAGE_MODEL_NAME = imageModelName.value;
+                        apiStatus.innerHTML = '<span class="text-green-600">✓ API Key 已保存到服务器</span>';
+                    } else {
+                        apiStatus.innerHTML = '<span class="text-yellow-600">✓ API Key 已保存，但环境变量重载失败: ' + reloadEnvResult.error + '</span>';
+                    }
+                } else {
+                    apiStatus.innerHTML = '<span class="text-red-600">✗ 保存失败: ' + saveEnvResult.error + '</span>';
+                }
+            } catch (error) {
+                console.error(error);
+                apiStatus.innerHTML = '<span class="text-red-600">✗ 保存失败: ' + error.message + '</span>';
+            }
+        }
+
+        async function clearApiKey() {
+            try {
+                const clearEnvResponse = await fetch('/clear-env', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const clearEnvResult = await clearEnvResponse.json();
+                
+                if (clearEnvResult.success) {
+                    CONFIG.API_KEY = '';
+                    CONFIG.MODEL_NAME = 'gemini-3-flash-preview';
+                    CONFIG.IMAGE_MODEL_NAME = 'gemini-3-pro-image-preview';
+                    apiKeyInput.value = '';
+                    apiStatus.innerHTML = '<span class="text-green-600">✓ API Key 已从服务器清除</span>';
+                } else {
+                    apiStatus.innerHTML = '<span class="text-red-600">✗ 清除失败: ' + clearEnvResult.error + '</span>';
+                }
+            } catch (error) {
+                console.error(error);
+                apiStatus.innerHTML = '<span class="text-red-600">✗ 清除失败: ' + error.message + '</span>';
+            }
+        }
+
         testApiKeyBtn.addEventListener('click', testApiKey);
+        document.getElementById('saveApiKeyBtn').addEventListener('click', saveApiKey);
+        document.getElementById('clearApiKeyBtn').addEventListener('click', clearApiKey);
 
         async function callAPI() {
             const prompt = promptInput.value.trim();
-            const apiKey = apiKeyInput.value.trim();
+            const apiKey = CONFIG.API_KEY.trim();
             const isImageGenMode = imageGenMode.checked;
             
             if (!prompt && imageDataList.length === 0) return alert("请输入内容或粘贴图片");
-            if (!apiKey) return alert("请输入 API Key");
+            if (!apiKey || apiKey === "YOUR_API_KEY_HERE") return alert("请输入有效的 API Key");
 
             const genAI = new GoogleGenerativeAI(apiKey);
             
