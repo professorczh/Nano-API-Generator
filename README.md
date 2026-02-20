@@ -4,6 +4,10 @@
 
 一个基于 Google Gemini API 的 AI 图像生成测试工具。
 
+## 🌐 在线版本
+
+无需安装，直接访问在线版本：https://nano-api-generator.vercel.app/
+
 ## 🚀 功能特性
 
 - ✅ 文本生成和图片识别
