@@ -1,0 +1,20 @@
+{
+  "name": "nano-api-generator",
+  "version": "0.1.0",
+  "description": "A Google Gemini API testing tool",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "keywords": [
+    "gemini",
+    "api",
+    "ai",
+    "image-generation"
+  ],
+  "author": "professorczh",
+  "license": "MIT"
+}
