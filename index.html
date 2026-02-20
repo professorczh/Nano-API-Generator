@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍌 Nano Generator</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23FFD700' d='M12 2C8.5 2 5.5 4.5 4.5 8c-.5 2 .5 4 2 5.5 0 1.5-1 2.5-1.5 4 0 2.5 2 4.5 4.5 4.5 1.5 0 2.5-.5 3.5-1.5.5 1.5.5 3.5 1.5 5.5 0 2-1 3.5-2.5 4-1.5.5-3.5 0-5-1.5-2-3.5-2-5 0-2 1-3.5 2.5-4.5-.5-1.5-.5-3.5-.5-5.5 0-1.5.5-2.5 1.5-3.5-.5-1-1.5-1.5-3-1.5-2 0-3.5 1-4.5 3z'/%3E%3C/svg%3E">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(230, 230, 230, 1);
+        }
+        .image-card {
+            position: relative;
+            height: 120px;
+            overflow: hidden;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .image-card img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            cursor: pointer;
+        }
+        .image-card .delete-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 24px;
+            height: 24px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 16px;
+            line-height: 1;
+            z-index: 10;
+        }
+        .image-card:hover .delete-btn {
+            opacity: 1;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #2563eb;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #2563eb;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        .image-response-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800">
+
+    <div class="max-w-4xl mx-auto py-12 px-4">
+        <header class="mb-10 text-center">
+            <h1 class="text-3xl font-bold text-gray-900">Nano Generator</h1>
+        </header>
+
+        <main class="space-y-6">
+            <div class="glass-card rounded-2xl p-6 shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-medium text-gray-700">API Key</label>
+                    <button id="toggleApiKeyPanel" class="text-sm text-blue-600 hover:text-blue-700">折叠</button>
+                </div>
+                <div id="apiKeyPanel">
+                    <div class="flex gap-3">
+                        <input type="text" id="apiKeyInput" 
+                            class="flex-1 p-4 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                            placeholder="输入你的 API Key">
+                        <button id="testApiKeyBtn" 
+                            class="bg-gray-600 hover:bg-gray-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap">
+                            <span>测试</span>
+                            <div id="testLoader" class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                        </button>
+                    </div>
+                    <div id="apiStatus" class="mt-2 text-sm text-gray-500"></div>
+                    
+                    <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">文本模型</label>
+                            <select id="textModelName" 
+                                class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">识图模型</label>
+                            <select id="visionModelName" 
+                                class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">生图模型</label>
+                            <select id="imageModelName" 
+                                class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-6 shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-medium text-gray-700">提示词</label>
+                    <button id="togglePromptPanel" class="text-sm text-blue-600 hover:text-blue-700">折叠</button>
+                </div>
+                <div id="promptPanel">
+                    <textarea id="promptInput" rows="4" 
+                        class="w-full p-4 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
+                        placeholder="请输入提示词"></textarea>
+                    
+                    <div id="imagePreviewContainer" class="mt-4 hidden">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-700">已粘贴图片</span>
+                            <button id="clearAllImagesBtn" class="text-sm text-red-600 hover:text-red-700">清空全部</button>
+                        </div>
+                        <div id="imageGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+                    </div>
+                    
+                    <div class="mt-4 flex justify-between items-center">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="imageGenMode" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span class="text-gray-700 font-medium">生图模式</span>
+                        </label>
+                        <button id="sendBtn" 
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors shadow-sm flex items-center gap-2">
+                            <span>发送</span>
+                            <div id="loader" class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                        </button>
+                    </div>
+
+                    <div id="imageGenOptions" class="mt-4 hidden">
+                        <div class="border-t border-gray-200 pt-4">
+                            <h3 class="text-sm font-semibold text-gray-700 mb-3">生图参数设置</h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">宽高比</label>
+                                    <select id="aspectRatio" 
+                                        class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                                        <option value="1:1">1:1 正方形</option>
+                                        <option value="16:9" selected>16:9 宽屏</option>
+                                        <option value="9:16">9:16 竖屏</option>
+                                        <option value="21:9">21:9 超宽屏</option>
+                                        <option value="4:3">4:3 传统横向</option>
+                                        <option value="3:4">3:4 传统竖向</option>
+                                        <option value="3:2">3:2 经典横向</option>
+                                        <option value="2:3">2:3 经典竖向</option>
+                                        <option value="5:4">5:4 大画幅横向</option>
+                                        <option value="4:5">4:5 大画幅竖向</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">分辨率</label>
+                                    <select id="imageSize" 
+                                        class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                                        <option value="1K" selected>1K (1024px)</option>
+                                        <option value="2K">2K 高清</option>
+                                        <option value="4K">4K 超高清</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        温度: <span id="temperatureValue">0.6</span>
+                                    </label>
+                                    <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.6" 
+                                        class="w-full">
+                                    <div class="flex justify-between text-xs text-gray-500 mt-1">
+                                        <span>确定性</span>
+                                        <span>创造性</span>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Top-P: <span id="topPValue">0.95</span>
+                                    </label>
+                                    <input type="range" id="topP" min="0" max="1" step="0.05" value="0.95" 
+                                        class="w-full">
+                                    <div class="flex justify-between text-xs text-gray-500 mt-1">
+                                        <span>集中</span>
+                                        <span>多样</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-6 shadow-sm min-h-[200px]">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">返回结果 (Response)</h2>
+                    <span id="statusTag" class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-500">等待中</span>
+                </div>
+                <div id="responseOutput" class="whitespace-pre-wrap text-gray-700 leading-relaxed italic text-gray-400">
+                    内容将在此处显示...
+                </div>
+                <div id="imageResponseContainer" class="hidden mt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-gray-700">返回的图片</span>
+                    </div>
+                    <div class="image-response-wrapper">
+                        <img id="imageResponse" class="max-w-full max-h-96 rounded-lg border border-gray-200 cursor-pointer" alt="返回的图片">
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-90 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-[95vw] max-h-[95vh] w-full shadow-2xl flex flex-col">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <h3 class="text-lg font-semibold text-gray-900">图片预览</h3>
+                <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div class="flex justify-center mb-6 flex-grow overflow-auto">
+                <img id="modalImage" class="max-w-full max-h-[75vh] rounded-lg object-contain" alt="预览图片">
+            </div>
+            <div class="flex justify-end gap-3 flex-shrink-0">
+                <button id="openFolderBtn" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">打开文件夹</button>
+                <button id="closeModalBtn2" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">关闭</button>
+                <button id="downloadModalBtn" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">下载</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "@google/generative-ai": "https://esm.run/@google/generative-ai"
+      }
+    }
+    </script>
+    
+    <script type="module">
+        import { GoogleGenerativeAI } from "@google/generative-ai";
+        import { CONFIG, TEXT_MODELS, IMAGE_MODELS } from "./config.js";
+
+        const sendBtn = document.getElementById('sendBtn');
+        const promptInput = document.getElementById('promptInput');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const responseOutput = document.getElementById('responseOutput');
+        const loader = document.getElementById('loader');
+        const statusTag = document.getElementById('statusTag');
+        const testApiKeyBtn = document.getElementById('testApiKeyBtn');
+        const testLoader = document.getElementById('testLoader');
+        const apiStatus = document.getElementById('apiStatus');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        const imageGrid = document.getElementById('imageGrid');
+        const clearAllImagesBtn = document.getElementById('clearAllImagesBtn');
+        const imageGenMode = document.getElementById('imageGenMode');
+        const imageGenOptions = document.getElementById('imageGenOptions');
+        const aspectRatio = document.getElementById('aspectRatio');
+        const imageSize = document.getElementById('imageSize');
+        const temperature = document.getElementById('temperature');
+        const topP = document.getElementById('topP');
+        const temperatureValue = document.getElementById('temperatureValue');
+        const topPValue = document.getElementById('topPValue');
+        const imageResponseContainer = document.getElementById('imageResponseContainer');
+        const imageResponse = document.getElementById('imageResponse');
+        const textModelName = document.getElementById('textModelName');
+        const visionModelName = document.getElementById('visionModelName');
+        const imageModelName = document.getElementById('imageModelName');
+        const imageModal = document.getElementById('imageModal');
+        const modalImage = document.getElementById('modalImage');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const closeModalBtn2 = document.getElementById('closeModalBtn2');
+        const downloadModalBtn = document.getElementById('downloadModalBtn');
+        const openFolderBtn = document.getElementById('openFolderBtn');
+        const toggleApiKeyPanel = document.getElementById('toggleApiKeyPanel');
+        const togglePromptPanel = document.getElementById('togglePromptPanel');
+        const apiKeyPanel = document.getElementById('apiKeyPanel');
+        const promptPanel = document.getElementById('promptPanel');
+        let currentBlobUrl = null;
+
+        function maskApiKey(apiKey) {
+            if (!apiKey || apiKey.length < 6) return apiKey;
+            return apiKey.substring(0, 3) + '*'.repeat(apiKey.length - 6) + apiKey.substring(apiKey.length - 3);
+        }
+
+        function updateApiKeyDisplay() {
+            const apiKey = apiKeyInput.value;
+            if (apiKey) {
+                apiKeyInput.value = maskApiKey(apiKey);
+            }
+        }
+
+        apiKeyInput.value = CONFIG.API_KEY;
+        updateApiKeyDisplay();
+
+        apiKeyInput.addEventListener('focus', () => {
+            apiKeyInput.value = CONFIG.API_KEY;
+        });
+
+        apiKeyInput.addEventListener('blur', () => {
+            CONFIG.API_KEY = apiKeyInput.value;
+            updateApiKeyDisplay();
+        });
+
+        toggleApiKeyPanel.addEventListener('click', () => {
+            if (apiKeyPanel.classList.contains('hidden')) {
+                apiKeyPanel.classList.remove('hidden');
+                toggleApiKeyPanel.textContent = '折叠';
+            } else {
+                apiKeyPanel.classList.add('hidden');
+                toggleApiKeyPanel.textContent = '展开';
+            }
+        });
+
+        togglePromptPanel.addEventListener('click', () => {
+            if (promptPanel.classList.contains('hidden')) {
+                promptPanel.classList.remove('hidden');
+                togglePromptPanel.textContent = '折叠';
+            } else {
+                promptPanel.classList.add('hidden');
+                togglePromptPanel.textContent = '展开';
+            }
+        });
+
+        function openModal(blobUrl) {
+            currentBlobUrl = blobUrl;
+            modalImage.src = blobUrl;
+            imageModal.classList.remove('hidden');
+            imageModal.classList.add('flex');
+        }
+
+        function closeModal() {
+            imageModal.classList.add('hidden');
+            imageModal.classList.remove('flex');
+        }
+
+        closeModalBtn.addEventListener('click', closeModal);
+        closeModalBtn2.addEventListener('click', closeModal);
+        imageModal.addEventListener('click', (e) => {
+            if (e.target === imageModal) {
+                closeModal();
+            }
+        });
+
+        downloadModalBtn.addEventListener('click', () => {
+            if (currentBlobUrl) {
+                const link = document.createElement('a');
+                link.href = currentBlobUrl;
+                link.download = `gemini-generated-${Date.now()}.png`;
+                link.click();
+            }
+        });
+
+        openFolderBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/open-folder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert(`${result.message}\n\n请复制路径并在文件资源管理器中打开`);
+                    navigator.clipboard.writeText(result.path).then(() => {
+                        console.log('路径已复制到剪贴板');
+                    }).catch(err => {
+                        console.error('复制失败:', err);
+                    });
+                } else {
+                    alert('打开文件夹失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('打开文件夹失败: ' + error.message);
+            }
+        });
+
+        apiKeyInput.value = CONFIG.API_KEY;
+
+        function populateModelSelects() {
+            TEXT_MODELS.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.value;
+                option.textContent = model.name;
+                if (model.value === CONFIG.MODEL_NAME) {
+                    option.selected = true;
+                }
+                textModelName.appendChild(option);
+                
+                const visionOption = document.createElement('option');
+                visionOption.value = model.value;
+                visionOption.textContent = model.name;
+                if (model.value === CONFIG.MODEL_NAME) {
+                    visionOption.selected = true;
+                }
+                visionModelName.appendChild(visionOption);
+            });
+
+            IMAGE_MODELS.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.value;
+                option.textContent = model.name;
+                if (model.value === CONFIG.IMAGE_MODEL_NAME) {
+                    option.selected = true;
+                }
+                imageModelName.appendChild(option);
+            });
+        }
+
+        populateModelSelects();
+
+        let imageDataList = [];
+
+        function getImageAspectRatio(imageData) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const aspectRatio = img.width / img.height;
+                    resolve(aspectRatio);
+                };
+                img.onerror = () => {
+                    resolve(1);
+                };
+                img.src = imageData;
+            });
+        }
+
+        function renderImageCards() {
+            imageGrid.innerHTML = '';
+            
+            if (imageDataList.length === 0) {
+                imagePreviewContainer.classList.add('hidden');
+                return;
+            }
+            
+            imagePreviewContainer.classList.remove('hidden');
+            
+            imageDataList.forEach((imageData, index) => {
+                const card = document.createElement('div');
+                card.className = 'image-card';
+                
+                const img = document.createElement('img');
+                img.src = imageData;
+                img.alt = `图片 ${index + 1}`;
+                img.onclick = () => window.open(imageData, '_blank');
+                
+                const deleteBtn = document.createElement('div');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = '×';
+                deleteBtn.dataset.index = index;
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    imageDataList.splice(index, 1);
+                    renderImageCards();
+                };
+                
+                card.appendChild(img);
+                card.appendChild(deleteBtn);
+                imageGrid.appendChild(card);
+                
+                getImageAspectRatio(imageData).then(aspectRatio => {
+                    const maxWidth = 120 * aspectRatio;
+                    card.style.maxWidth = `${Math.min(maxWidth, 300)}px`;
+                    card.style.flex = '0 0 auto';
+                });
+            });
+        }
+
+        promptInput.addEventListener('paste', async (e) => {
+            const items = e.clipboardData.items;
+            let hasImage = false;
+            
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    e.preventDefault();
+                    hasImage = true;
+                    
+                    const file = item.getAsFile();
+                    const reader = new FileReader();
+                    
+                    reader.onload = (event) => {
+                        const base64Data = event.target.result;
+                        imageDataList.push(base64Data);
+                        renderImageCards();
+                    };
+                    
+                    reader.readAsDataURL(file);
+                }
+            }
+        });
+
+        clearAllImagesBtn.addEventListener('click', () => {
+            imageDataList = [];
+            renderImageCards();
+        });
+
+        imageGenMode.addEventListener('change', () => {
+            if (imageGenMode.checked) {
+                imageGenOptions.classList.remove('hidden');
+            } else {
+                imageGenOptions.classList.add('hidden');
+            }
+        });
+
+        temperature.addEventListener('input', () => {
+            temperatureValue.textContent = temperature.value;
+        });
+
+        topP.addEventListener('input', () => {
+            topPValue.textContent = topP.value;
+        });
+
+        async function testApiKey() {
+            const apiKey = apiKeyInput.value.trim();
+            
+            if (!apiKey) {
+                apiStatus.innerHTML = '<span class="text-red-600">请输入 API Key</span>';
+                return;
+            }
+
+            testApiKeyBtn.disabled = true;
+            testLoader.classList.remove('hidden');
+            apiStatus.innerHTML = '<span class="text-blue-600">正在验证 API Key...</span>';
+
+            try {
+                const genAI = new GoogleGenerativeAI(apiKey);
+                const model = genAI.getGenerativeModel({ model: CONFIG.MODEL_NAME });
+                
+                const result = await model.generateContent("test");
+                await result.response;
+                
+                apiStatus.innerHTML = '<span class="text-green-600">✓ API Key 验证成功</span>';
+            } catch (error) {
+                console.error(error);
+                apiStatus.innerHTML = '<span class="text-red-600">✗ API Key 无效: ' + error.message + '</span>';
+            } finally {
+                testApiKeyBtn.disabled = false;
+                testLoader.classList.add('hidden');
+            }
+        }
+
+        testApiKeyBtn.addEventListener('click', testApiKey);
+
+        async function callAPI() {
+            const prompt = promptInput.value.trim();
+            const apiKey = apiKeyInput.value.trim();
+            const isImageGenMode = imageGenMode.checked;
+            
+            if (!prompt && imageDataList.length === 0) return alert("请输入内容或粘贴图片");
+            if (!apiKey) return alert("请输入 API Key");
+
+            const genAI = new GoogleGenerativeAI(apiKey);
+            
+            let modelName;
+            if (isImageGenMode) {
+                modelName = imageModelName.value;
+            } else if (imageDataList.length > 0) {
+                modelName = visionModelName.value;
+            } else {
+                modelName = textModelName.value;
+            }
+            
+            const generationConfig = {
+                temperature: parseFloat(temperature.value),
+                topP: parseFloat(topP.value),
+                topK: 40,
+                maxOutputTokens: 8192
+            };
+            
+            if (isImageGenMode) {
+                generationConfig.imageConfig = {
+                    aspectRatio: aspectRatio.value,
+                    imageSize: imageSize.value
+                };
+            }
+            
+            const model = genAI.getGenerativeModel({ 
+                model: modelName,
+                generationConfig: generationConfig
+            });
+
+            sendBtn.disabled = true;
+            loader.classList.remove('hidden');
+            responseOutput.classList.remove('italic', 'text-gray-400');
+            responseOutput.innerText = "正在处理...";
+            imageResponseContainer.classList.add('hidden');
+            statusTag.innerText = "请求中";
+            statusTag.className = "text-xs px-2 py-1 rounded bg-blue-50 text-blue-600";
+
+            try {
+                let content;
+                
+                if (isImageGenMode) {
+                    if (imageDataList.length > 0) {
+                        if (prompt) {
+                            content = imageDataList.map(imageData => ({
+                                inlineData: { 
+                                    data: imageData.split(',')[1], 
+                                    mimeType: imageData.split(';')[0].split(':')[1] 
+                                }
+                            }));
+                            content.push(`${prompt}，使用${aspectRatio.value}宽高比`);
+                        } else {
+                            content = imageDataList.map(imageData => ({
+                                inlineData: { 
+                                    data: imageData.split(',')[1], 
+                                    mimeType: imageData.split(';')[0].split(':')[1] 
+                                }
+                            }));
+                            content.push(`请美化这张图片，使用${aspectRatio.value}宽高比`);
+                        }
+                    } else {
+                        content = `${prompt}，使用${aspectRatio.value}宽高比`;
+                    }
+                } else {
+                    if (imageDataList.length > 0) {
+                        content = imageDataList.map(imageData => ({
+                            inlineData: { 
+                                data: imageData.split(',')[1], 
+                                mimeType: imageData.split(';')[0].split(':')[1] 
+                                }
+                        }));
+                        content.push(prompt);
+                    } else {
+                        content = prompt;
+                    }
+                }
+                
+                const result = await model.generateContent(content);
+                const response = await result.response;
+                
+                if (isImageGenMode) {
+                    const imagePart = response.candidates[0]?.content?.parts.find(part => part.inlineData);
+                    if (imagePart) {
+                        const imageData = imagePart.inlineData.data;
+                        
+                        const byteCharacters = atob(imageData);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        const blob = new Blob([byteArray], { type: 'image/png' });
+                        const blobUrl = URL.createObjectURL(blob);
+                        
+                        imageResponse.src = blobUrl;
+                        imageResponse.onclick = () => {
+                            openModal(blobUrl);
+                        };
+                        imageResponseContainer.classList.remove('hidden');
+                        
+                        try {
+                            const saveResponse = await fetch('/save-image', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ 
+                                    imageData: imageData,
+                                    prompt: prompt,
+                                    aspectRatio: aspectRatio.value,
+                                    imageSize: imageSize.value
+                                })
+                            });
+                            const saveResult = await saveResponse.json();
+                            if (saveResult.success) {
+                                responseOutput.innerText = `图片生成成功！\n已保存到: ${saveResult.dateFolder}/${saveResult.fileName}\n提示词文件: ${saveResult.txtFileName}`;
+                            } else {
+                                responseOutput.innerText = `图片生成成功！\n保存失败: ${saveResult.error}`;
+                            }
+                        } catch (saveError) {
+                            console.error('保存图片失败:', saveError);
+                            responseOutput.innerText = `图片生成成功！\n保存失败: ${saveError.message}`;
+                        }
+                    } else {
+                        responseOutput.innerText = "未找到生成的图片数据。\n" + response.text();
+                    }
+                } else {
+                    const text = response.text();
+                    responseOutput.innerText = text;
+                }
+                
+                statusTag.innerText = "成功";
+                statusTag.className = "text-xs px-2 py-1 rounded bg-green-50 text-green-600";
+            } catch (error) {
+                console.error(error);
+                responseOutput.innerText = "发生错误: " + error.message;
+                statusTag.innerText = "失败";
+                statusTag.className = "text-xs px-2 py-1 rounded bg-red-50 text-red-600";
+            } finally {
+                sendBtn.disabled = false;
+                loader.classList.add('hidden');
+            }
+        }
+
+        sendBtn.addEventListener('click', callAPI);
+
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') callAPI();
+        });
+    </script>
+</body>
+</html>
