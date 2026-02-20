@@ -50,12 +50,12 @@ node server.js
 
 # 或使用 Docker 启动
 docker build -t nano-generator .
-docker run -d -p 8001:8000 -v "$(pwd)/DL:/app/DL" --name nano-generator nano-generator
+docker run -d -p 8000:8000 -v "$(pwd)/DL:/app/DL" --name nano-generator nano-generator
 ```
 
 ### 4. 访问应用
 
-打开浏览器访问：http://localhost:8001/
+打开浏览器访问：http://localhost:8000/
 
 ## 🔑 获取 API Key
 
