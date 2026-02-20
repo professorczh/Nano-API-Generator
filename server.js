@@ -7,6 +7,12 @@ process.env.TZ = 'Asia/Shanghai';
 const PORT = 8000;
 const GENERATED_IMAGES_DIR = './DL';
 
+const envConfig = {
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+    GEMINI_MODEL_NAME: process.env.GEMINI_MODEL_NAME || 'gemini-3-flash-preview',
+    GEMINI_IMAGE_MODEL_NAME: process.env.GEMINI_IMAGE_MODEL_NAME || 'gemini-3-pro-image-preview'
+};
+
 const mimeTypes = {
     '.html': 'text/html',
     '.js': 'text/javascript',
@@ -162,8 +168,15 @@ const server = http.createServer((req, res) => {
                 res.end('Server Error: ' + error.code, 'utf-8');
             }
         } else {
-            res.writeHead(200, { 'Content-Type': contentType });
-            res.end(content, 'utf-8');
+            if (filePath === './index.html' && Object.keys(envConfig).length > 0) {
+                const envScript = `<script>window.ENV = ${JSON.stringify(envConfig)};</script>`;
+                const modifiedContent = content.toString().replace('</head>', `${envScript}</head>`);
+                res.writeHead(200, { 'Content-Type': contentType });
+                res.end(modifiedContent, 'utf-8');
+            } else {
+                res.writeHead(200, { 'Content-Type': contentType });
+                res.end(content, 'utf-8');
+            }
         }
     });
 });

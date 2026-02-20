@@ -23,15 +23,20 @@ git clone https://github.com/your-username/nano-generator.git
 cd nano-generator
 ```
 
-### 2. 配置 API Key
+### 2. 配置环境变量
 
 ```bash
-# 复制示例配置文件
-cp config.example.js config.js
+# 复制环境变量模板
+cp .env.example .env
 
-# 编辑 config.js，填入你的 Google AI Studio API Key
+# 编辑 .env 文件，填入你的 Google AI Studio API Key
 # 将 YOUR_API_KEY_HERE 替换为你的真实 API Key
 ```
+
+环境变量配置项：
+- `GEMINI_API_KEY`: Google AI Studio API Key
+- `GEMINI_MODEL_NAME`: 文本/识图模型（默认：gemini-3-flash-preview）
+- `GEMINI_IMAGE_MODEL_NAME`: 生图模型（默认：gemini-3-pro-image-preview）
 
 ### 3. 启动项目
 
@@ -52,7 +57,32 @@ docker run -d -p 8001:8000 -v "$(pwd)/DL:/app/DL" --name nano-generator nano-gen
 
 1. 访问 [Google AI Studio](https://aistudio.google.com/app/apikey)
 2. 创建新的 API Key
-3. 将 API Key 填入 config.js 文件
+3. 将 API Key 填入 `.env` 文件或 Vercel 环境变量中
+
+## 🌐 部署到 Vercel
+
+### 1. 连接 GitHub 仓库
+
+在 Vercel 中导入你的 GitHub 仓库。
+
+### 2. 配置环境变量
+
+在 Vercel 项目设置中添加以下环境变量：
+
+- `GEMINI_API_KEY`: 你的 Google AI Studio API Key
+- `GEMINI_MODEL_NAME`: gemini-3-flash-preview
+- `GEMINI_IMAGE_MODEL_NAME`: gemini-3-pro-image-preview
+
+### 3. 部署配置
+
+确保以下设置正确：
+- **Build Command**: 留空（不需要构建）
+- **Output Directory**: 留空（根目录）
+- **Node.js Version**: 18 或更高
+
+### 4. 部署
+
+点击 "Deploy" 按钮开始部署。
 
 ## 📖 使用说明
 
