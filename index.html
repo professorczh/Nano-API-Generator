@@ -8,6 +8,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="panzoom.min.js"></script>
     <style>
+        :root {
+            --canvas-node-max-width: 300px;
+        }
         .glass-card {
             background: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(10px);
@@ -85,35 +88,65 @@
             position: absolute;
             cursor: grab;
             transition: box-shadow 0.2s;
+            pointer-events: auto;
         }
         .canvas-node:hover {
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
         .canvas-node.selected {
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5), 0 0 15px rgba(59, 130, 246, 0.3);
             outline: 2px solid #3b82f6;
+            transform: translateZ(0);
         }
         .canvas-node img {
             display: block;
             border-radius: 8px;
             border: 1px solid #e5e7eb;
-            max-width: 300px;
+            max-width: var(--canvas-node-max-width);
             max-height: 300px;
+        }
+        .canvas-node.text-node {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            min-width: 200px;
+            max-width: 400px;
+        }
+        .canvas-node.text-node .text-content {
+            padding: 16px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #374151;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .canvas-node.text-node .text-prompt {
+            padding: 12px 16px;
+            background: #f3f4f6;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 12px;
+            color: #6b7280;
+            border-radius: 12px 12px 0 0;
         }
         .canvas-node .node-info {
             position: absolute;
-            bottom: -30px;
+            bottom: -40px;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(255, 255, 255, 0.95);
             padding: 4px 8px;
             border-radius: 4px;
-            font-size: 12px;
-            white-space: nowrap;
+            font-size: 8px;
+            color: #6b7280;
+            white-space: normal;
+            max-width: 300px;
+            line-height: 1.3;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             opacity: 0;
-            transition: opacity 0.2s;
+            transition: all 0.2s ease;
         }
+
         .canvas-node:hover .node-info {
             opacity: 1;
         }
@@ -126,6 +159,53 @@
             justify-content: space-between;
             align-items: center;
             pointer-events: none;
+        }
+        .canvas-node .node-toolbar {
+            position: absolute;
+            top: 50%;
+            right: -60px;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(229, 231, 235, 0.8);
+            border-radius: 8px;
+            padding: 6px;
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+        }
+        .canvas-node.selected .node-toolbar {
+            display: flex;
+        }
+        .canvas-node .node-center-coords {
+            position: absolute;
+            bottom: -25px;
+            right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            z-index: 99;
+            display: none;
+        }
+        .canvas-node .toolbar-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 4px;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .canvas-node .toolbar-btn:hover {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
         }
         .canvas-node.selected .node-header {
             display: flex;
@@ -254,55 +334,6 @@
         .pinned-image-tag:hover .tag-delete {
             display: block;
         }
-        .pinned-image-tag .image-preview-tooltip {
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            margin-bottom: 8px;
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
-            display: none;
-            pointer-events: none;
-            max-width: 800px;
-            max-height: 800px;
-            overflow: visible;
-        }
-        .pinned-image-tag:hover .image-preview-tooltip {
-            display: block;
-        }
-        .pinned-image-tag .image-preview-tooltip img {
-            width: auto;
-            height: auto;
-            min-width: 100px;
-            min-height: 100px;
-            max-width: 800px;
-            max-height: 800px;
-            display: block;
-            border-radius: 4px;
-            object-fit: contain;
-            position: relative;
-        }
-        .pinned-image-tag .image-preview-tooltip .pin-indicator {
-            position: absolute;
-            width: 24px;
-            height: 24px;
-            background: #ef4444;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: bold;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-            animation: pinZoom 0.3s ease-out;
-            transform: translate(-50%, -50%);
-        }
         @keyframes pinZoom {
             0% {
                 transform: scale(3);
@@ -328,6 +359,7 @@
             height: 32px;
             vertical-align: middle;
             margin: 0 2px;
+            position: relative;
         }
         #promptInput:empty:before {
             content: attr(data-placeholder);
@@ -363,27 +395,22 @@
         .pasted-image-item:hover .delete-btn {
             display: block;
         }
-        .pasted-image-item .image-preview-tooltip {
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            margin-bottom: 8px;
+        
+        .image-preview-tooltip {
+            position: fixed;
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             padding: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            z-index: 100000;
             display: none;
             pointer-events: none;
             max-width: 800px;
             max-height: 800px;
+            overflow: visible;
         }
-        .pasted-image-item:hover .image-preview-tooltip {
-            display: block;
-        }
-        .pasted-image-item .image-preview-tooltip img {
+        .image-preview-tooltip img {
             width: auto;
             height: auto;
             min-width: 100px;
@@ -394,6 +421,22 @@
             border-radius: 4px;
             object-fit: contain;
         }
+        .image-preview-tooltip .pin-indicator {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transform: translate(-50%, -50%);
+        }
+        
         #canvasViewport {
             cursor: default;
         }
@@ -470,6 +513,40 @@
             font-size: 14px;
             font-weight: 500;
         }
+        
+        .text-loading-placeholder {
+            position: absolute;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            min-width: 200px;
+            max-width: 400px;
+            min-height: 100px;
+        }
+        
+        .text-loading-placeholder::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+            animation: slide 1.5s infinite;
+        }
+        
+        .text-loading-placeholder .loading-text {
+            position: relative;
+            z-index: 1;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 500;
+        }
 
         .debug-console {
             position: fixed;
@@ -515,11 +592,33 @@
         }
 
         .debug-console-content {
-            max-height: 300px;
+            height: 300px;
             overflow-y: auto;
             padding: 8px;
             font-family: 'Courier New', monospace;
             font-size: 12px;
+            scrollbar-width: thin;
+            scrollbar-color: #4b5563 #1f2937;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .debug-console-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .debug-console-content::-webkit-scrollbar-track {
+            background: #1f2937;
+            border-radius: 4px;
+        }
+
+        .debug-console-content::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+
+        .debug-console-content::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
         }
 
         .debug-log {
@@ -562,11 +661,41 @@
         .debug-log .message {
             color: inherit;
         }
+        
+        .debug-log-copy {
+            margin-left: 8px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+            font-size: 14px;
+            user-select: none;
+        }
+        
+        .debug-log-copy:hover {
+            opacity: 1;
+        }
+
+        .debug-console-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: #0f172a;
+            border-top: 1px solid #1f2937;
+        }
+        
+        .debug-console-footer-left {
+            display: flex;
+            align-items: center;
+        }
+        
+        .debug-console-footer-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
 
         .debug-console-clear {
-            position: absolute;
-            top: 8px;
-            right: 16px;
             background: #3b82f6;
             color: white;
             border: none;
@@ -574,51 +703,273 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 12px;
-            z-index: 1;
+            transition: background 0.2s;
+            margin-right: 8px;
         }
 
         .debug-console-clear:hover {
             background: #2563eb;
         }
+
+        .debug-console-mouse-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .debug-console-mouse-checkbox {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+            accent-color: #3b82f6;
+        }
+
+        .ui-panel-draggable {
+            cursor: move;
+            user-select: none;
+        }
+
+        .ui-panel-draggable:active {
+            cursor: grabbing;
+        }
+
+        .minimap-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+        }
+
+        .minimap-header {
+            background: #f3f4f6;
+            padding: 6px 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .minimap-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .minimap-content {
+            padding: 8px;
+        }
+
+        .minimap-canvas {
+            width: 200px;
+            height: 200px;
+            background-color: #f9fafb;
+            background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
+            background-size: 4px 4px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .minimap-viewport {
+            position: absolute;
+            border: 2px solid #2563eb;
+            background-color: rgba(37, 99, 235, 0.1);
+            pointer-events: auto;
+            cursor: move;
+            z-index: 2;
+        }
+
+        .minimap-viewport:hover {
+            border-color: #1d4ed8;
+            background-color: rgba(29, 78, 216, 0.15);
+        }
+
+        .zoom-control-content {
+            padding: 8px;
+        }
+
+        .zoom-buttons {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .zoom-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            color: #374151;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zoom-btn:hover {
+            background: #f3f4f6;
+            border-color: #d1d5db;
+        }
+
+        .zoom-btn:active {
+            background: #e5e7eb;
+            transform: scale(0.95);
+        }
+
+        .zoom-slider-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .zoom-slider {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #e5e7eb;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .zoom-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .zoom-slider::-moz-range-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .zoom-slider::-webkit-slider-runnable-track {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+
+        .zoom-slider::-moz-range-track {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+
+        .zoom-value {
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+            min-width: 42px;
+            text-align: center;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .zoom-value:hover {
+            background: #f3f4f6;
+            color: #3b82f6;
+        }
+
+        .zoom-reset-btn {
+            display: none;
+        }
+
+        .toolbar-upload-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            border: 3px solid white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .toolbar-upload-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .toolbar-upload-btn:active {
+            transform: scale(0.95);
+        }
+
+        .toolbar-icon {
+            font-size: 32px;
+            font-weight: 300;
+            color: white;
+            line-height: 1;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .minimap-image {
+            position: absolute;
+            background: #10b981;
+            border: 1px solid #059669;
+            border-radius: 2px;
+            pointer-events: none;
+        }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen text-gray-800">
+<body class="bg-gray-50 min-h-screen text-gray-800 overflow-hidden">
 
-    <div class="w-full mx-auto py-12 px-4">
-        <header class="mb-10 text-center">
-            <h1 class="text-3xl font-bold text-gray-900">Nano Generator</h1>
-        </header>
-
-        <main class="flex gap-6 w-full">
-            <div class="glass-card rounded-2xl p-6 shadow-sm min-h-[200px] w-[70%] flex flex-col">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">返回结果 (Response)</h2>
-                    <div class="flex items-center gap-2">
-                        <span id="statusTag" class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-500">等待中</span>
-                        <button id="resetCanvasBtn" class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-600 hover:bg-blue-200">重置画布</button>
-                    </div>
+    <!-- 全屏画布层 -->
+    <div id="canvasLayer" class="fixed inset-0 z-0">
+        <div id="canvasViewport" class="w-full h-full">
+            <div id="canvas" class="absolute origin-center transition-transform duration-75 ease-out" style="width: 10000px; height: 10000px; left: 0px; top: 0px;">
+                <!-- 调试网格 -->
+                <div id="debugGrid" class="absolute inset-0 pointer-events-none hidden">
+                    <svg width="10000" height="10000" viewBox="0 0 10000 10000" xmlns="http://www.w3.org/2000/svg" id="debugGridSvg">
+                    </svg>
                 </div>
-                <div id="canvasViewport" class="flex-1 relative overflow-hidden bg-gray-50 border border-gray-200 rounded-lg min-h-[400px]">
-                    <div id="canvas" class="absolute origin-center transition-transform duration-75 ease-out" style="width: 2000px; height: 2000px; left: -750px; top: -750px;">
-                        <div id="responseOutput" class="whitespace-pre-wrap text-gray-700 leading-relaxed italic text-gray-400 p-4">
-                            内容将在此处显示...
-                        </div>
-                        <div id="imageResponseContainer">
-                        </div>
-                    </div>
+                <div id="responseOutput" class="whitespace-pre-wrap text-gray-700 leading-relaxed italic text-gray-400 p-4">
+                    内容将在此处显示...
+                </div>
+                <div id="imageResponseContainer">
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="flex-1 space-y-6 w-[30%]">
-                <div class="glass-card rounded-2xl p-6 shadow-sm">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2">
-                            <label class="block text-sm font-medium text-gray-700">API Key</label>
-                            <a href="https://aistudio.google.com/api-keys" target="_blank" class="text-xs text-blue-600 hover:text-blue-700 underline">获取 API Key</a>
-                        </div>
+    <!-- UI悬浮层 -->
+    <div id="uiLayer" class="fixed inset-0 z-10 pointer-events-none">
+        <!-- 标题 -->
+        <header class="pointer-events-auto absolute top-4 left-4 flex items-center gap-3">
+            <img src="logo.svg" alt="Nano Generator Logo" class="w-12 h-12">
+            <h1 class="text-2xl font-bold text-gray-900">Nano Generator</h1>
+        </header>
+
+        <!-- 可拖动的UI面板 -->
+        <div id="uiPanel" class="pointer-events-auto absolute top-16 right-4 w-[400px] max-w-[90vw] max-h-[calc(100vh-80px)] overflow-y-auto">
+            <div class="glass-card rounded-2xl p-6 shadow-sm mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-medium text-gray-700">API Key</label>
+                    <div class="flex items-center gap-2">
+                        <a href="https://aistudio.google.com/api-keys" target="_blank" class="text-xs text-blue-600 hover:text-blue-700 underline">获取 API Key</a>
                         <button id="toggleApiKeyPanel" class="text-sm text-blue-600 hover:text-blue-700">折叠</button>
                     </div>
-                    <div id="apiKeyPanel">
+                </div>
+                <div id="apiKeyPanel">
                         <div class="flex gap-3">
                             <input type="text" id="apiKeyInput" 
                                 class="flex-1 p-4 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
@@ -679,14 +1030,17 @@
                         
                         <div class="mt-4 flex justify-between items-center">
                             <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" id="imageGenMode" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <input type="checkbox" id="imageGenMode" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
                                 <span class="text-gray-700 font-medium">生图模式</span>
                             </label>
-                            <button id="sendBtn" 
-                                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors shadow-sm flex items-center gap-2">
-                                <span>发送</span>
-                                <div id="loader" class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                            </button>
+                            <div class="flex items-center gap-3">
+                                <span id="statusTag" class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600">就绪</span>
+                                <button id="sendBtn" 
+                                    class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors shadow-sm flex items-center gap-2">
+                                    <span>发送</span>
+                                    <div id="loader" class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                                </button>
+                            </div>
                         </div>
 
                         <div id="imageGenOptions" class="mt-4">
@@ -696,10 +1050,10 @@
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">宽高比</label>
-                                        <select id="aspectRatio" 
+                                        <select id="aspectRatio"
                                             class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
-                                            <option value="1:1">1:1 正方形</option>
-                                            <option value="16:9" selected>16:9 宽屏</option>
+                                            <option value="1:1" selected>1:1 正方形</option>
+                                            <option value="16:9">16:9 宽屏</option>
                                             <option value="9:16">9:16 竖屏</option>
                                             <option value="21:9">21:9 超宽屏</option>
                                             <option value="4:3">4:3 传统横向</option>
@@ -750,20 +1104,104 @@
                     </div>
                 </div>
             </div>
-        </main>
+        </div>
+
+        <!-- 调试控制台 -->
+        <div id="debugConsole" class="debug-console collapsed pointer-events-auto">
+            <div class="debug-console-header">
+                <span class="debug-console-title">调试控制台面板</span>
+                <span class="debug-console-toggle">▼</span>
+            </div>
+            <div class="debug-console-content" id="debugConsoleContent">
+            </div>
+            <div class="debug-console-footer">
+                <div class="debug-console-footer-left">
+                    <label class="debug-console-mouse-label">
+                        <input type="checkbox" id="debugConsoleToggleMouse" class="debug-console-mouse-checkbox">
+                        <span>显示鼠标日志</span>
+                    </label>
+                </div>
+                <div class="debug-console-footer-right">
+                    <button class="debug-console-clear" id="debugConsoleClear">清空</button>
+                    <label class="debug-console-mouse-label">
+                        <input type="checkbox" id="debugConsoleToggleMarker" class="debug-console-mouse-checkbox">
+                        <span>中心标记</span>
+                    </label>
+                    <label class="debug-console-mouse-label">
+                        <input type="checkbox" id="debugConsoleToggleCoords" class="debug-console-mouse-checkbox">
+                        <span>图片坐标</span>
+                    </label>
+                    <label class="debug-console-mouse-label">
+                        <input type="checkbox" id="debugConsoleToggleGrid" class="debug-console-mouse-checkbox">
+                        <span>调试网格</span>
+                    </label>
+                    <label class="debug-console-mouse-label">
+                        <input type="checkbox" id="debugConsoleToggleSample" class="debug-console-mouse-checkbox">
+                        <span>样例图片</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 画布缩略图 -->
+        <div id="canvasMinimap" class="fixed bottom-32 left-4 z-20 pointer-events-auto">
+            <div class="minimap-container">
+                <div class="minimap-header">
+                    <span class="minimap-title">画布导航</span>
+                </div>
+                <div id="minimapContent" class="minimap-content">
+                    <div id="minimapCanvas" class="minimap-canvas">
+                        <div id="minimapViewport" class="minimap-viewport"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 画布缩放控制 -->
+        <div id="canvasZoomControl" class="fixed bottom-96 left-4 z-20 pointer-events-auto">
+            <div class="minimap-container">
+                <div class="minimap-header">
+                    <span class="minimap-title">画布缩放</span>
+                </div>
+                <div class="zoom-control-content">
+                    <div class="zoom-buttons">
+                        <button id="zoomOutBtn" class="zoom-btn" title="缩小 (Ctrl+-)">−</button>
+                        <div class="zoom-slider-container">
+                            <input type="range" id="zoomSlider" class="zoom-slider" min="50" max="250" step="25" value="100">
+                        </div>
+                        <span id="zoomValue" class="zoom-value" title="点击重置为100%">100%</span>
+                        <button id="zoomInBtn" class="zoom-btn" title="放大 (Ctrl+=)">+</button>
+                        <button id="zoomResetBtn" class="zoom-btn" title="重置缩放">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                <path d="M3 3v5h5"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 迷你工具栏 -->
+        <div id="miniToolbar" class="fixed bottom-16 left-1/2 transform -translate-x-1/2 z-20 pointer-events-auto">
+            <button id="uploadImageBtn" class="toolbar-upload-btn">
+                <svg class="toolbar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+            </button>
+            <input type="file" id="imageUploadInput" accept="image/*" class="hidden">
+        </div>
+        
+        <!-- 画布中心标记 -->
+        <div id="canvasCenterMarker" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none">
+            <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+            <div class="text-xs text-red-500 mt-2 whitespace-nowrap">中心坐标: 计算中...</div>
+        </div>
     </div>
 
-    <div id="debugConsole" class="debug-console">
-        <div class="debug-console-header">
-            <span class="debug-console-title">调试控制台</span>
-            <span class="debug-console-toggle">▼</span>
-        </div>
-        <div class="debug-console-content" id="debugConsoleContent">
-            <button class="debug-console-clear" id="debugConsoleClear">清空</button>
-        </div>
-    </div>
-
-    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-90 hidden items-center justify-center z-50 p-4">
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-90 hidden items-center justify-center z-[1000] p-4">
         <div class="bg-white rounded-2xl p-6 max-w-[95vw] max-h-[95vh] w-full shadow-2xl flex flex-col">
             <div class="flex justify-between items-center mb-4 flex-shrink-0">
                 <h3 class="text-lg font-semibold text-gray-900">图片预览</h3>
@@ -776,6 +1214,26 @@
                 <button id="openFolderBtn" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">打开文件夹</button>
                 <button id="closeModalBtn2" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">关闭</button>
                 <button id="downloadModalBtn" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">下载</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[1100] p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div class="flex items-center mb-4">
+                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                    <span class="text-red-600 text-xl">⚠️</span>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">确认删除</h3>
+            </div>
+            <p class="text-gray-600 mb-4" id="confirmModalMessage">确定要删除这张图片吗？</p>
+            <div class="flex items-center mb-6">
+                <input type="checkbox" id="confirmModalCheckbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                <label for="confirmModalCheckbox" class="ml-2 text-sm text-gray-600">不再提醒</label>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button id="confirmModalCancel" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">取消</button>
+                <button id="confirmModalOk" class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">删除</button>
             </div>
         </div>
     </div>
@@ -814,6 +1272,8 @@
         const visionModelName = document.getElementById('visionModelName');
         const imageModelName = document.getElementById('imageModelName');
         const imageModal = document.getElementById('imageModal');
+        
+        let activeRequests = 0;
         const modalImage = document.getElementById('modalImage');
         const closeModalBtn = document.getElementById('closeModalBtn');
         const closeModalBtn2 = document.getElementById('closeModalBtn2');
@@ -829,26 +1289,78 @@
         const debugConsole = document.getElementById('debugConsole');
         const debugConsoleContent = document.getElementById('debugConsoleContent');
         const debugConsoleClear = document.getElementById('debugConsoleClear');
+        const debugConsoleHeader = document.querySelector('.debug-console-header');
+        const uiPanel = document.getElementById('uiPanel');
+        const canvasMinimap = document.getElementById('canvasMinimap');
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        const minimapViewport = document.getElementById('minimapViewport');
+        const uploadImageBtn = document.getElementById('uploadImageBtn');
+        const imageUploadInput = document.getElementById('imageUploadInput');
+        const canvasZoomControl = document.getElementById('canvasZoomControl');
+        const zoomSlider = document.getElementById('zoomSlider');
+        const zoomValue = document.getElementById('zoomValue');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomResetBtn = document.getElementById('zoomResetBtn');
+        
+        let showMouseLogs = false;
         let currentBlobUrl = null;
         let panzoom = null;
         let selectedNode = null;
         let nodeCounter = 0;
         let pinCounter = 0;
         let imagePins = new Map();
-        let isMiddleMouseDown = false;
-        let lastMouseX = 0;
-        let lastMouseY = 0;
-        let panX = -750;
-        let panY = -750;
-        let isDraggingNode = false;
-        let dragNode = null;
-        let dragStartX = 0;
-        let dragStartY = 0;
-        let dragNodeStartLeft = 0;
-        let dragNodeStartTop = 0;
-        let isResizingNode = false;
-        let resizeStart = { x: 0, y: 0, width: 0, height: 0 };
-        let resizeNode = null;
+        let isDraggingUIPanel = false;
+        let uiPanelStartX = 0;
+        let uiPanelStartY = 0;
+        let uiPanelStartLeft = 0;
+        let uiPanelStartTop = 0;
+        let isDraggingMinimapViewport = false;
+        let minimapDragStartX = 0;
+        let minimapDragStartY = 0;
+        let minimapPanStartX = 0;
+        let minimapPanStartY = 0;
+        // 应用状态管理
+        const AppState = {
+            mode: 'VIEW', // VIEW, DRAGGING_NODE, SELECTING_AREA
+            activeNode: null,
+            scale: 1,
+            isDraggingNode: false,
+            dragNode: null,
+            dragStartX: 0,
+            dragStartY: 0,
+            dragNodeStartLeft: 0,
+            dragNodeStartTop: 0,
+            isMiddleMouseDown: false,
+            lastMouseX: 0,
+            lastMouseY: 0,
+            panX: 0,
+            panY: 0,
+            isResizingNode: false,
+            resizeStart: { x: 0, y: 0, width: 0, height: 0 },
+            resizeNode: null,
+            // 使用 Map 存储节点数据，方便后期同步到后端
+            nodes: new Map(),
+            
+            // 更新缩放比例
+            updateScale: function(newScale) {
+                this.scale = newScale;
+                if (showMouseLogs) {
+                    debugLog(`[状态更新] 缩放比例: ${newScale}`, 'info');
+                }
+            },
+            
+            // 重置状态
+            reset: function() {
+                this.mode = 'VIEW';
+                this.activeNode = null;
+                this.isDraggingNode = false;
+                this.dragNode = null;
+                this.isMiddleMouseDown = false;
+                this.isResizingNode = false;
+                this.resizeNode = null;
+            }
+        };
 
         function debugLog(message, type = 'info') {
             const logEntry = document.createElement('div');
@@ -863,20 +1375,36 @@
             messageSpan.className = 'message';
             messageSpan.textContent = message;
             
+            const copyIcon = document.createElement('span');
+            copyIcon.className = 'debug-log-copy';
+            copyIcon.innerHTML = '📋';
+            copyIcon.title = '复制';
+            copyIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(message).then(() => {
+                    copyIcon.textContent = '✓';
+                    setTimeout(() => {
+                        copyIcon.textContent = '📋';
+                    }, 1000);
+                });
+            });
+            
             logEntry.appendChild(timestamp);
             logEntry.appendChild(messageSpan);
-            debugConsoleContent.insertBefore(logEntry, debugConsoleContent.firstChild.nextSibling);
+            logEntry.appendChild(copyIcon);
+            debugConsoleContent.appendChild(logEntry);
+            debugConsoleContent.scrollTop = debugConsoleContent.scrollHeight;
             
             const maxLogs = 100;
             const logs = debugConsoleContent.querySelectorAll('.debug-log');
             if (logs.length > maxLogs) {
-                for (let i = maxLogs; i < logs.length; i++) {
+                for (let i = 0; i < logs.length - maxLogs; i++) {
                     logs[i].remove();
                 }
             }
         }
 
-        debugConsole.addEventListener('click', () => {
+        debugConsoleHeader.addEventListener('click', () => {
             debugConsole.classList.toggle('collapsed');
         });
 
@@ -886,20 +1414,93 @@
             logs.forEach(log => log.remove());
         });
 
+        const debugConsoleToggleMarker = document.getElementById('debugConsoleToggleMarker');
+        const canvasCenterMarker = document.getElementById('canvasCenterMarker');
+        
+        canvasCenterMarker.classList.add('hidden');
+        
+        debugConsoleToggleMarker.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                canvasCenterMarker.classList.remove('hidden');
+            } else {
+                canvasCenterMarker.classList.add('hidden');
+            }
+        });
+        
+        const debugConsoleToggleCoords = document.getElementById('debugConsoleToggleCoords');
+        
+        const allCoordsElements = document.querySelectorAll('.node-center-coords');
+        allCoordsElements.forEach(element => {
+            element.style.display = 'none';
+        });
+        
+        debugConsoleToggleCoords.addEventListener('change', (e) => {
+            const allCoordsElements = document.querySelectorAll('.node-center-coords');
+            allCoordsElements.forEach(element => {
+                if (e.target.checked) {
+                    element.style.display = 'block';
+                } else {
+                    element.style.display = 'none';
+                }
+            });
+        });
+        
+        const debugConsoleToggleGrid = document.getElementById('debugConsoleToggleGrid');
+        const debugGrid = document.getElementById('debugGrid');
+        
+        debugGrid.classList.add('hidden');
+        
+        debugConsoleToggleGrid.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                debugGrid.classList.remove('hidden');
+            } else {
+                debugGrid.classList.add('hidden');
+            }
+        });
+        
+        const debugConsoleToggleSample = document.getElementById('debugConsoleToggleSample');
+        let sampleImageNode = null;
+        
+        debugConsoleToggleSample.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                if (!sampleImageNode) {
+                    sampleImageNode = imageResponseContainer.querySelector('[data-filename="sample_image.png"]');
+                    if (!sampleImageNode) {
+                        addSampleImage();
+                        sampleImageNode = imageResponseContainer.querySelector('[data-filename="sample_image.png"]');
+                    }
+                }
+                if (sampleImageNode) {
+                    sampleImageNode.classList.remove('hidden');
+                }
+            } else {
+                sampleImageNode = imageResponseContainer.querySelector('[data-filename="sample_image.png"]');
+                if (sampleImageNode) {
+                    sampleImageNode.classList.add('hidden');
+                }
+            }
+        });
+        
+        const debugConsoleToggleMouse = document.getElementById('debugConsoleToggleMouse');
+        
+        debugConsoleToggleMouse.addEventListener('change', (e) => {
+            showMouseLogs = e.target.checked;
+            debugLog(`[鼠标日志] ${showMouseLogs ? '启用' : '禁用'}`, 'info');
+        });
+
         function maskApiKey(apiKey) {
             if (!apiKey || apiKey.length < 6) return apiKey;
             return apiKey.substring(0, 3) + '*'.repeat(apiKey.length - 6) + apiKey.substring(apiKey.length - 3);
         }
 
         function updateApiKeyDisplay() {
-            const apiKey = apiKeyInput.value;
+            const apiKey = CONFIG.API_KEY;
             if (apiKey) {
                 apiKeyInput.value = maskApiKey(apiKey);
             }
         }
 
-        apiKeyInput.value = CONFIG.API_KEY;
-        updateApiKeyDisplay();
+        apiKeyInput.value = CONFIG.API_KEY ? maskApiKey(CONFIG.API_KEY) : '';
 
         apiKeyInput.addEventListener('focus', () => {
             apiKeyInput.value = CONFIG.API_KEY;
@@ -940,6 +1541,53 @@
             }
         });
 
+        // UI面板拖动功能
+        uiPanel.addEventListener('mousedown', (e) => {
+            const target = e.target;
+            // 排除交互元素：按钮、输入框、选择框、contenteditable元素、滚动条
+            const isInteractiveElement = target.closest('button') || 
+                                       target.closest('input') || 
+                                       target.closest('select') || 
+                                       target.closest('textarea') ||
+                                       target.closest('[contenteditable="true"]') ||
+                                       target.closest('.debug-console-content');
+            
+            if (target.closest('.pointer-events-auto') && !isInteractiveElement) {
+                isDraggingUIPanel = true;
+                uiPanelStartX = e.clientX;
+                uiPanelStartY = e.clientY;
+                uiPanelStartLeft = parseInt(uiPanel.style.left) || parseInt(getComputedStyle(uiPanel).left);
+                uiPanelStartTop = parseInt(uiPanel.style.top) || parseInt(getComputedStyle(uiPanel).top);
+                uiPanel.classList.add('ui-panel-draggable');
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDraggingUIPanel) {
+                const deltaX = e.clientX - uiPanelStartX;
+                const deltaY = e.clientY - uiPanelStartY;
+                const newLeft = uiPanelStartLeft + deltaX;
+                const newTop = uiPanelStartTop + deltaY;
+                
+                // 限制面板不超出屏幕边界
+                const maxLeft = window.innerWidth - uiPanel.offsetWidth;
+                const maxTop = window.innerHeight - uiPanel.offsetHeight;
+                const clampedLeft = Math.max(0, Math.min(newLeft, maxLeft));
+                const clampedTop = Math.max(0, Math.min(newTop, maxTop));
+                
+                uiPanel.style.left = `${clampedLeft}px`;
+                uiPanel.style.top = `${clampedTop}px`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDraggingUIPanel) {
+                isDraggingUIPanel = false;
+                uiPanel.classList.remove('ui-panel-draggable');
+            }
+        });
+
         function initCanvas() {
             console.log('Initializing canvas...');
             console.log('Canvas element:', canvas);
@@ -950,35 +1598,97 @@
                 return;
             }
             
+            // 计算初始位置，让画布中心(5000, 5000)对准视口中心
+            const uiPanel = document.getElementById('uiPanel');
+            const uiPanelWidth = uiPanel ? uiPanel.offsetWidth : 400;
+            const viewportWidth = window.innerWidth - uiPanelWidth;
+            const viewportHeight = window.innerHeight;
+            const startX = viewportWidth / 2 - 5000;
+            const startY = viewportHeight / 2 - 5000;
+            
             panzoom = Panzoom(canvas, {
-                maxScale: 3,
-                minScale: 0.3,
-                step: 0.1,
-                disablePan: true,
-                disableZoom: false
+                maxScale: 2.5,
+                minScale: 0.5,
+                step: 0.25,
+                disablePan: false,
+                disableZoom: false,
+                excludeClass: 'canvas-node',
+                canvas: true,
+                noBind: false,
+                startX: startX,
+                startY: startY,
+                setTransform: (el, { x, y, scale }) => {
+                    el.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+                    
+                    AppState.panX = x;
+                    AppState.panY = y;
+                    AppState.scale = scale;
+                    
+                    updateMinimapViewport();
+                    updateCenterMarkerCoordinates();
+                }
             });
             
-            isMiddleMouseDown = false;
-            lastMouseX = 0;
-            lastMouseY = 0;
-            panX = -750;
-            panY = -750;
-            
             const scale = panzoom.getScale();
-            canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            AppState.updateScale(scale);
+            AppState.panX = startX;
+            AppState.panY = startY;
+            
+            // 紧接着手动触发一次 UI 更新
+            setTimeout(() => {
+                updateCenterMarkerCoordinates();
+                updateMinimapViewport();
+            }, 0);
+            
+            // 生成调试网格
+            generateDebugGrid();
             
             canvasViewport.style.cursor = 'default';
             canvas.style.cursor = 'default';
             
+            // 监听缩放事件，实时更新状态
+            canvas.addEventListener('panzoomzoom', (e) => {
+                const newScale = e.detail.scale;
+                AppState.updateScale(newScale);
+                
+                // 同步更新滑块和缩放值显示
+                zoomSlider.value = Math.round(newScale * 100);
+                zoomValue.textContent = `${Math.round(newScale * 100)}%`;
+                
+                updateMinimapViewport();
+                updateCenterMarkerCoordinates();
+                if (!debugConsole.contains(e.target) && showMouseLogs) {
+                    debugLog(`[缩放事件] 新缩放比例: ${newScale}`, 'event');
+                }
+            });
+            
+            // 监听平移事件，实时更新坐标
+            canvas.addEventListener('panzoompan', (e) => {
+                const panX = e.detail.x;
+                const panY = e.detail.y;
+                AppState.panX = panX;
+                AppState.panY = panY;
+                updateMinimapViewport();
+                updateCenterMarkerCoordinates();
+                if (!debugConsole.contains(e.target) && showMouseLogs) {
+                    debugLog(`[平移事件] panX=${panX}, panY=${panY}`, 'event');
+                }
+            });
+            
             canvasViewport.addEventListener('mousedown', (e) => {
-                debugLog(`[鼠标按下] 画布视口: button=${e.button}, clientX=${e.clientX}, clientY=${e.clientY}`, 'event');
+                if (debugConsole.contains(e.target)) return;
+                if (showMouseLogs) {
+                    debugLog(`[鼠标按下] 画布视口: button=${e.button}, clientX=${e.clientX}, clientY=${e.clientY}`, 'event');
+                }
                 if (e.button === 1) {
                     e.preventDefault();
-                    isMiddleMouseDown = true;
-                    lastMouseX = e.clientX;
-                    lastMouseY = e.clientY;
+                    AppState.isMiddleMouseDown = true;
+                    AppState.lastMouseX = e.clientX;
+                    AppState.lastMouseY = e.clientY;
                     canvasViewport.style.cursor = 'grabbing';
-                    debugLog(`[开始拖动] 画布: isMiddleMouseDown=${isMiddleMouseDown}`, 'info');
+                    if (showMouseLogs) {
+                        debugLog(`[开始拖动] 画布: isMiddleMouseDown=${AppState.isMiddleMouseDown}`, 'info');
+                    }
                 } else {
                     canvasViewport.style.cursor = 'default';
                 }
@@ -989,98 +1699,466 @@
                 canvas.style.cursor = 'default';
             });
             
+            canvasViewport.addEventListener('mouseup', (e) => {
+                if (showMouseLogs) {
+                    debugLog(`[鼠标释放] 画布视口: button=${e.button}, clientX=${e.clientX}, clientY=${e.clientY}`, 'event');
+                }
+                if (e.button === 1) {
+                    AppState.isMiddleMouseDown = false;
+                    canvasViewport.style.cursor = 'default';
+                    if (showMouseLogs) {
+                        debugLog(`[停止拖动] 画布: isMiddleMouseDown=${AppState.isMiddleMouseDown}`, 'info');
+                    }
+                }
+            });
+            
             canvasViewport.addEventListener('mouseleave', () => {
+                AppState.isMiddleMouseDown = false;
                 canvasViewport.style.cursor = '';
                 canvas.style.cursor = '';
             });
             
             canvasViewport.addEventListener('contextmenu', (e) => {
+                // 检查是否点击在图片节点上，如果是则不显示画布菜单
+                const targetNode = e.target.closest('.canvas-node');
+                if (targetNode) {
+                    return; // 让事件继续传播到图片节点的事件监听器
+                }
+                
                 e.preventDefault();
+                
+                const existingMenu = document.querySelector('.context-menu');
+                if (existingMenu) {
+                    existingMenu.remove();
+                }
+                
+                const menu = document.createElement('div');
+                menu.className = 'context-menu';
+                menu.style.left = `${e.clientX}px`;
+                menu.style.top = `${e.clientY}px`;
+                
+                const centerItem = document.createElement('div');
+                centerItem.className = 'context-menu-item';
+                centerItem.textContent = '回到中心';
+                centerItem.addEventListener('click', () => {
+                    resetCanvas();
+                    menu.remove();
+                });
+                
+                menu.appendChild(centerItem);
+                document.body.appendChild(menu);
+                
+                const closeMenu = () => {
+                    menu.remove();
+                    document.removeEventListener('click', closeMenu);
+                };
+                
+                setTimeout(() => {
+                    document.addEventListener('click', closeMenu);
+                }, 0);
             });
             
-            resetCanvasBtn.addEventListener('click', resetCanvas);
+            if (resetCanvasBtn) {
+                resetCanvasBtn.addEventListener('click', resetCanvas);
+            }
+            
+            initMinimap();
             console.log('Canvas initialized successfully');
+        }
+
+        // 生成调试网格
+        function generateDebugGrid() {
+            const svg = document.getElementById('debugGridSvg');
+            if (!svg) return;
+            
+            let svgContent = '';
+            
+            // 生成网格线
+            for (let i = 0; i <= 100; i++) {
+                const pos = i * 100;
+                // 垂直线
+                svgContent += `<line x1="${pos}" y1="0" x2="${pos}" y2="10000" stroke="#00ff00" stroke-width="1" stroke-opacity="0.2"/>`;
+                // 水平线
+                svgContent += `<line x1="0" y1="${pos}" x2="10000" y2="${pos}" stroke="#00ff00" stroke-width="1" stroke-opacity="0.2"/>`;
+            }
+            
+            // 生成网格文字（每个格子中心）
+            for (let row = 1; row <= 100; row++) {
+                for (let col = 1; col <= 100; col++) {
+                    const x = (col - 1) * 100 + 50;
+                    const y = (row - 1) * 100 + 50;
+                    svgContent += `<text x="${x}" y="${y}" font-size="12" text-anchor="middle" dominant-baseline="middle" fill="#00ff00" fill-opacity="0.5">${row}.${col}</text>`;
+                }
+            }
+            
+            svg.innerHTML = svgContent;
         }
 
         function resetCanvas() {
             if (panzoom) {
                 panzoom.reset();
-                panX = -750;
-                panY = -750;
-                const scale = panzoom.getScale();
-                canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+                refreshUI();
             }
         }
 
-        document.addEventListener('mousemove', (e) => {
-            if (isDraggingNode && dragNode) {
-                const deltaX = e.clientX - dragStartX;
-                const deltaY = e.clientY - dragStartY;
-                
-                const newLeft = dragNodeStartLeft + deltaX;
-                const newTop = dragNodeStartTop + deltaY;
-                
-                dragNode.style.left = `${newLeft}px`;
-                dragNode.style.top = `${newTop}px`;
-                
-                debugLog(`拖动图片: delta=(${deltaX},${deltaY}), newPos=(${newLeft},${newTop})`, 'event');
+        // 简单的UI刷新函数
+        function refreshUI() {
+            updateCenterMarkerCoordinates();
+            updateMinimapViewport();
+        }
+
+        // 更新中心标记的坐标显示
+        function updateCenterMarkerCoordinates() {
+            const centerMarker = document.getElementById('canvasCenterMarker');
+            if (!centerMarker) return;
+            
+            // 计算视口中心坐标，考虑右侧面板补偿
+            const uiPanel = document.getElementById('uiPanel');
+            const uiPanelWidth = uiPanel ? uiPanel.offsetWidth : 400;
+            const viewportCenterX = (window.innerWidth - uiPanelWidth) / 2;
+            const viewportCenterY = window.innerHeight / 2;
+            
+            // 修正后的公式：(视口中心相对于画布左上角的绝对位置)
+            const scale = panzoom.getScale();
+            const displayX = Math.round((viewportCenterX - AppState.panX) / scale);
+            const displayY = Math.round((viewportCenterY - AppState.panY) / scale);
+            
+            // 更新坐标显示
+            const coordText = centerMarker.querySelector('div:nth-child(2)');
+            if (coordText) {
+                coordText.textContent = `中心坐标: (${displayX}, ${displayY})`;
+            }
+        }
+        
+        function updateImageCenterCoordinates(node) {
+            if (!node) return;
+            
+            // 获取图片位置和尺寸
+            const left = parseInt(node.style.left) || 0;
+            const top = parseInt(node.style.top) || 0;
+            const width = parseInt(node.dataset.width) || 500;
+            const height = parseInt(node.dataset.height) || 500;
+            
+            // 计算中心坐标
+            const centerX = Math.round(left + width / 2);
+            const centerY = Math.round(top + height / 2);
+            
+            // 更新坐标显示
+            const coordsElement = node.querySelector('.node-center-coords');
+            if (coordsElement) {
+                coordsElement.textContent = `(${centerX}, ${centerY})`;
+            }
+        }
+
+        function updateMinimapViewport() {
+            const ratio = 200 / 10000;
+            const viewportBox = document.getElementById('minimapViewport');
+            const uiPanel = document.getElementById('uiPanel');
+            const uiPanelWidth = uiPanel ? uiPanel.offsetWidth : 400;
+
+            if (!viewportBox || typeof AppState.panX === 'undefined') return;
+
+            // 1. 物理视口宽高
+            const vW_phys = window.innerWidth - uiPanelWidth;
+            const vH_phys = window.innerHeight;
+
+            // 2. 蓝框大小 (正比于物理视口，反比于缩放倍数)
+            const vW_minimap = (vW_phys / AppState.scale) * ratio;
+            const vH_minimap = (vH_phys / AppState.scale) * ratio;
+
+            // 3. 【核心修复】计算当前屏幕正中心，在 10000x10000 逻辑画布上的绝对坐标
+            // 公式：中心基准 5000 + (物理中心点 - 中心原准点 5000 - 物理偏移) / 缩放倍数
+            const logicCenterX = 5000 + (vW_phys / 2 - 5000 - AppState.panX) / AppState.scale;
+            const logicCenterY = 5000 + (vH_phys / 2 - 5000 - AppState.panY) / AppState.scale;
+
+            // 4. 将逻辑中心映射到缩略图，并减去蓝框自身的一半，实现完美居中
+            const minimapCenterX = logicCenterX * ratio;
+            const minimapCenterY = logicCenterY * ratio;
+
+            viewportBox.style.width = `${vW_minimap}px`;
+            viewportBox.style.height = `${vH_minimap}px`;
+            viewportBox.style.left = `${minimapCenterX - vW_minimap / 2}px`;
+            viewportBox.style.top = `${minimapCenterY - vH_minimap / 2}px`;
+        }
+
+        function updateMinimapWithImage(node) {
+            const minimapScale = 200 / 10000;
+            const img = node.querySelector('img');
+            
+            if (!img) {
+                return;
             }
             
-            if (isMiddleMouseDown && !isDraggingNode) {
-                const deltaX = e.clientX - lastMouseX;
-                const deltaY = e.clientY - lastMouseY;
+            if (!img.complete) {
+                img.onload = () => updateMinimapWithImage(node);
+                return;
+            }
+            
+            const nodeLeft = parseInt(node.style.left) || 0;
+            const nodeTop = parseInt(node.style.top) || 0;
+            const nodeWidth = img.offsetWidth || parseInt(img.style.width) || 200;
+            const nodeHeight = img.offsetHeight || parseInt(img.style.height) || 200;
+            
+            // 画布的(5000, 5000)对应缩略图的(100, 100)
+            const minimapLeft = 100 + (nodeLeft - 5000) * minimapScale;
+            const minimapTop = 100 + (nodeTop - 5000) * minimapScale;
+            const minimapWidth = nodeWidth * minimapScale;
+            const minimapHeight = nodeHeight * minimapScale;
+            
+            let minimapImage = minimapCanvas.querySelector(`[data-node-id="${node.dataset.index}"]`);
+            
+            if (!minimapImage) {
+                minimapImage = document.createElement('div');
+                minimapImage.className = 'minimap-image';
+                minimapImage.dataset.nodeId = node.dataset.index;
+                minimapImage.style.zIndex = '1';
+                minimapCanvas.appendChild(minimapImage);
+            }
+            
+            minimapImage.style.left = `${minimapLeft}px`;
+            minimapImage.style.top = `${minimapTop}px`;
+            minimapImage.style.width = `${minimapWidth}px`;
+            minimapImage.style.height = `${minimapHeight}px`;
+        }
+
+        function updateAllMinimapImages() {
+            const nodes = imageResponseContainer.querySelectorAll('.canvas-node');
+            nodes.forEach(node => {
+                updateMinimapWithImage(node);
+            });
+        }
+
+        function initMinimap() {
+            updateMinimapViewport();
+            updateAllMinimapImages();
+            
+            // 修复 1：点击缩略图跳转逻辑
+            minimapCanvas.addEventListener('click', (e) => {
+                if (e.target === minimapViewport) return;
                 
-                panX += deltaX;
-                panY += deltaY;
+                const rect = minimapCanvas.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
                 
+                const minimapScale = 200 / 10000;
                 const scale = panzoom.getScale();
-                canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
                 
-                lastMouseX = e.clientX;
-                lastMouseY = e.clientY;
+                const targetLogicX = clickX / minimapScale;
+                const targetLogicY = clickY / minimapScale;
                 
-                if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
-                    debugLog(`画布拖动: deltaX=${deltaX}, deltaY=${deltaY}, panX=${panX}, panY=${panY}`, 'event');
+                const uiPanel = document.getElementById('uiPanel');
+                const uiPanelWidth = uiPanel ? uiPanel.offsetWidth : 400;
+                const vW_phys = window.innerWidth - uiPanelWidth;
+                const vH_phys = window.innerHeight;
+
+                // 【反向推导公式】算出要让该点居中，需要多少物理偏移
+                const newPanX = vW_phys / 2 - 5000 - (targetLogicX - 5000) * scale;
+                const newPanY = vH_phys / 2 - 5000 - (targetLogicY - 5000) * scale;
+                
+                // 交给 panzoom 处理，它会自动更新样式并触发 panzoompan 事件
+                panzoom.pan(newPanX, newPanY);
+            });
+            
+            minimapViewport.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                isDraggingMinimapViewport = true;
+                minimapDragStartX = e.clientX;
+                minimapDragStartY = e.clientY;
+                minimapPanStartX = AppState.panX;
+                minimapPanStartY = AppState.panY;
+            });
+            
+            // 修复 2：拖拽蓝框逻辑（修正正负号和乘除法）
+            document.addEventListener('mousemove', (e) => {
+                if (isDraggingMinimapViewport) {
+                    const deltaX = e.clientX - minimapDragStartX;
+                    const deltaY = e.clientY - minimapDragStartY;
+                    
+                    const minimapScale = 200 / 10000;
+                    const scale = panzoom.getScale();
+                    
+                    // 【核心修正】蓝框往右走(正)，代表视口往右，意味着画布必须往左退(负)！并且必须乘上 scale。
+                    const newPanX = minimapPanStartX - (deltaX / minimapScale) * scale;
+                    const newPanY = minimapPanStartY - (deltaY / minimapScale) * scale;
+                    
+                    panzoom.pan(newPanX, newPanY);
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                if (isDraggingMinimapViewport) {
+                    isDraggingMinimapViewport = false;
+                }
+            });
+        }
+
+        uploadImageBtn.addEventListener('click', () => {
+            imageUploadInput.click();
+        });
+
+        imageUploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const imageUrl = event.target.result;
+                    const node = createImageNode(imageUrl, file.name, nodeCounter++, file.name, '');
+                    imageResponseContainer.appendChild(node);
+                    debugLog(`[图片上传] 文件名: ${file.name}`, 'info');
+                };
+                reader.readAsDataURL(file);
+            }
+            imageUploadInput.value = '';
+        });
+
+        // 缩放控制事件
+        zoomSlider.addEventListener('input', (e) => {
+            const newScale = parseInt(e.target.value) / 100;
+            updateCanvasScale(newScale);
+        });
+
+        zoomOutBtn.addEventListener('click', () => {
+            const currentScale = panzoom.getScale();
+            const newScale = Math.max(0.5, currentScale - 0.25);
+            updateCanvasScale(newScale);
+        });
+
+        zoomInBtn.addEventListener('click', () => {
+            const currentScale = panzoom.getScale();
+            const newScale = Math.min(2.5, currentScale + 0.25);
+            updateCanvasScale(newScale);
+        });
+
+        zoomResetBtn.addEventListener('click', () => {
+            updateCanvasScale(1);
+        });
+
+        zoomValue.addEventListener('click', () => {
+            updateCanvasScale(1);
+        });
+
+        function updateCanvasScale(newScale) {
+            const uiPanel = document.getElementById('uiPanel');
+            const uiPanelWidth = uiPanel ? uiPanel.offsetWidth : 400;
+            
+            const focalX = (window.innerWidth - uiPanelWidth) / 2;
+            const focalY = window.innerHeight / 2;
+            
+            const focalPoint = { x: focalX, y: focalY };
+            
+            panzoom.zoom(newScale, { focalPoint, animate: true });
+            zoomSlider.value = Math.round(newScale * 100);
+            zoomValue.textContent = `${Math.round(newScale * 100)}%`;
+            debugLog(`[缩放] 新缩放: ${Math.round(newScale * 100)}%`, 'info');
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            if (AppState.isDraggingNode && AppState.dragNode) {
+                const scale = panzoom.getScale();
+                const deltaX = (e.clientX - AppState.dragStartX) / scale;
+                const deltaY = (e.clientY - AppState.dragStartY) / scale;
+                
+                const newLeft = AppState.dragNodeStartLeft + deltaX;
+                const newTop = AppState.dragNodeStartTop + deltaY;
+                
+                AppState.dragNode.style.left = `${newLeft}px`;
+                AppState.dragNode.style.top = `${newTop}px`;
+                
+                // 更新图片中心坐标
+                updateImageCenterCoordinates(AppState.dragNode);
+                
+                updateMinimapWithImage(AppState.dragNode);
+                
+                if (showMouseLogs) {
+                    debugLog(`拖动图片: delta=(${deltaX},${deltaY}), newPos=(${newLeft},${newTop}), scale=${scale}`, 'event');
                 }
             }
             
-            if (isResizingNode && resizeNode) {
-                const deltaX = e.clientX - resizeStart.x;
-                const deltaY = e.clientY - resizeStart.y;
-                const delta = Math.max(deltaX, deltaY);
+            if (AppState.isMiddleMouseDown && !AppState.isDraggingNode) {
+                const deltaX = e.clientX - AppState.lastMouseX;
+                const deltaY = e.clientY - AppState.lastMouseY;
                 
-                const aspectRatio = resizeStart.width / resizeStart.height;
-                let newWidth = resizeStart.width + delta;
-                let newHeight = resizeStart.height + delta;
+                const newPanX = AppState.panX + deltaX;
+                const newPanY = AppState.panY + deltaY;
+                
+                // 设置合理的边界限制，防止用户失手甩飞画布
+                // 画布尺寸是10000×10000，中心在(0,0)，所以边界是±5000
+                // 设置一个弹性边界±8000，允许一定的拖出范围
+                const minPanX = -8000;
+                const maxPanX = 8000;
+                const minPanY = -8000;
+                const maxPanY = 8000;
+                
+                AppState.panX = Math.max(minPanX, Math.min(newPanX, maxPanX));
+                AppState.panY = Math.max(minPanY, Math.min(newPanY, maxPanY));
+                
+                // 使用requestAnimationFrame确保坐标更新与浏览器渲染同步
+                requestAnimationFrame(() => {
+                    const scale = panzoom.getScale();
+                    canvas.style.transform = `translate(${AppState.panX}px, ${AppState.panY}px) scale(${scale})`;
+                    updateMinimapViewport();
+                    updateCenterMarkerCoordinates();
+                });
+                
+                // 先计算deltaX和deltaY，再更新lastMouseX和lastMouseY
+                AppState.lastMouseX = e.clientX;
+                AppState.lastMouseY = e.clientY;
+                
+                if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+                    if (!debugConsole.contains(e.target) && showMouseLogs) {
+                        debugLog(`画布拖动: deltaX=${deltaX}, deltaY=${deltaY}, panX=${AppState.panX}, panY=${AppState.panY}`, 'event');
+                    }
+                }
+            }
+            
+            if (AppState.isResizingNode && AppState.resizeNode) {
+                const deltaX = e.clientX - AppState.resizeStart.x;
+                const deltaY = e.clientY - AppState.resizeStart.y;
+                const delta = (deltaX >= 0 || deltaY >= 0) ? Math.max(deltaX, deltaY) : Math.min(deltaX, deltaY);
+                
+                const aspectRatio = AppState.resizeStart.width / AppState.resizeStart.height;
+                let newWidth = AppState.resizeStart.width + delta;
+                let newHeight = newWidth / aspectRatio;
                 
                 if (newWidth > 50 && newHeight > 50) {
-                    const img = resizeNode.querySelector('img');
+                    const img = AppState.resizeNode.querySelector('img');
                     img.style.width = `${newWidth}px`;
                     img.style.height = `${newHeight}px`;
+                    updateMinimapWithImage(AppState.resizeNode);
+                    refreshPinsOnNode(AppState.resizeNode);
                 }
             }
         });
 
         document.addEventListener('mouseup', (e) => {
-            debugLog(`[鼠标抬起] 全局: button=${e.button}, clientX=${e.clientX}, clientY=${e.clientY}`, 'event');
-            
-            if (isDraggingNode && dragNode) {
-                debugLog(`[结束拖动] 图片: node=${dragNode.dataset.filename}`, 'info');
-                dragNode.style.cursor = 'grab';
-                isDraggingNode = false;
-                dragNode = null;
+            if (debugConsole.contains(e.target)) return;
+            if (showMouseLogs) {
+                debugLog(`[鼠标抬起] 全局: button=${e.button}, clientX=${e.clientX}, clientY=${e.clientY}`, 'event');
             }
             
-            if (isResizingNode && resizeNode) {
-                debugLog(`[结束调整大小] 节点: node=${resizeNode.dataset.filename}`, 'info');
-                isResizingNode = false;
-                resizeNode = null;
+            if (AppState.isDraggingNode && AppState.dragNode) {
+                if (showMouseLogs) {
+                    debugLog(`[结束拖动] 图片: node=${AppState.dragNode.dataset.filename}`, 'info');
+                }
+                AppState.dragNode.style.cursor = 'grab';
+                AppState.isDraggingNode = false;
+                AppState.dragNode = null;
+            }
+            
+            if (AppState.isResizingNode && AppState.resizeNode) {
+                if (showMouseLogs) {
+                    debugLog(`[结束调整大小] 节点: node=${AppState.resizeNode.dataset.filename}`, 'info');
+                }
+                AppState.isResizingNode = false;
+                AppState.resizeNode = null;
                 document.body.style.cursor = '';
             }
             
-            if (isMiddleMouseDown) {
-                debugLog(`[鼠标中键释放] 全局: isMiddleMouseDown=${isMiddleMouseDown}`, 'info');
-                isMiddleMouseDown = false;
+            if (AppState.isMiddleMouseDown) {
+                if (showMouseLogs) {
+                    debugLog(`[鼠标中键释放] 全局: isMiddleMouseDown=${AppState.isMiddleMouseDown}`, 'info');
+                }
+                AppState.isMiddleMouseDown = false;
                 canvasViewport.style.cursor = 'default';
             }
         });
@@ -1114,6 +2192,9 @@
                 }
                 node.dataset.width = width;
                 node.dataset.height = height;
+                
+                // 更新图片中心坐标
+                updateImageCenterCoordinates(node);
             };
             
             const header = document.createElement('div');
@@ -1130,6 +2211,72 @@
             header.appendChild(filenameElement);
             header.appendChild(resolutionElement);
             
+            // 创建悬浮工具栏
+            const toolbar = document.createElement('div');
+            toolbar.className = 'node-toolbar';
+            
+            // 添加复制提示词按钮
+            const copyPromptBtn = document.createElement('button');
+            copyPromptBtn.className = 'toolbar-btn';
+            copyPromptBtn.innerHTML = '📝';
+            copyPromptBtn.title = '复制提示词';
+            copyPromptBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(prompt || '').then(() => {
+                    if (showMouseLogs) {
+                        debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
+                    }
+                });
+            });
+            
+            // 添加插入到输入框按钮
+            const insertBtn = document.createElement('button');
+            insertBtn.className = 'toolbar-btn';
+            insertBtn.innerHTML = '✏️';
+            insertBtn.title = '插入到输入框';
+            insertBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const img = node.querySelector('img');
+                if (img) {
+                    const imageUrl = img.src;
+                    const filename = node.dataset.filename || 'Image';
+                    insertImageToPrompt(imageUrl, filename);
+                    debugLog(`[工具栏] 插入图片到输入框: node=${node.dataset.filename}`, 'info');
+                }
+            });
+            
+            // 添加复制按钮
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'toolbar-btn';
+            copyBtn.innerHTML = '📋';
+            copyBtn.title = '复制图片';
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectNode(node);
+                copySelectedNode();
+            });
+            
+            // 添加删除按钮
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'toolbar-btn';
+            deleteBtn.innerHTML = '🗑️';
+            deleteBtn.title = '删除图片';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectNode(node);
+                deleteSelectedNode();
+            });
+            
+            toolbar.appendChild(copyPromptBtn);
+            toolbar.appendChild(insertBtn);
+            toolbar.appendChild(copyBtn);
+            toolbar.appendChild(deleteBtn);
+            
+            // 创建中心坐标显示
+            const centerCoords = document.createElement('div');
+            centerCoords.className = 'node-center-coords';
+            centerCoords.textContent = '(0, 0)';
+            
             const resizeHandle = document.createElement('div');
             resizeHandle.className = 'resize-handle';
             
@@ -1138,55 +2285,97 @@
             info.textContent = prompt || `Image ${index + 1}`;
             
             node.appendChild(header);
+            node.appendChild(toolbar);
             node.appendChild(img);
             node.appendChild(resizeHandle);
             node.appendChild(info);
+            node.appendChild(centerCoords);
             
             node.dataset.pins = JSON.stringify([]);
             
-            if (!node.style.left) {
-                const x = 800 + (index * 320) % 400;
-                const y = 800 + Math.floor((index * 320) / 400) * 320;
-                
-                node.style.left = `${x}px`;
-                node.style.top = `${y}px`;
-            }
+            // 直接设置中心位置，不需要等待onload事件
+            const width = parseInt(img.style.width) || 500;
+            const height = parseInt(img.style.height) || 500;
+            // 设置为画布中心 (0, 0)，这样会显示在视口中心
+            node.style.left = `${5000 - width / 2}px`;
+            node.style.top = `${5000 - height / 2}px`;
             
-            console.log('Node position:', node.style.left, node.style.top);
+            // 对于可能需要计算实际尺寸的图片，仍然添加onload事件
+            img.onload = function() {
+                const actualWidth = this.naturalWidth || parseInt(this.style.width) || 500;
+                const actualHeight = this.naturalHeight || parseInt(this.style.height) || 500;
+                // 保持在画布中心
+                node.style.left = `${5000 - actualWidth / 2}px`;
+                node.style.top = `${5000 - actualHeight / 2}px`;
+                
+                // 更新分辨率显示
+                const resolutionText = `${actualWidth}x${actualHeight}`;
+                const resolutionElement = node.querySelector('.node-resolution');
+                if (resolutionElement) {
+                    resolutionElement.textContent = resolutionText;
+                }
+                
+                // 更新节点数据
+                node.dataset.width = actualWidth;
+                node.dataset.height = actualHeight;
+                
+                // 更新图片中心坐标
+                updateImageCenterCoordinates(node);
+                
+                // 更新缩略图
+                updateMinimapWithImage(node);
+            };
+            
+            // 立即更新缩略图
+            updateMinimapWithImage(node);
             
             img.addEventListener('click', (e) => {
                 e.stopPropagation();
-                debugLog(`图片点击: button=${e.button}, ctrlKey=${e.ctrlKey}, metaKey=${e.metaKey}, selected=${node.classList.contains('selected')}`, 'event');
+                if (showMouseLogs) {
+                    debugLog(`图片点击: button=${e.button}, ctrlKey=${e.ctrlKey}, metaKey=${e.metaKey}, selected=${node.classList.contains('selected')}`, 'event');
+                }
                 if (e.ctrlKey || e.metaKey) {
                     if (node.classList.contains('selected')) {
-                        debugLog(`添加 PIN: 图片已选中`, 'info');
+                        if (showMouseLogs) {
+                            debugLog(`添加 PIN: 图片已选中`, 'info');
+                        }
                         addPinToImage(node, e);
                     } else {
-                        debugLog(`选中图片: 未选中，按住 Ctrl/Meta`, 'info');
+                        if (showMouseLogs) {
+                            debugLog(`选中图片: 未选中，按住 Ctrl/Meta`, 'info');
+                        }
                         selectNode(node);
                     }
                 } else {
-                    debugLog(`选中图片: 左键点击`, 'info');
+                    if (showMouseLogs) {
+                        debugLog(`选中图片: 左键点击`, 'info');
+                    }
                     selectNode(node);
                 }
             });
             
             node.addEventListener('mousedown', (e) => {
-                debugLog(`[鼠标按下] 节点: button=${e.button}, clientX=${e.clientX}, clientY=${e.clientY}, selected=${node.classList.contains('selected')}, ctrlKey=${e.ctrlKey}, metaKey=${e.metaKey}`, 'event');
+                if (showMouseLogs) {
+                    debugLog(`[鼠标按下] 节点: button=${e.button}, clientX=${e.clientX}, clientY=${e.clientY}, selected=${node.classList.contains('selected')}, ctrlKey=${e.ctrlKey}, metaKey=${e.metaKey}`, 'event');
+                }
                 if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
+                    e.stopPropagation();
                     selectNode(node);
                     
                     // 设置全局拖动状态
-                    isDraggingNode = true;
-                    dragNode = node;
+                    AppState.isDraggingNode = true;
+                    AppState.dragNode = node;
+                    AppState.activeNode = node;
                     
                     // 记录初始位置
-                    dragStartX = e.clientX;
-                    dragStartY = e.clientY;
-                    dragNodeStartLeft = parseInt(node.style.left || '0');
-                    dragNodeStartTop = parseInt(node.style.top || '0');
+                    AppState.dragStartX = e.clientX;
+                    AppState.dragStartY = e.clientY;
+                    AppState.dragNodeStartLeft = parseInt(node.style.left || '0');
+                    AppState.dragNodeStartTop = parseInt(node.style.top || '0');
                     
-                    debugLog(`[开始拖动] 图片: node=${node.dataset.filename}`, 'info');
+                    if (showMouseLogs) {
+                        debugLog(`[开始拖动] 图片: node=${node.dataset.filename}`, 'info');
+                    }
                 }
             });
             
@@ -1221,23 +2410,33 @@
 
 
         function startResizeNode(e, node) {
-            isResizingNode = true;
-            resizeNode = node;
+            AppState.isResizingNode = true;
+            AppState.resizeNode = node;
             const img = node.querySelector('img');
-            const rect = img.getBoundingClientRect();
-            resizeStart = {
+            AppState.resizeStart = {
                 x: e.clientX,
                 y: e.clientY,
-                width: rect.width,
-                height: rect.height
+                width: img.width,
+                height: img.height
             };
             document.body.style.cursor = 'nwse-resize';
         }
 
         canvas.addEventListener('click', (e) => {
-            debugLog(`画布点击: button=${e.button}, target=${e.target.id || e.target.className}`, 'event');
+            if (debugConsole.contains(e.target)) return;
+            
+            // 让输入框失去焦点
+            if (document.activeElement === promptInput) {
+                promptInput.blur();
+            }
+            
+            if (showMouseLogs) {
+                debugLog(`画布点击: button=${e.button}, target=${e.target.id || e.target.className}`, 'event');
+            }
             if (e.target === canvas || e.target === imageResponseContainer) {
-                debugLog(`取消选中所有节点`, 'info');
+                if (showMouseLogs) {
+                    debugLog(`取消选中所有节点`, 'info');
+                }
                 deselectAllNodes();
             }
         });
@@ -1247,6 +2446,234 @@
                 selectedNode.classList.remove('selected');
                 selectedNode = null;
             }
+        }
+
+        let clipboardNode = null;
+
+        function copySelectedNode() {
+            if (!selectedNode) return;
+            
+            const img = selectedNode.querySelector('img');
+            if (!img) return;
+            
+            if (img.src.startsWith('data:')) {
+                navigator.clipboard.writeText(img.src).then(() => {
+                    console.log('图片已复制到剪贴板');
+                    if (showMouseLogs) {
+                        debugLog(`[复制] 图片: ${selectedNode.dataset.filename}`, 'info');
+                    }
+                    clipboardNode = selectedNode;
+                }).catch(err => {
+                    console.error('复制失败:', err);
+                    debugLog(`[复制失败] ${err}`, 'error');
+                });
+            } else {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                canvas.toBlob((blob) => {
+                    navigator.clipboard.write([
+                        new ClipboardItem({
+                            'image/png': blob
+                        })
+                    ]).then(() => {
+                        console.log('图片已复制到剪贴板');
+                        if (showMouseLogs) {
+                            debugLog(`[复制] 图片: ${selectedNode.dataset.filename}`, 'info');
+                        }
+                        clipboardNode = selectedNode;
+                    }).catch(err => {
+                        console.error('复制失败:', err);
+                        debugLog(`[复制失败] ${err}`, 'error');
+                    });
+                });
+            }
+        }
+
+        function cutSelectedNode() {
+            if (!selectedNode) return;
+            
+            clipboardNode = selectedNode.cloneNode(true);
+            deleteSelectedNode(true);
+            debugLog(`[剪切] 图片: ${selectedNode.dataset.filename}`, 'info');
+        }
+
+        function deleteSelectedNode(skipConfirm = false) {
+            if (!selectedNode) return;
+            
+            const showDeleteConfirm = () => {
+                const confirmModal = document.getElementById('confirmModal');
+                const confirmModalMessage = document.getElementById('confirmModalMessage');
+                const confirmModalCheckbox = document.getElementById('confirmModalCheckbox');
+                const confirmModalCancel = document.getElementById('confirmModalCancel');
+                const confirmModalOk = document.getElementById('confirmModalOk');
+                
+                confirmModalMessage.textContent = `确定要删除图片"${selectedNode.dataset.filename}"吗？`;
+                confirmModal.classList.remove('hidden');
+                confirmModal.classList.add('flex');
+                
+                const handleConfirm = () => {
+                    const dontShowAgain = confirmModalCheckbox.checked;
+                    
+                    if (dontShowAgain) {
+                        localStorage.setItem('dontShowDeleteConfirm', 'true');
+                    }
+                    
+                    performDelete();
+                    closeConfirmModal();
+                };
+                
+                const handleCancel = () => {
+                    closeConfirmModal();
+                };
+                
+                const closeConfirmModal = () => {
+                    confirmModal.classList.add('hidden');
+                    confirmModal.classList.remove('flex');
+                    confirmModalOk.removeEventListener('click', handleConfirm);
+                    confirmModalCancel.removeEventListener('click', handleCancel);
+                };
+                
+                confirmModalOk.addEventListener('click', handleConfirm);
+                confirmModalCancel.addEventListener('click', handleCancel);
+            };
+            
+            const performDelete = () => {
+                const minimapImage = minimapCanvas.querySelector(`[data-node-id="${selectedNode.dataset.index}"]`);
+                if (minimapImage) {
+                    minimapImage.remove();
+                }
+                selectedNode.remove();
+                selectedNode = null;
+                debugLog(`[删除] 图片: ${selectedNode?.dataset.filename}`, 'info');
+            };
+            
+            const dontShowConfirm = localStorage.getItem('dontShowDeleteConfirm') === 'true';
+            
+            if (skipConfirm || dontShowConfirm) {
+                performDelete();
+            } else {
+                showDeleteConfirm();
+            }
+        }
+
+        function pasteNode() {
+            if (!clipboardNode) return;
+            
+            const imageUrl = clipboardNode.dataset.imageUrl;
+            const prompt = clipboardNode.querySelector('.node-info')?.textContent || '';
+            const filename = clipboardNode.dataset.filename;
+            const resolution = `${clipboardNode.dataset.width || 500}x${clipboardNode.dataset.height || 500}`;
+            
+            const newNode = createImageNode(imageUrl, prompt, nodeCounter++, filename, resolution);
+            
+            // 偏移一点位置，避免完全重叠
+            const offsetX = 20;
+            const offsetY = 20;
+            const currentLeft = parseInt(clipboardNode.style.left) || 5000;
+            const currentTop = parseInt(clipboardNode.style.top) || 5000;
+            newNode.style.left = `${currentLeft + offsetX}px`;
+            newNode.style.top = `${currentTop + offsetY}px`;
+            
+            // 添加到画布
+            imageResponseContainer.appendChild(newNode);
+            
+            // 选中节点
+            selectNode(newNode);
+            
+            // 更新缩略图
+            updateMinimapWithImage(newNode);
+            
+            debugLog(`[粘贴] 图片: ${newNode.dataset.filename}`, 'info');
+        }
+
+        function createTextNode(text, prompt = '', index = 0) {
+            const node = document.createElement('div');
+            node.className = 'canvas-node text-node';
+            node.dataset.index = index;
+            node.dataset.filename = `Text ${index + 1}`;
+            node.dataset.nodeType = 'text';
+            
+            const promptElement = document.createElement('div');
+            promptElement.className = 'text-prompt';
+            promptElement.textContent = prompt || '文本回复';
+            
+            const textContent = document.createElement('div');
+            textContent.className = 'text-content';
+            textContent.textContent = text;
+            
+            const toolbar = document.createElement('div');
+            toolbar.className = 'node-toolbar';
+            
+            const copyPromptBtn = document.createElement('button');
+            copyPromptBtn.className = 'toolbar-btn';
+            copyPromptBtn.innerHTML = '📝';
+            copyPromptBtn.title = '复制提示词';
+            copyPromptBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(prompt || '').then(() => {
+                    if (showMouseLogs) {
+                        debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
+                    }
+                });
+            });
+            
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'toolbar-btn';
+            copyBtn.innerHTML = '📋';
+            copyBtn.title = '复制文本';
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(text).then(() => {
+                    if (showMouseLogs) {
+                        debugLog(`[复制] 文本节点: ${node.dataset.filename}`, 'info');
+                    }
+                });
+            });
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'toolbar-btn';
+            deleteBtn.innerHTML = '🗑️';
+            deleteBtn.title = '删除节点';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectNode(node);
+                deleteSelectedNode();
+            });
+            
+            toolbar.appendChild(copyPromptBtn);
+            toolbar.appendChild(copyBtn);
+            toolbar.appendChild(deleteBtn);
+            
+            node.appendChild(promptElement);
+            node.appendChild(textContent);
+            node.appendChild(toolbar);
+            
+            node.style.left = '5000px';
+            node.style.top = '5000px';
+            
+            node.addEventListener('mousedown', (e) => {
+                if (e.button === 0 && !e.target.closest('.toolbar-btn')) {
+                    if (showMouseLogs) {
+                        debugLog(`[开始拖动] 文本节点: ${node.dataset.filename}`, 'info');
+                    }
+                    selectNode(node);
+                    AppState.isDraggingNode = true;
+                    AppState.dragNode = node;
+                    AppState.dragStartX = e.clientX;
+                    AppState.dragStartY = e.clientY;
+                    AppState.dragNodeStartLeft = parseInt(node.style.left) || 5000;
+                    AppState.dragNodeStartTop = parseInt(node.style.top) || 5000;
+                    node.style.cursor = 'grabbing';
+                    e.preventDefault();
+                }
+            });
+            
+            return node;
         }
 
         function addSampleImage() {
@@ -1280,6 +2707,437 @@
             imageResponseContainer.appendChild(node);
         }
 
+        function createTextLoadingPlaceholder(prompt, x, y) {
+            const node = document.createElement('div');
+            node.className = 'canvas-node text-loading-placeholder';
+            node.dataset.index = nodeCounter++;
+            node.dataset.filename = 'Loading...';
+            node.style.left = `${x}px`;
+            node.style.top = `${y}px`;
+            
+            const loadingText = document.createElement('div');
+            loadingText.className = 'loading-text';
+            loadingText.textContent = '正在生成回复...';
+            
+            node.appendChild(loadingText);
+            
+            // 添加鼠标按下事件，确保可以拖动
+            node.addEventListener('mousedown', (e) => {
+                if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
+                    e.stopPropagation();
+                    selectNode(node);
+                    
+                    // 设置全局拖动状态
+                    AppState.isDraggingNode = true;
+                    AppState.dragNode = node;
+                    AppState.activeNode = node;
+                    
+                    // 记录初始位置
+                    AppState.dragStartX = e.clientX;
+                    AppState.dragStartY = e.clientY;
+                    AppState.dragNodeStartLeft = parseInt(node.style.left || '0');
+                    AppState.dragNodeStartTop = parseInt(node.style.top || '0');
+                }
+            });
+            
+            return node;
+        }
+        
+        function updateTextLoadingPlaceholder(node, text, prompt) {
+            node.classList.remove('text-loading-placeholder');
+            node.classList.add('text-node');
+            node.dataset.filename = `Text ${node.dataset.index}`;
+            node.dataset.nodeType = 'text';
+            
+            const loadingText = node.querySelector('.loading-text');
+            if (loadingText) {
+                loadingText.remove();
+            }
+            
+            const promptElement = document.createElement('div');
+            promptElement.className = 'text-prompt';
+            promptElement.textContent = prompt || '文本回复';
+            
+            const textContent = document.createElement('div');
+            textContent.className = 'text-content';
+            textContent.textContent = text;
+            
+            const toolbar = document.createElement('div');
+            toolbar.className = 'node-toolbar';
+            
+            const copyPromptBtn = document.createElement('button');
+            copyPromptBtn.className = 'toolbar-btn';
+            copyPromptBtn.innerHTML = '📝';
+            copyPromptBtn.title = '复制提示词';
+            copyPromptBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(prompt || '').then(() => {
+                    if (showMouseLogs) {
+                        debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
+                    }
+                });
+            });
+            
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'toolbar-btn';
+            copyBtn.innerHTML = '📋';
+            copyBtn.title = '复制文本';
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(text).then(() => {
+                    if (showMouseLogs) {
+                        debugLog(`[复制] 文本节点: ${node.dataset.filename}`, 'info');
+                    }
+                });
+            });
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'toolbar-btn';
+            deleteBtn.innerHTML = '🗑️';
+            deleteBtn.title = '删除节点';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectNode(node);
+                deleteSelectedNode();
+            });
+            
+            toolbar.appendChild(copyPromptBtn);
+            toolbar.appendChild(copyBtn);
+            toolbar.appendChild(deleteBtn);
+            
+            node.appendChild(promptElement);
+            node.appendChild(textContent);
+            node.appendChild(toolbar);
+            
+            node.addEventListener('mousedown', (e) => {
+                if (e.button === 0 && !e.target.closest('.toolbar-btn')) {
+                    if (showMouseLogs) {
+                        debugLog(`[开始拖动] 文本节点: ${node.dataset.filename}`, 'info');
+                    }
+                    selectNode(node);
+                    AppState.isDraggingNode = true;
+                    AppState.dragNode = node;
+                    AppState.dragStartX = e.clientX;
+                    AppState.dragStartY = e.clientY;
+                    AppState.dragNodeStartLeft = parseInt(node.style.left) || 5000;
+                    AppState.dragNodeStartTop = parseInt(node.style.top) || 5000;
+                    node.style.cursor = 'grabbing';
+                    e.preventDefault();
+                }
+            });
+        }
+
+        function createLoadingPlaceholder(width, height, x, y) {
+            const node = document.createElement('div');
+            node.className = 'canvas-node loading-placeholder';
+            node.dataset.index = nodeCounter++;
+            node.dataset.filename = 'Loading...';
+            node.style.width = `${width}px`;
+            node.style.height = `${height}px`;
+            node.style.left = `${x}px`;
+            node.style.top = `${y}px`;
+            
+            // 添加加载动画
+            const loadingContainer = document.createElement('div');
+            loadingContainer.className = 'loading-container';
+            loadingContainer.style.width = '100%';
+            loadingContainer.style.height = '100%';
+            loadingContainer.style.display = 'flex';
+            loadingContainer.style.flexDirection = 'column';
+            loadingContainer.style.justifyContent = 'center';
+            loadingContainer.style.alignItems = 'center';
+            loadingContainer.style.backgroundColor = '#f3f4f6';
+            loadingContainer.style.borderRadius = '8px';
+            loadingContainer.style.border = '1px solid #e5e7eb';
+            
+            const loadingBar = document.createElement('div');
+            loadingBar.className = 'loading-bar';
+            loadingBar.style.width = '60%';
+            loadingBar.style.height = '4px';
+            loadingBar.style.backgroundColor = '#e5e7eb';
+            loadingBar.style.borderRadius = '2px';
+            loadingBar.style.overflow = 'hidden';
+            
+            const loadingProgress = document.createElement('div');
+            loadingProgress.className = 'loading-progress';
+            loadingProgress.style.width = '100%';
+            loadingProgress.style.height = '100%';
+            loadingProgress.style.backgroundColor = '#3b82f6';
+            loadingProgress.style.borderRadius = '2px';
+            loadingProgress.style.animation = 'loading 1.5s ease-in-out infinite';
+            
+            const loadingText = document.createElement('div');
+            loadingText.className = 'loading-text';
+            loadingText.textContent = '正在生成图片...';
+            loadingText.style.marginTop = '12px';
+            loadingText.style.fontSize = '14px';
+            loadingText.style.color = '#6b7280';
+            
+            loadingBar.appendChild(loadingProgress);
+            loadingContainer.appendChild(loadingBar);
+            loadingContainer.appendChild(loadingText);
+            
+            // 添加头部信息
+            const header = document.createElement('div');
+            header.className = 'node-header';
+            
+            const filenameElement = document.createElement('div');
+            filenameElement.className = 'node-filename';
+            filenameElement.textContent = 'Loading...';
+            
+            const resolutionElement = document.createElement('div');
+            resolutionElement.className = 'node-resolution';
+            resolutionElement.textContent = 'Generating...';
+            
+            header.appendChild(filenameElement);
+            header.appendChild(resolutionElement);
+            
+            // 创建悬浮工具栏
+            const toolbar = document.createElement('div');
+            toolbar.className = 'node-toolbar';
+            
+            // 添加复制提示词按钮
+            const copyPromptBtn = document.createElement('button');
+            copyPromptBtn.className = 'toolbar-btn';
+            copyPromptBtn.innerHTML = '📝';
+            copyPromptBtn.title = '复制提示词';
+            copyPromptBtn.disabled = true;
+            copyPromptBtn.style.opacity = '0.5';
+            
+            // 添加插入到输入框按钮
+            const insertBtn = document.createElement('button');
+            insertBtn.className = 'toolbar-btn';
+            insertBtn.innerHTML = '✏️';
+            insertBtn.title = '插入到输入框';
+            insertBtn.disabled = true;
+            insertBtn.style.opacity = '0.5';
+            
+            // 添加复制按钮
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'toolbar-btn';
+            copyBtn.innerHTML = '📋';
+            copyBtn.title = '复制图片';
+            copyBtn.disabled = true;
+            copyBtn.style.opacity = '0.5';
+            
+            // 添加删除按钮
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'toolbar-btn';
+            deleteBtn.innerHTML = '🗑️';
+            deleteBtn.title = '删除图片';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm('确定要取消生成吗？')) {
+                    const minimapImage = minimapCanvas.querySelector(`[data-node-id="${node.dataset.index}"]`);
+                    if (minimapImage) {
+                        minimapImage.remove();
+                    }
+                    node.remove();
+                }
+            });
+            
+            toolbar.appendChild(copyPromptBtn);
+            toolbar.appendChild(insertBtn);
+            toolbar.appendChild(copyBtn);
+            toolbar.appendChild(deleteBtn);
+            
+            const info = document.createElement('div');
+            info.className = 'node-info';
+            info.textContent = 'Loading...';
+            
+            node.appendChild(header);
+            node.appendChild(toolbar);
+            node.appendChild(loadingContainer);
+            node.appendChild(info);
+            
+            // 添加鼠标按下事件，确保可以拖动
+            node.addEventListener('mousedown', (e) => {
+                if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
+                    e.stopPropagation();
+                    selectNode(node);
+                    
+                    // 设置全局拖动状态
+                    AppState.isDraggingNode = true;
+                    AppState.dragNode = node;
+                    AppState.activeNode = node;
+                    
+                    // 记录初始位置
+                    AppState.dragStartX = e.clientX;
+                    AppState.dragStartY = e.clientY;
+                    AppState.dragNodeStartLeft = parseInt(node.style.left || '0');
+                    AppState.dragNodeStartTop = parseInt(node.style.top || '0');
+                }
+            });
+            
+            return node;
+        }
+        
+        function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resolution) {
+            // 更新节点属性
+            node.classList.remove('loading-placeholder');
+            node.dataset.imageUrl = imageUrl;
+            node.dataset.filename = filename || `Image ${node.dataset.index}`;
+            
+            // 清除固定的宽高样式，让图片正常显示
+            node.style.width = '';
+            node.style.height = '';
+            
+            // 移除加载动画
+            const loadingContainer = node.querySelector('.loading-container');
+            if (loadingContainer) {
+                loadingContainer.remove();
+            }
+            
+            // 创建图片元素
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.alt = `Generated image ${node.dataset.index}`;
+            img.draggable = false;
+            
+            // 添加调整大小手柄
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'resize-handle';
+            
+            // 创建中心坐标显示
+            const centerCoords = document.createElement('div');
+            centerCoords.className = 'node-center-coords';
+            centerCoords.textContent = '(0, 0)';
+            
+            // 更新头部信息
+            const filenameElement = node.querySelector('.node-filename');
+            if (filenameElement) {
+                filenameElement.textContent = filename || `Image ${node.dataset.index}`;
+            }
+            
+            const resolutionElement = node.querySelector('.node-resolution');
+            if (resolutionElement) {
+                resolutionElement.textContent = resolution || 'Loading...';
+            }
+            
+            // 更新信息文本
+            const info = node.querySelector('.node-info');
+            if (info) {
+                info.textContent = prompt || `Image ${node.dataset.index}`;
+            }
+            
+            // 更新工具栏按钮状态
+            const toolbarButtons = node.querySelectorAll('.toolbar-btn');
+            toolbarButtons.forEach((btn, index) => {
+                if (index < 3) { // 前三个按钮（复制提示词、插入到输入框、复制图片）
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (index === 0) {
+                            // 复制提示词按钮
+                            navigator.clipboard.writeText(prompt || '').then(() => {
+                                if (showMouseLogs) {
+                                    debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
+                                }
+                            });
+                        } else if (index === 1) {
+                            // 插入到输入框按钮
+                            const imgElement = node.querySelector('img');
+                            if (imgElement) {
+                                insertImageToPrompt(imgElement.src, node.dataset.filename || 'Image');
+                                debugLog(`[工具栏] 插入图片到输入框: node=${node.dataset.filename}`, 'info');
+                            }
+                        } else if (index === 2) {
+                            // 复制图片按钮
+                            selectNode(node);
+                            copySelectedNode();
+                            debugLog(`[工具栏] 复制图片: node=${node.dataset.filename}`, 'info');
+                        }
+                    });
+                }
+            });
+            
+            // 添加图片加载完成事件
+            img.onload = function() {
+                const actualWidth = this.naturalWidth || parseInt(this.style.width) || 500;
+                const actualHeight = this.naturalHeight || parseInt(this.style.height) || 500;
+                
+                // 更新分辨率显示
+                const resolutionText = `${actualWidth}x${actualHeight}`;
+                const resolutionElement = node.querySelector('.node-resolution');
+                if (resolutionElement) {
+                    resolutionElement.textContent = resolutionText;
+                }
+                
+                // 更新节点数据
+                node.dataset.width = actualWidth;
+                node.dataset.height = actualHeight;
+                
+                // 更新图片中心坐标
+                updateImageCenterCoordinates(node);
+                
+                // 更新缩略图
+                updateMinimapWithImage(node);
+            };
+            
+            // 插入图片、调整大小手柄和中心坐标
+            const header = node.querySelector('.node-header');
+            const toolbar = node.querySelector('.node-toolbar');
+            const infoElement = node.querySelector('.node-info');
+            
+            if (header && toolbar && infoElement) {
+                // 清空节点内容，保留头部和工具栏
+                const children = [...node.children];
+                children.forEach(child => {
+                    if (child !== header && child !== toolbar && child !== infoElement) {
+                        child.remove();
+                    }
+                });
+                
+                // 插入图片、调整大小手柄和中心坐标
+                node.insertBefore(img, infoElement);
+                node.insertBefore(resizeHandle, infoElement);
+                node.insertBefore(centerCoords, infoElement);
+            }
+            
+            // 添加调整大小功能
+            resizeHandle.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                AppState.isResizingNode = true;
+                AppState.resizeNode = node;
+                AppState.resizeStart = {
+                    x: e.clientX,
+                    y: e.clientY,
+                    width: img.width,
+                    height: img.height
+                };
+                document.body.style.cursor = 'nwse-resize';
+            });
+            
+            // 添加右键菜单功能
+            node.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const img = node.querySelector('img');
+                showImageContextMenu(e, node, img);
+            });
+            
+            // 添加PIN功能
+            img.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (e.ctrlKey || e.metaKey) {
+                    if (node.classList.contains('selected')) {
+                        addPinToImage(node, e);
+                    }
+                }
+            });
+            
+            // 初始化PIN数据
+            node.dataset.pins = JSON.stringify([]);
+            
+            // 选中节点
+            selectNode(node);
+            
+            // 更新缩略图
+            updateMinimapWithImage(node);
+            
+            return node;
+        }
+        
         function openModal(blobUrl) {
             currentBlobUrl = blobUrl;
             modalImage.src = blobUrl;
@@ -1388,15 +3246,6 @@
             nameSpan.textContent = imageData.name.length > 20 ? imageData.name.substring(0, 20) + '...' : imageData.name;
             nameSpan.title = imageData.name;
             
-            const deleteBtn = document.createElement('span');
-            deleteBtn.className = 'delete-btn';
-            deleteBtn.textContent = '×';
-            deleteBtn.onclick = (e) => {
-                e.stopPropagation();
-                item.remove();
-                updateImageDataList();
-            };
-            
             const tooltip = document.createElement('div');
             tooltip.className = 'image-preview-tooltip';
             
@@ -1404,24 +3253,86 @@
             tooltipImg.src = imageData.data;
             tooltipImg.alt = imageData.name;
             
+            // 添加图片加载完成后的尺寸调整
+            tooltipImg.onload = function() {
+                const naturalWidth = this.naturalWidth;
+                const naturalHeight = this.naturalHeight;
+                
+                const maxWidth = Math.min(window.innerWidth * 0.7, 500);
+                const maxHeight = Math.min(window.innerHeight * 0.7, 500);
+                
+                const widthRatio = maxWidth / naturalWidth;
+                const heightRatio = maxHeight / naturalHeight;
+                const scale = Math.min(widthRatio, heightRatio);
+                
+                const displayWidth = naturalWidth * scale;
+                const displayHeight = naturalHeight * scale;
+                
+                this.style.width = `${displayWidth}px`;
+                this.style.height = `${displayHeight}px`;
+            };
+            
             tooltip.appendChild(tooltipImg);
             
             item.appendChild(img);
             item.appendChild(nameSpan);
+            
+            // 将 tooltip 挂载到最外层 body
+            document.body.appendChild(tooltip);
+            
+            // 用 JS 侦听鼠标悬停，控制显示并触发定位
+            item.addEventListener('mouseenter', () => {
+                tooltip.style.display = 'block';
+                // 延迟 10ms 确保 DOM 渲染拿到真实宽高
+                setTimeout(() => adjustTooltipPosition(tooltip, item), 10);
+            });
+            item.addEventListener('mouseleave', () => {
+                tooltip.style.display = 'none';
+            });
+            
+            // 修改删除逻辑，连同外层的 tooltip 一起删掉
+            const deleteBtn = document.createElement('span');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = '×';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                const filename = item.dataset.filename;
+                tooltip.remove(); // 清理游离的弹窗
+                item.remove();
+                updateImageDataList();
+                debugLog(`[删除图片] 文件名: ${filename}`, 'info');
+            };
+            
             item.appendChild(deleteBtn);
-            item.appendChild(tooltip);
             
             return item;
         }
 
+        function insertImageToPrompt(imageUrl, filename) {
+            const imageData = {
+                data: imageUrl,
+                name: filename
+            };
+            imageDataList.push(imageData);
+            const imageTag = createImageTag(imageData, pasteImageCounter++);
+            promptInput.appendChild(imageTag);
+            updateImageDataList();
+            debugLog(`[插入图片] 文件名: ${filename}`, 'info');
+        }
+
         promptInput.addEventListener('paste', async (e) => {
+            debugLog(`[粘贴事件] 触发, 目标: ${e.target.id || e.target.className}`, 'info');
             const items = e.clipboardData.items;
+            debugLog(`[粘贴事件] 剪贴板项目数量: ${items.length}`, 'info');
             
             for (let item of items) {
+                debugLog(`[粘贴事件] 项目类型: ${item.type}`, 'info');
                 if (item.type.indexOf('image') !== -1) {
                     e.preventDefault();
                     
                     const file = item.getAsFile();
+                    debugLog(`[粘贴事件] 检测到图片, 文件名: ${file.name || '未知'}, 类型: ${file.type}, 大小: ${file.size} bytes`, 'info');
+                    
                     const reader = new FileReader();
                     
                     reader.onload = (event) => {
@@ -1429,6 +3340,8 @@
                         const baseName = file.name || 'image.png';
                         const ext = baseName.includes('.') ? baseName.split('.').pop() : 'png';
                         const uniqueName = `image_${pasteImageCounter + 1}.${ext}`;
+                        
+                        debugLog(`[粘贴图片] Base64长度: ${base64Data.length}, 前50字符: ${base64Data.substring(0, 50)}`, 'info');
                         
                         const imageData = {
                             data: base64Data,
@@ -1440,6 +3353,8 @@
                         updateImageDataList();
                         
                         pasteImageCounter++;
+                        
+                        debugLog(`[粘贴图片] 文件名: ${uniqueName}, 来源: 剪贴板`, 'info');
                     };
                     
                     reader.readAsDataURL(file);
@@ -1453,12 +3368,20 @@
             const isInInput = document.activeElement === promptInput || promptInput.contains(document.activeElement);
             if (isInInput) return;
             
+            debugLog(`[画布粘贴] 触发, 目标: ${e.target.id || e.target.className}`, 'info');
+            
             const items = e.clipboardData.items;
+            let hasImage = false;
+            
             for (let item of items) {
+                debugLog(`[画布粘贴] 项目类型: ${item.type}`, 'info');
                 if (item.type.indexOf('image') !== -1) {
+                    hasImage = true;
                     e.preventDefault();
                     
                     const file = item.getAsFile();
+                    debugLog(`[画布粘贴] 检测到图片, 文件名: ${file.name || '未知'}, 类型: ${file.type}, 大小: ${file.size} bytes`, 'info');
+                    
                     const reader = new FileReader();
                     
                     reader.onload = (event) => {
@@ -1467,13 +3390,23 @@
                         const ext = baseName.includes('.') ? baseName.split('.').pop() : 'png';
                         const uniqueName = `pasted_${Date.now()}.${ext}`;
                         
+                        debugLog(`[画布粘贴] 创建节点: ${uniqueName}`, 'info');
+                        
                         const node = createImageNode(base64Data, '粘贴图片', nodeCounter++, uniqueName, `${file.width || 500}x${file.height || 500}`);
                         imageResponseContainer.appendChild(node);
+                        
+                        debugLog(`[粘贴] 图片: ${uniqueName}`, 'info');
                     };
                     
                     reader.readAsDataURL(file);
                     break;
                 }
+            }
+            
+            if (!hasImage && clipboardNode) {
+                e.preventDefault();
+                debugLog(`[画布粘贴] 使用clipboardNode: ${clipboardNode.dataset.filename}`, 'info');
+                pasteNode();
             }
         });
 
@@ -1545,6 +3478,11 @@
             const imageUrl = node.dataset.imageUrl;
             const filename = node.dataset.filename;
             
+            if (!imageUrl || node.classList.contains('loading-placeholder') || filename === 'Loading...') {
+                alert('无法插入正在生成的图片，请等待图片生成完成后再试');
+                return;
+            }
+            
             const existingTags = promptInput.querySelectorAll('.pasted-image-item');
             for (let tag of existingTags) {
                 if (tag.dataset.imageUrl === imageUrl) {
@@ -1552,14 +3490,77 @@
                 }
             }
             
+            const img = node.querySelector('img');
+            if (!img) {
+                alert('无法获取图片数据');
+                return;
+            }
+            
+            let imageDataUrl;
+            if (img.src.startsWith('data:')) {
+                imageDataUrl = img.src;
+            } else {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                imageDataUrl = canvas.toDataURL('image/png');
+            }
+            
             const imageData = {
-                data: imageUrl,
+                data: imageDataUrl,
                 name: filename
             };
             
             const imageTag = createImageTag(imageData, imageDataList.length);
             insertAtCursor(imageTag);
             updateImageDataList();
+            
+            debugLog(`[插入图片] 文件名: ${filename}, 数据格式: ${imageDataUrl.startsWith('data:') ? 'Base64' : 'URL'}`, 'info');
+        }
+
+        async function drawPinsOnImage(imageUrl, pins) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth || img.width;
+                    canvas.height = img.naturalHeight || img.height;
+                    const ctx = canvas.getContext('2d');
+                    
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    pins.forEach(pin => {
+                        const x = pin.x;
+                        const y = pin.y;
+                        const radius = Math.max(20, Math.min(canvas.width, canvas.height) / 30);
+                        
+                        ctx.beginPath();
+                        ctx.arc(x, y, radius, 0, 2 * Math.PI);
+                        ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+                        ctx.fill();
+                        ctx.strokeStyle = 'white';
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                        
+                        ctx.font = `bold ${radius}px Arial`;
+                        ctx.fillStyle = 'white';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(pin.number.toString(), x, y);
+                    });
+                    
+                    const annotatedImageUrl = canvas.toDataURL('image/png');
+                    resolve(annotatedImageUrl);
+                };
+                img.onerror = () => {
+                    resolve(imageUrl);
+                };
+                img.src = imageUrl;
+            });
         }
 
         function addPinToImage(node, event) {
@@ -1568,37 +3569,39 @@
             
             const naturalWidth = img.naturalWidth;
             const naturalHeight = img.naturalHeight;
-            const displayWidth = rect.width;
-            const displayHeight = rect.height;
             
-            const x = (event.clientX - rect.left) * (naturalWidth / displayWidth);
-            const y = (event.clientY - rect.top) * (naturalHeight / displayHeight);
+            const x = ((event.clientX - rect.left) / rect.width) * naturalWidth;
+            const y = ((event.clientY - rect.top) / rect.height) * naturalHeight;
             
             const pins = JSON.parse(node.dataset.pins || '[]');
             
-            pinCounter++;
-            const pin = {
-                id: Date.now(),
-                number: pinCounter,
-                x: x,
-                y: y
-            };
+            let availableNumber = 1;
+            const existingNumbers = new Set(pins.map(p => p.number));
+            while (existingNumbers.has(availableNumber)) {
+                availableNumber++;
+            }
             
+            const pin = { id: Date.now(), number: availableNumber, x: x, y: y };
             pins.push(pin);
             pins.sort((a, b) => a.number - b.number);
             node.dataset.pins = JSON.stringify(pins);
             
-            createPinMarker(node, pin, displayWidth, displayHeight);
+            createPinMarker(node, pin);
             updatePromptWithPins(node);
+            
+            debugLog(`[添加PIN] 坐标: (${Math.round(x)}, ${Math.round(y)})`, 'info');
         }
 
-        function createPinMarker(node, pin, displayWidth, displayHeight) {
+        function createPinMarker(node, pin) {
             const img = node.querySelector('img');
             const naturalWidth = img.naturalWidth;
             const naturalHeight = img.naturalHeight;
             
-            const scaleX = displayWidth / naturalWidth;
-            const scaleY = displayHeight / naturalHeight;
+            const logicalWidth = img.offsetWidth;
+            const logicalHeight = img.offsetHeight;
+            
+            const scaleX = logicalWidth / naturalWidth;
+            const scaleY = logicalHeight / naturalHeight;
             
             const displayX = pin.x * scaleX;
             const displayY = pin.y * scaleY;
@@ -1607,6 +3610,7 @@
             marker.className = 'pin-marker';
             marker.dataset.pinId = pin.id;
             marker.textContent = pin.number;
+            
             marker.style.left = `${displayX - 12}px`;
             marker.style.top = `${displayY - 12}px`;
             
@@ -1620,6 +3624,23 @@
             
             marker.appendChild(deleteBtn);
             node.appendChild(marker);
+        }
+
+        function refreshPinsOnNode(node) {
+            const pins = JSON.parse(node.dataset.pins || '[]');
+            const img = node.querySelector('img');
+            if (!img || pins.length === 0) return;
+            
+            const scaleX = img.offsetWidth / img.naturalWidth;
+            const scaleY = img.offsetHeight / img.naturalHeight;
+
+            pins.forEach(pin => {
+                const marker = node.querySelector(`.pin-marker[data-pin-id="${pin.id}"]`);
+                if (marker) {
+                    marker.style.left = `${(pin.x * scaleX) - 12}px`;
+                    marker.style.top = `${(pin.y * scaleY) - 12}px`;
+                }
+            });
         }
 
         function removePinFromImage(node, pinId) {
@@ -1640,6 +3661,8 @@
                 if (tag) {
                     tag.remove();
                 }
+                
+                debugLog(`[删除PIN] 图片: ${node.dataset.filename}, PIN编号: ${pin.number}`, 'info');
             }
         }
 
@@ -1684,28 +3707,8 @@
             numberBadge.textContent = pinNumber;
             
             const label = document.createElement('span');
+            label.className = 'pin-filename';
             label.textContent = `${filename}[${pinNumber}]`;
-            
-            const deleteBtn = document.createElement('span');
-            deleteBtn.className = 'tag-delete';
-            deleteBtn.textContent = '×';
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const node = findNodeByImageUrl(imageUrl);
-                if (node) {
-                    const pins = JSON.parse(node.dataset.pins || '[]');
-                    const pin = pins.find(p => p.number === pinNumber);
-                    if (pin) {
-                        const marker = node.querySelector(`.pin-marker[data-pin-id="${pin.id}"]`);
-                        if (marker) {
-                            marker.remove();
-                        }
-                        pins.splice(pins.indexOf(pin), 1);
-                        node.dataset.pins = JSON.stringify(pins);
-                    }
-                }
-                tag.remove();
-            });
             
             const tooltip = document.createElement('div');
             tooltip.className = 'image-preview-tooltip';
@@ -1740,8 +3743,6 @@
                     
                     pinIndicator.style.left = `${indicatorX}px`;
                     pinIndicator.style.top = `${indicatorY}px`;
-                    
-                    adjustTooltipPosition(tooltip);
                 };
             } else {
                 tooltipImg.onload = function() {
@@ -1760,14 +3761,8 @@
                     
                     this.style.width = `${displayWidth}px`;
                     this.style.height = `${displayHeight}px`;
-                    
-                    adjustTooltipPosition(tooltip);
                 };
             }
-            
-            tag.addEventListener('mouseenter', () => {
-                setTimeout(() => adjustTooltipPosition(tooltip), 50);
-            });
             
             tooltip.appendChild(tooltipImg);
             tooltip.appendChild(pinIndicator);
@@ -1775,8 +3770,44 @@
             tag.appendChild(thumbnail);
             tag.appendChild(numberBadge);
             tag.appendChild(label);
+            
+            // 将 tooltip 挂载到最外层 body
+            document.body.appendChild(tooltip);
+            
+            // 用 JS 侦听鼠标悬停，控制显示并触发定位
+            tag.addEventListener('mouseenter', () => {
+                tooltip.style.display = 'block';
+                // 延迟 10ms 确保 DOM 渲染拿到真实宽高
+                setTimeout(() => adjustTooltipPosition(tooltip, tag), 10);
+            });
+            tag.addEventListener('mouseleave', () => {
+                tooltip.style.display = 'none';
+            });
+            
+            // 修改删除逻辑，连同外层的 tooltip 一起删掉
+            const deleteBtn = document.createElement('span');
+            deleteBtn.className = 'tag-delete';
+            deleteBtn.textContent = '×';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const node = findNodeByImageUrl(imageUrl);
+                if (node) {
+                    const pins = JSON.parse(node.dataset.pins || '[]');
+                    const pin = pins.find(p => p.number === pinNumber);
+                    if (pin) {
+                        const marker = node.querySelector(`.pin-marker[data-pin-id="${pin.id}"]`);
+                        if (marker) {
+                            marker.remove();
+                        }
+                        pins.splice(pins.indexOf(pin), 1);
+                        node.dataset.pins = JSON.stringify(pins);
+                    }
+                }
+                tooltip.remove(); // 清理游离的弹窗
+                tag.remove();
+            });
+            
             tag.appendChild(deleteBtn);
-            tag.appendChild(tooltip);
             
             return tag;
         }
@@ -1869,40 +3900,38 @@
             }, 100);
         }
 
-        function adjustTooltipPosition(tooltip) {
-            if (!tooltip) return;
+        function adjustTooltipPosition(tooltip, targetElement) {
+            if (!tooltip || !targetElement) return;
             
-            const rect = tooltip.getBoundingClientRect();
+            // 获取输入框标签的绝对位置
+            const targetRect = targetElement.getBoundingClientRect();
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight;
             
-            let position = 'top';
-            let offsetX = 0;
-            let offsetY = 0;
+            // 获取预览图的实际宽高
+            const tooltipRect = tooltip.getBoundingClientRect();
+            const tooltipWidth = tooltipRect.width || 300;
+            const tooltipHeight = tooltipRect.height || 300;
             
-            if (rect.top < 10) {
-                position = 'bottom';
+            // 核心逻辑：强制靠左 - 标签左边缘 减去 预览图宽度 减去 12px 间距
+            let left = targetRect.left - tooltipWidth - 12;
+            
+            // 垂直方向：与标签居中对齐
+            let top = targetRect.top + (targetRect.height / 2) - (tooltipHeight / 2);
+            
+            // 防翻车边界检测
+            if (left < 10) {
+                // 如果左边屏幕空间不够，妥协一下放到右边
+                left = targetRect.right + 12;
+            }
+            if (top < 10) top = 10;
+            if (top + tooltipHeight > windowHeight - 10) {
+                top = windowHeight - tooltipHeight - 10;
             }
             
-            if (rect.left < 10) {
-                offsetX = 10 - rect.left;
-            } else if (rect.right > windowWidth - 10) {
-                offsetX = (windowWidth - 10) - rect.right;
-            }
-            
-            if (position === 'bottom') {
-                tooltip.style.bottom = 'auto';
-                tooltip.style.top = '100%';
-                tooltip.style.marginBottom = '0';
-                tooltip.style.marginTop = '8px';
-            } else {
-                tooltip.style.bottom = '100%';
-                tooltip.style.top = 'auto';
-                tooltip.style.marginBottom = '8px';
-                tooltip.style.marginTop = '0';
-            }
-            
-            tooltip.style.transform = `translateX(-50%) translate(${offsetX}px, ${offsetY}px)`;
+            // 应用最终坐标
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
         }
 
         imageGenMode.addEventListener('change', () => {
@@ -1910,16 +3939,19 @@
             if (imageGenMode.checked) {
                 imageResponseContainer.style.display = 'block';
                 responseOutput.style.display = 'none';
-                console.log('Adding sample image...');
-                addSampleImage();
-                console.log('Sample image added');
             } else {
-                imageResponseContainer.style.display = 'none';
-                responseOutput.style.display = 'block';
-                imageResponseContainer.innerHTML = '';
-                nodeCounter = 0;
+                imageResponseContainer.style.display = 'block';
+                responseOutput.style.display = 'none';
             }
         });
+
+        if (imageGenMode.checked) {
+            imageResponseContainer.style.display = 'block';
+            responseOutput.style.display = 'none';
+        } else {
+            imageResponseContainer.style.display = 'block';
+            responseOutput.style.display = 'none';
+        }
 
         temperature.addEventListener('input', () => {
             temperatureValue.textContent = temperature.value;
@@ -2039,6 +4071,10 @@
         document.getElementById('clearApiKeyBtn').addEventListener('click', clearApiKey);
 
         async function callAPI() {
+            debugLog(`[开始调用] callAPI 函数`, 'info');
+            
+            updateImageDataList();
+            
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = promptInput.innerHTML;
             const imageTags = tempDiv.querySelectorAll('.pasted-image-item');
@@ -2051,7 +4087,7 @@
             pinnedImageTags.forEach(tag => {
                 const imageUrl = tag.dataset.imageUrl;
                 const pinNumber = tag.dataset.pinNumber;
-                const filename = tag.querySelector('span').textContent;
+                const filename = tag.querySelector('.pin-filename').textContent;
                 
                 const node = findNodeByImageUrl(imageUrl);
                 if (node) {
@@ -2082,8 +4118,17 @@
             const apiKey = CONFIG.API_KEY.trim();
             const isImageGenMode = imageGenMode.checked;
             
-            if (!prompt && imageDataList.length === 0 && pinInfo.length === 0) return alert("请输入内容或粘贴图片");
-            if (!apiKey || apiKey === "YOUR_API_KEY_HERE") return alert("请输入有效的 API Key");
+            debugLog(`[参数检查] 提示词: "${prompt}", 生图模式: ${isImageGenMode}, 图片数量: ${imageDataList.length}, PIN数量: ${pinInfo.length}`, 'info');
+            debugLog(`[API Key] ${apiKey.substring(0, 10)}...`, 'info');
+            
+            if (!prompt && imageDataList.length === 0 && pinInfo.length === 0) {
+                debugLog(`[错误] 请输入内容或粘贴图片`, 'error');
+                return alert("请输入内容或粘贴图片");
+            }
+            if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
+                debugLog(`[错误] 请输入有效的 API Key`, 'error');
+                return alert("请输入有效的 API Key");
+            }
 
             const genAI = new GoogleGenerativeAI(apiKey);
             
@@ -2115,13 +4160,20 @@
                 generationConfig: generationConfig
             });
 
-            sendBtn.disabled = true;
-            loader.classList.remove('hidden');
+            debugLog(`[模型配置] 模型: ${modelName}, 温度: ${generationConfig.temperature}, TopP: ${generationConfig.topP}`, 'info');
+            
+            activeRequests++;
+            if (activeRequests === 1) {
+                loader.classList.remove('hidden');
+                if (statusTag) {
+                    statusTag.innerText = "请求中";
+                    statusTag.className = "text-xs px-2 py-1 rounded bg-blue-50 text-blue-600";
+                }
+            }
+            debugLog(`[请求状态] 活跃请求数: ${activeRequests}`, 'info');
             responseOutput.classList.remove('italic', 'text-gray-400');
             responseOutput.innerText = "正在处理...";
             imageResponseContainer.classList.remove('hidden');
-            statusTag.innerText = "请求中";
-            statusTag.className = "text-xs px-2 py-1 rounded bg-blue-50 text-blue-600";
 
             let loadingPlaceholder = null;
             if (isImageGenMode) {
@@ -2181,8 +4233,8 @@
                 const displayHeight = Math.round(displayWidth * height / width);
                 
                 const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
-                let x = 800;
-                let y = 800;
+                let x = 5000;
+                let y = 5000;
                 
                 if (existingNodes.length > 0) {
                     const lastNode = existingNodes[existingNodes.length - 1];
@@ -2195,66 +4247,60 @@
                     x = lastNodeX + lastNodeWidth + 50;
                     y = lastNodeY;
                     
-                    if (x > 1200) {
-                        x = 800;
+                    if (x > 6000) {
+                        x = 5000;
                         y = lastNodeY + lastNodeHeight + 50;
                     }
                 }
                 
-                loadingPlaceholder = document.createElement('div');
-                loadingPlaceholder.className = 'loading-placeholder';
-                loadingPlaceholder.style.width = `${displayWidth}px`;
-                loadingPlaceholder.style.height = `${displayHeight}px`;
-                loadingPlaceholder.style.left = `${x}px`;
-                loadingPlaceholder.style.top = `${y}px`;
-                
-                const loadingText = document.createElement('div');
-                loadingText.className = 'loading-text';
-                loadingText.textContent = '正在生成图片...';
-                
-                loadingPlaceholder.appendChild(loadingText);
+                // 创建一个canvas-node元素作为占位符
+                loadingPlaceholder = createLoadingPlaceholder(displayWidth, displayHeight, x, y);
                 imageResponseContainer.appendChild(loadingPlaceholder);
+                
+                // 立即更新缩略图，显示占位符
+                updateMinimapWithImage(loadingPlaceholder);
             }
 
             try {
                 let content;
                 
+                debugLog(`[API请求] 模式: ${isImageGenMode ? '生图' : '文本'}, 提示词: ${prompt}`, 'info');
+                
                 if (isImageGenMode) {
                     const allImageData = [...imageDataList];
                     
-                    pinInfo.forEach(info => {
+                    for (const info of pinInfo) {
                         const node = findNodeByImageUrl(info.imageUrl);
                         if (node) {
                             const img = node.querySelector('img');
+                            const pins = JSON.parse(node.dataset.pins || '[]');
                             
+                            let base64Data;
                             if (img.src.startsWith('data:')) {
-                                const base64Data = img.src;
-                                const existing = allImageData.find(data => data.data === base64Data);
-                                if (!existing) {
-                                    allImageData.push({
-                                        data: base64Data,
-                                        name: info.filename
-                                    });
-                                }
+                                base64Data = img.src;
                             } else {
                                 const canvas = document.createElement('canvas');
                                 const ctx = canvas.getContext('2d');
                                 canvas.width = img.naturalWidth || img.width;
                                 canvas.height = img.naturalHeight || img.height;
-                                
                                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                                
-                                const base64Data = canvas.toDataURL('image/png');
-                                const existing = allImageData.find(data => data.data === base64Data);
-                                if (!existing) {
-                                    allImageData.push({
-                                        data: base64Data,
-                                        name: info.filename
-                                    });
-                                }
+                                base64Data = canvas.toDataURL('image/png');
+                            }
+                            
+                            if (pins.length > 0) {
+                                debugLog(`[PIN标记] 在图片上绘制 ${pins.length} 个PIN标记`, 'info');
+                                base64Data = await drawPinsOnImage(base64Data, pins);
+                            }
+                            
+                            const existing = allImageData.find(data => data.data === base64Data);
+                            if (!existing) {
+                                allImageData.push({
+                                    data: base64Data,
+                                    name: info.filename
+                                });
                             }
                         }
-                    });
+                    }
                     
                     if (allImageData.length > 0) {
                         if (prompt) {
@@ -2264,7 +4310,8 @@
                                     mimeType: imageData.data.split(';')[0].split(':')[1] 
                                 }
                             }));
-                            content.push(`${prompt}，使用${aspectRatio.value}宽高比`);
+                            const pinNote = pinInfo.length > 0 ? '完全移除图片上的所有红色数字标记，不要在生成的图片中显示任何标记。' : '';
+                            content.push(`${prompt}，使用${aspectRatio.value}宽高比。${pinNote}`);
                         } else {
                             content = allImageData.map(imageData => ({
                                 inlineData: { 
@@ -2272,7 +4319,8 @@
                                     mimeType: imageData.data.split(';')[0].split(':')[1] 
                                 }
                             }));
-                            content.push(`请美化这张图片，使用${aspectRatio.value}宽高比`);
+                            const pinNote = pinInfo.length > 0 ? '完全移除图片上的所有红色数字标记，不要在生成的图片中显示任何标记。' : '';
+                            content.push(`请美化这张图片，使用${aspectRatio.value}宽高比。${pinNote}`);
                         }
                     } else {
                         content = `${prompt}，使用${aspectRatio.value}宽高比`;
@@ -2280,60 +4328,89 @@
                 } else {
                     const allImageData = [...imageDataList];
                     
-                    pinInfo.forEach(info => {
+                    for (const info of pinInfo) {
                         const node = findNodeByImageUrl(info.imageUrl);
                         if (node) {
                             const img = node.querySelector('img');
+                            const pins = JSON.parse(node.dataset.pins || '[]');
                             
+                            let base64Data;
                             if (img.src.startsWith('data:')) {
-                                const base64Data = img.src;
-                                const existing = allImageData.find(data => data.data === base64Data);
-                                if (!existing) {
-                                    allImageData.push({
-                                        data: base64Data,
-                                        name: info.filename
-                                    });
-                                }
+                                base64Data = img.src;
                             } else {
                                 const canvas = document.createElement('canvas');
                                 const ctx = canvas.getContext('2d');
                                 canvas.width = img.naturalWidth || img.width;
                                 canvas.height = img.naturalHeight || img.height;
-                                
                                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                                
-                                const base64Data = canvas.toDataURL('image/png');
-                                const existing = allImageData.find(data => data.data === base64Data);
-                                if (!existing) {
-                                    allImageData.push({
-                                        data: base64Data,
-                                        name: info.filename
-                                    });
-                                }
+                                base64Data = canvas.toDataURL('image/png');
+                            }
+                            
+                            if (pins.length > 0) {
+                                debugLog(`[PIN标记] 在图片上绘制 ${pins.length} 个PIN标记`, 'info');
+                                base64Data = await drawPinsOnImage(base64Data, pins);
+                            }
+                            
+                            const existing = allImageData.find(data => data.data === base64Data);
+                            if (!existing) {
+                                allImageData.push({
+                                    data: base64Data,
+                                    name: info.filename
+                                });
                             }
                         }
-                    });
+                    }
                     
                     if (allImageData.length > 0) {
                         content = allImageData.map(imageData => ({
-                            inlineData: { 
-                                data: imageData.data.split(',')[1], 
-                                mimeType: imageData.data.split(';')[0].split(':')[1] 
-                                }
+                            inlineData: {
+                                data: imageData.data.split(',')[1],
+                                mimeType: imageData.data.split(';')[0].split(':')[1]
+                            }
                         }));
-                        content.push(prompt);
+                        content.push(`${prompt}`);
                     } else {
                         content = prompt;
                     }
+                    
+                    const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
+                    let x = 5000;
+                    let y = 5000;
+                    
+                    if (existingNodes.length > 0) {
+                        const lastNode = existingNodes[existingNodes.length - 1];
+                        
+                        const lastNodeX = parseInt(lastNode.style.left) || 0;
+                        const lastNodeY = parseInt(lastNode.style.top) || 0;
+                        const lastNodeWidth = lastNode.offsetWidth;
+                        const lastNodeHeight = lastNode.offsetHeight;
+                        
+                        x = lastNodeX + lastNodeWidth + 50;
+                        y = lastNodeY;
+                        
+                        if (x > 6000) {
+                            x = 5000;
+                            y = lastNodeY + lastNodeHeight + 50;
+                        }
+                    }
+                    
+                    loadingPlaceholder = createTextLoadingPlaceholder(prompt, x, y);
+                    imageResponseContainer.appendChild(loadingPlaceholder);
+                    updateMinimapWithImage(loadingPlaceholder);
                 }
                 
                 const result = await model.generateContent(content);
                 const response = await result.response;
                 
+                debugLog(`[API响应] 收到响应, 候选数量: ${response.candidates?.length || 0}`, 'info');
+                
                 if (isImageGenMode) {
                     const imagePart = response.candidates[0]?.content?.parts.find(part => part.inlineData);
+                    debugLog(`[生图模式] 图片数据: ${imagePart ? '存在' : '不存在'}`, 'info');
+                    
                     if (imagePart) {
                         const imageData = imagePart.inlineData.data;
+                        debugLog(`[图片数据] Base64长度: ${imageData.length}`, 'info');
                         
                         const byteCharacters = atob(imageData);
                         const byteNumbers = new Array(byteCharacters.length);
@@ -2348,6 +4425,7 @@
                         let resolution = '';
                         
                         try {
+                            debugLog(`[保存图片] 开始保存到服务器`, 'info');
                             const saveResponse = await fetch('/save-image', {
                                 method: 'POST',
                                 headers: {
@@ -2361,15 +4439,25 @@
                                 })
                             });
                             const saveResult = await saveResponse.json();
+                            debugLog(`[保存图片] 服务器响应: ${JSON.stringify(saveResult)}`, 'info');
                             if (saveResult.success) {
                                 filename = saveResult.fileName || '';
-                                statusTag.innerText = "成功";
+                                debugLog(`[保存图片] 文件名: ${filename}`, 'success');
+                                if (statusTag) {
+                                    statusTag.innerText = "成功";
+                                }
                             } else {
-                                statusTag.innerText = "保存失败";
+                                debugLog(`[保存图片] 保存失败: ${saveResult.message || '未知错误'}`, 'error');
+                                if (statusTag) {
+                                    statusTag.innerText = "保存失败";
+                                }
                             }
                         } catch (saveError) {
                             console.error('保存图片失败:', saveError);
-                            statusTag.innerText = "保存失败";
+                            debugLog(`[保存图片] 异常: ${saveError.message}`, 'error');
+                            if (statusTag) {
+                                statusTag.innerText = "保存失败";
+                            }
                         }
                         
                         const tempImg = new Image();
@@ -2381,40 +4469,81 @@
                             };
                         });
                         
-                        const node = createImageNode(blobUrl, prompt, nodeCounter++, filename, resolution);
-                        
                         if (loadingPlaceholder) {
-                            const placeholderX = parseInt(loadingPlaceholder.style.left);
-                            const placeholderY = parseInt(loadingPlaceholder.style.top);
-                            node.style.left = `${placeholderX}px`;
-                            node.style.top = `${placeholderY}px`;
-                            loadingPlaceholder.remove();
-                        }
-                        
+                            // 更新现有的loading占位符节点
+                            updateLoadingPlaceholder(loadingPlaceholder, blobUrl, prompt, filename, resolution);
+                        } else {
+                            // 如果没有占位符，创建新节点
+                            const node = createImageNode(blobUrl, prompt, nodeCounter++, filename, resolution);
                         imageResponseContainer.appendChild(node);
                         selectNode(node);
-                    } else {
-                        statusTag.innerText = "无图片数据";
+                        debugLog(`[创建节点] 图片节点: ${filename}, 分辨率: ${resolution}`, 'success');
                     }
                 } else {
-                    const text = response.text();
-                    responseOutput.innerText = text;
+                    debugLog(`[生图模式] 无图片数据`, 'warning');
+                    if (statusTag) {
+                        statusTag.innerText = "无图片数据";
+                    }
                 }
+            } else {
+                debugLog(`[文本模式] 开始处理文本响应`, 'info');
+                const text = response.text();
+                debugLog(`[文本响应] 文本长度: ${text.length}`, 'info');
+                if (loadingPlaceholder) {
+                    updateTextLoadingPlaceholder(loadingPlaceholder, text, prompt);
+                    debugLog(`[更新节点] 文本占位符已更新`, 'success');
+                } else {
+                    const node = createTextNode(text, prompt, nodeCounter++);
+                    imageResponseContainer.appendChild(node);
+                    selectNode(node);
+                    updateMinimapWithImage(node);
+                    debugLog(`[创建节点] 文本节点已创建`, 'success');
+                }
+            }
                 
-                statusTag.innerText = "成功";
-                statusTag.className = "text-xs px-2 py-1 rounded bg-green-50 text-green-600";
+                debugLog(`[API响应] 模式: ${isImageGenMode ? '生图' : '文本'}, 状态: 成功`, 'success');
+                
+                if (activeRequests === 0 && statusTag) {
+                    statusTag.innerText = "成功";
+                    statusTag.className = "text-xs px-2 py-1 rounded bg-green-50 text-green-600";
+                }
             } catch (error) {
                 console.error(error);
-                responseOutput.innerText = "发生错误: " + error.message;
-                statusTag.innerText = "失败";
-                statusTag.className = "text-xs px-2 py-1 rounded bg-red-50 text-red-600";
-                
+                debugLog(`[API错误] 模式: ${isImageGenMode ? '生图' : '文本'}, 错误: ${error.message}`, 'error');
+                const errorText = "发生错误: " + error.message;
                 if (loadingPlaceholder) {
-                    loadingPlaceholder.remove();
+                    if (loadingPlaceholder.classList.contains('text-loading-placeholder')) {
+                        updateTextLoadingPlaceholder(loadingPlaceholder, errorText, prompt);
+                        loadingPlaceholder.querySelector('.text-prompt').style.background = '#fef2f2';
+                        loadingPlaceholder.querySelector('.text-prompt').style.color = '#dc2626';
+                    } else {
+                        const node = createTextNode(errorText, prompt, nodeCounter++);
+                        node.querySelector('.text-prompt').style.background = '#fef2f2';
+                        node.querySelector('.text-prompt').style.color = '#dc2626';
+                        imageResponseContainer.appendChild(node);
+                        selectNode(node);
+                        updateMinimapWithImage(node);
+                        loadingPlaceholder.remove();
+                    }
+                } else {
+                    const node = createTextNode(errorText, prompt, nodeCounter++);
+                    node.querySelector('.text-prompt').style.background = '#fef2f2';
+                    node.querySelector('.text-prompt').style.color = '#dc2626';
+                    imageResponseContainer.appendChild(node);
+                    selectNode(node);
+                    updateMinimapWithImage(node);
+                }
+                if (activeRequests === 0 && statusTag) {
+                    statusTag.innerText = "失败";
+                    statusTag.className = "text-xs px-2 py-1 rounded bg-red-50 text-red-600";
                 }
             } finally {
-                sendBtn.disabled = false;
-                loader.classList.add('hidden');
+                activeRequests--;
+                if (activeRequests === 0) {
+                    loader.classList.add('hidden');
+                }
+                // 清空输入框
+                promptInput.innerHTML = '';
             }
         }
 
@@ -2424,10 +4553,67 @@
             if (e.ctrlKey && e.key === 'Enter') callAPI();
         });
 
-        document.addEventListener('keydown', (e) => {
+        document.addEventListener('wheel', (e) => {
+            if (!e.ctrlKey) return;
+            
             if (document.activeElement === promptInput) return;
             
+            e.preventDefault();
+            
+            const currentScale = panzoom.getScale();
+            const delta = e.deltaY > 0 ? -0.25 : 0.25;
+            const newScale = Math.max(0.5, Math.min(2.5, currentScale + delta));
+            updateCanvasScale(newScale);
+        }, { passive: false });
+
+        document.addEventListener('keydown', (e) => {
+            // Ctrl + ` 切换调试控制面板
+            if (e.ctrlKey && e.key === '`') {
+                e.preventDefault();
+                debugConsole.classList.toggle('collapsed');
+                return;
+            }
+            
+            if (document.activeElement === promptInput) return;
+            
+            // 画布缩放快捷键（Ctrl +/-）
+            if (e.ctrlKey && !e.shiftKey && (e.key === '=' || e.key === '+')) {
+                e.preventDefault();
+                const currentScale = panzoom.getScale();
+                const newScale = Math.min(2.5, currentScale + 0.25);
+                updateCanvasScale(newScale);
+                return;
+            }
+            
+            if (e.ctrlKey && !e.shiftKey && (e.key === '-' || e.key === '_')) {
+                e.preventDefault();
+                const currentScale = panzoom.getScale();
+                const newScale = Math.max(0.5, currentScale - 0.25);
+                updateCanvasScale(newScale);
+                return;
+            }
+            
             if (selectedNode) {
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key === 'c' || e.key === 'C') {
+                        e.preventDefault();
+                        copySelectedNode();
+                        return;
+                    }
+                    if (e.key === 'x' || e.key === 'X') {
+                        e.preventDefault();
+                        cutSelectedNode();
+                        return;
+                    }
+                }
+                
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    e.preventDefault();
+                    deleteSelectedNode();
+                    return;
+                }
+                
+                // 处理方向键移动
                 const step = 10;
                 const currentLeft = parseInt(selectedNode.style.left) || 0;
                 const currentTop = parseInt(selectedNode.style.top) || 0;
@@ -2455,6 +4641,11 @@
 
         window.addEventListener('load', () => {
             setTimeout(initCanvas, 100);
+        });
+        
+        // 动态监听resize事件，当窗口大小改变时自动刷新UI
+        window.addEventListener('resize', () => {
+            refreshUI();
         });
     </script>
 </body>
