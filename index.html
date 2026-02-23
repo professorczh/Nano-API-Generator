@@ -328,6 +328,7 @@
     <script type="module">
         import { GoogleGenerativeAI } from "@google/generative-ai";
         import { CONFIG, TEXT_MODELS, IMAGE_MODELS } from "./config.js";
+        import { AppState, minimapDragStartX, minimapDragStartY, minimapPanStartX, minimapPanStartY } from "./js/app-state.js";
 
         const sendBtn = document.getElementById('sendBtn');
         const promptInput = document.getElementById('promptInput');
@@ -395,51 +396,6 @@
         let uiPanelStartLeft = 0;
         let uiPanelStartTop = 0;
         let isDraggingMinimapViewport = false;
-        let minimapDragStartX = 0;
-        let minimapDragStartY = 0;
-        let minimapPanStartX = 0;
-        let minimapPanStartY = 0;
-        // 应用状态管理
-        const AppState = {
-            mode: 'VIEW', // VIEW, DRAGGING_NODE, SELECTING_AREA
-            activeNode: null,
-            scale: 1,
-            isDraggingNode: false,
-            dragNode: null,
-            dragStartX: 0,
-            dragStartY: 0,
-            dragNodeStartLeft: 0,
-            dragNodeStartTop: 0,
-            isMiddleMouseDown: false,
-            lastMouseX: 0,
-            lastMouseY: 0,
-            panX: 0,
-            panY: 0,
-            isResizingNode: false,
-            resizeStart: { x: 0, y: 0, width: 0, height: 0 },
-            resizeNode: null,
-            // 使用 Map 存储节点数据，方便后期同步到后端
-            nodes: new Map(),
-            
-            // 更新缩放比例
-            updateScale: function(newScale) {
-                this.scale = newScale;
-                if (showMouseLogs) {
-                    debugLog(`[状态更新] 缩放比例: ${newScale}`, 'info');
-                }
-            },
-            
-            // 重置状态
-            reset: function() {
-                this.mode = 'VIEW';
-                this.activeNode = null;
-                this.isDraggingNode = false;
-                this.dragNode = null;
-                this.isMiddleMouseDown = false;
-                this.isResizingNode = false;
-                this.resizeNode = null;
-            }
-        };
 
         function debugLog(message, type = 'info') {
             const logEntry = document.createElement('div');
