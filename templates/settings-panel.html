@@ -1,0 +1,74 @@
+<div id="settingsPanel" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[900] p-4">
+    <div class="bg-gradient-to-b from-gray-50 to-white rounded-2xl shadow-2xl w-[960px] h-[860px] overflow-hidden flex flex-col pointer-events-auto relative">
+        <div class="flex items-center justify-between px-5 py-3 bg-white/80 backdrop-blur-sm border-b border-gray-100">
+            <div class="flex items-center gap-2">
+                <span class="text-lg">⚙️</span>
+                <h3 class="text-base font-semibold text-gray-800">设置</h3>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="saveSettingsBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-1.5 rounded-full text-sm font-medium shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all">
+                    保存设置
+                </button>
+                <button id="closeSettingsBtn" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-5 space-y-4">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-sm font-medium text-gray-700">默认模型选择</span>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1.5">文本模型</label>
+                        <div class="custom-select-wrapper" id="settingsDefaultTextModelWrapper">
+                            <div class="custom-select-trigger">
+                                <span class="selected-text">选择模型</span>
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                            <div class="custom-select-dropdown"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1.5">图片模型</label>
+                        <div class="custom-select-wrapper" id="settingsDefaultImageModelWrapper">
+                            <div class="custom-select-trigger">
+                                <span class="selected-text">选择模型</span>
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                            <div class="custom-select-dropdown"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1.5">视频模型</label>
+                        <div class="custom-select-wrapper" id="settingsDefaultVideoModelWrapper">
+                            <div class="custom-select-trigger">
+                                <span class="selected-text">选择模型</span>
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                            <div class="custom-select-dropdown"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="text-sm font-medium text-gray-700">API配置</span>
+                </div>
+                
+                <div id="settingsTabs" class="flex items-center gap-2 mb-4 p-1 bg-gray-50 rounded-lg w-fit">
+                    <button id="settingsTabAdd" class="py-1.5 px-3 text-sm font-medium text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all" title="添加新Provider">+</button>
+                </div>
+                
+                <div id="settingsAPIConfig" class="overflow-y-auto">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -10,18 +10,16 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800 overflow-hidden">
+    <div id="text-measure" class="absolute invisible whitespace-nowrap text-sm px-3 py-2 font-sans"></div>
 
     <!-- 全屏画布层 -->
-    <div id="canvasLayer" class="fixed inset-0 z-0">
+    <div id="canvasLayer" class="fixed inset-0 z-0 pointer-events-auto">
         <div id="canvasViewport" class="w-full h-full">
-            <div id="canvas" class="absolute origin-center transition-transform duration-75 ease-out" style="width: 10000px; height: 10000px; left: 0px; top: 0px;">
+            <div id="canvas" class="absolute origin-center transition-transform duration-75 ease-out">
                 <!-- 调试网格 -->
                 <div id="debugGrid" class="absolute inset-0 pointer-events-none hidden">
                     <svg width="10000" height="10000" viewBox="0 0 10000 10000" xmlns="http://www.w3.org/2000/svg" id="debugGridSvg">
                     </svg>
-                </div>
-                <div id="responseOutput" class="whitespace-pre-wrap text-gray-700 leading-relaxed italic text-gray-400 p-4">
-                    内容将在此处显示...
                 </div>
                 <div id="imageResponseContainer">
                 </div>
@@ -38,148 +36,129 @@
         </header>
 
         <!-- 可拖动的UI面板 -->
-        <div id="uiPanel" class="pointer-events-auto absolute top-16 right-4 w-[400px] max-w-[90vw] max-h-[calc(100vh-80px)] overflow-y-auto">
-            <div class="glass-card rounded-2xl p-6 shadow-sm mb-4">
+        <div id="uiPanel" class="pointer-events-auto absolute top-1/2 -translate-y-1/2 right-4 w-[400px] max-w-[90vw] max-h-[calc(100vh-80px)] overflow-y-auto">
+<!-- 提示词面板 -->
+            <div class="glass-card rounded-2xl p-4 shadow-sm pointer-events-auto">
                 <div class="flex items-center justify-between mb-2">
-                    <label class="block text-sm font-medium text-gray-700">API Key</label>
-                    <div class="flex items-center gap-2">
-                        <a href="https://aistudio.google.com/api-keys" target="_blank" class="text-xs text-blue-600 hover:text-blue-700 underline">获取 API Key</a>
-                        <a href="https://ai.google.dev/gemini-api/docs/models" target="_blank" class="text-xs text-gray-500 hover:text-gray-700" title="查看支持的模型">?</a>
-                        <button id="toggleApiKeyPanel" class="text-sm text-blue-600 hover:text-blue-700">折叠</button>
-                    </div>
+                    <label class="block text-sm font-medium text-gray-700">提示词面板</label>
+                    <button id="togglePromptPanel" class="text-sm text-blue-600 hover:text-blue-700">折叠</button>
                 </div>
-                <div id="apiKeyPanel">
-                        <div class="flex gap-3">
-                            <input type="text" id="apiKeyInput" 
-                                class="flex-1 p-4 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                                placeholder="输入你的 API Key">
-                            <button id="testApiKeyBtn" 
-                                class="bg-gray-600 hover:bg-gray-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap">
-                                <span>测试</span>
-                                <div id="testLoader" class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                            </button>
-                        </div>
-                        <div id="apiStatus" class="mt-2 text-sm text-gray-500"></div>
-                        
-                        <div class="mt-3 flex gap-3">
-                            <button id="saveApiKeyBtn" 
-                                class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm text-sm">
-                                存储 API
-                            </button>
-                            <button id="clearApiKeyBtn" 
-                                class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm text-sm">
-                                清除 API
-                            </button>
-                        </div>
-                        
-                        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">文本模型</label>
-                                <select id="textModelName" 
-                                    class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">识图模型</label>
-                                <select id="visionModelName" 
-                                    class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">生图模型</label>
-                                <select id="imageModelName" 
-                                    class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
-                                </select>
-                            </div>
-                        </div>
+                <div id="promptPanel">
+                    <div id="promptContainer" class="w-full px-3 py-1.5 rounded-xl border border-gray-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent outline-none transition-all bg-white min-h-[100px]">
+                        <div id="promptInput" contenteditable="true" 
+                            class="w-full border-none outline-none resize-none bg-transparent text-gray-700 placeholder-gray-400 whitespace-pre-wrap text-sm"
+                            data-placeholder="请输入提示词，&#10;Ctrl + Enter直接发送，&#10;Enter进行换行。"></div>
                     </div>
-                </div>
-
-                <div class="glass-card rounded-2xl p-6 shadow-sm">
-                    <div class="flex items-center justify-between mb-2">
-                        <label class="block text-sm font-medium text-gray-700">提示词</label>
-                        <button id="togglePromptPanel" class="text-sm text-blue-600 hover:text-blue-700">折叠</button>
+                    
+                    <!-- 任务类型 Tab -->
+                    <div class="mt-4 flex border border-gray-200 rounded-lg overflow-hidden">
+                        <button id="tabText" class="flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50 border-r border-gray-200">📝 文本</button>
+                        <button id="tabImage" class="flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white">🖼️ 图片</button>
+                        <button id="tabVideo" class="flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50">🎬 视频</button>
                     </div>
-                    <div id="promptPanel">
-                        <div id="promptContainer" class="w-full p-4 rounded-xl border border-gray-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent outline-none transition-all bg-white min-h-[120px]">
-                            <div id="promptInput" contenteditable="true" 
-                                class="w-full border-none outline-none resize-none bg-transparent text-gray-700 placeholder-gray-400 whitespace-pre-wrap"
-                                data-placeholder="请输入提示词"></div>
-                        </div>
+                    
+                    <!-- 模型参数 -->
+                    <div id="modelParams" class="mt-4">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-3">模型参数</h3>
                         
-                        <div class="mt-4 flex justify-between items-center">
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" id="imageGenMode" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
-                                <span class="text-gray-700 font-medium">生图模式</span>
-                            </label>
-                            <div class="flex items-center gap-3">
-                                <span id="statusTag" class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600">就绪</span>
-                                <button id="sendBtn" 
-                                    class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors shadow-sm flex items-center gap-2">
-                                    <span>发送</span>
-                                    <div id="loader" class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div id="imageGenOptions" class="mt-4">
-                            <div class="border-t border-gray-200 pt-4">
-                                <h3 class="text-sm font-semibold text-gray-700 mb-3">生图参数设置</h3>
-                                
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">宽高比</label>
-                                        <select id="aspectRatio"
-                                            class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
-                                            <option value="1:1" selected>1:1 正方形</option>
-                                            <option value="16:9">16:9 宽屏</option>
-                                            <option value="9:16">9:16 竖屏</option>
-                                            <option value="21:9">21:9 超宽屏</option>
-                                            <option value="4:3">4:3 传统横向</option>
-                                            <option value="3:4">3:4 传统竖向</option>
-                                            <option value="3:2">3:2 经典横向</option>
-                                            <option value="2:3">2:3 经典竖向</option>
-                                            <option value="5:4">5:4 大画幅横向</option>
-                                            <option value="4:5">4:5 大画幅竖向</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">分辨率</label>
-                                        <select id="imageSize" 
-                                            class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
-                                            <option value="1K" selected>1K (1024px)</option>
-                                            <option value="2K">2K 高清</option>
-                                            <option value="4K">4K 超高清</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            温度: <span id="temperatureValue">0.6</span>
-                                        </label>
-                                        <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.6" 
-                                            class="w-full">
-                                        <div class="flex justify-between text-xs text-gray-500 mt-1">
-                                            <span>确定性</span>
-                                            <span>创造性</span>
+                        <!-- 图片模式参数 -->
+                        <div id="imageParams">
+                            <div class="grid grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">图片模型</label>
+                                    <div class="custom-select-wrapper" id="imageModelNameWrapper">
+                                        <div class="custom-select-trigger">
+                                            <span class="selected-text">选择模型</span>
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
                                     </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            Top-P: <span id="topPValue">0.95</span>
-                                        </label>
-                                        <input type="range" id="topP" min="0" max="1" step="0.05" value="0.95" 
-                                            class="w-full">
-                                        <div class="flex justify-between text-xs text-gray-500 mt-1">
-                                            <span>集中</span>
-                                            <span>多样</span>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">宽高比</label>
+                                    <select id="aspectRatio" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"></select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">分辨率</label>
+                                <select id="imageSize" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm">
+                                    <option value="512px">0.5K (512×512)</option>
+                                    <option value="1K">1K (1024×1024)</option>
+                                    <option value="2K">2K (1920×1080)</option>
+                                    <option value="4K">4K (3840×2160)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- 视频模式参数 -->
+                        <div id="videoParams" class="hidden">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">视频模型</label>
+                                    <div class="custom-select-wrapper" id="videoModelNameWrapper">
+                                        <div class="custom-select-trigger">
+                                            <span class="selected-text">选择模型</span>
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">视频比例</label>
+                                    <select id="videoRatioSelect" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm">
+                                        <option value="16:9">16:9 横屏</option>
+                                        <option value="9:16">9:16 竖屏</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">视频时长</label>
+                                    <select id="videoDurationSelect" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm">
+                                        <option value="4">4 秒</option>
+                                        <option value="6" selected>6 秒</option>
+                                        <option value="8">8 秒</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">分辨率</label>
+                                    <select id="videoResolutionSelect" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm">
+                                        <option value="720p">720p</option>
+                                        <option value="1080p">1080p</option>
+                                        <option value="4k">4K</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 文本模式参数 -->
+                        <div id="textParams" class="hidden">
+                            <div class="grid grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">文本/识图模型</label>
+                                    <div class="custom-select-wrapper" id="textModelNameWrapper">
+                                        <div class="custom-select-trigger">
+                                            <span class="selected-text">选择模型</span>
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">Temperature</label>
+                                    <input type="number" id="temperature" value="0.7" min="0" max="1" step="0.1" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">Top P</label>
+                                    <input type="number" id="topP" value="0.95" min="0" max="1" step="0.05" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm">
+                                </div>
+                            </div>
                         </div>
+                    </div>
+                    
+                    <div class="mt-4 flex justify-between items-center">
+                        <span id="statusTag" class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600">就绪</span>
+                        <button id="sendBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium text-sm flex items-center gap-2">
+                            <span>发送</span>
+                            <div id="loader" class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -200,30 +179,42 @@
                         <span>显示鼠标日志</span>
                     </label>
                 </div>
-                <div class="debug-console-footer-right">
-                    <button class="debug-console-clear" id="debugConsoleClear">清空</button>
+                <div class="debug-console-footer-center">
                     <label class="debug-console-mouse-label">
                         <input type="checkbox" id="debugConsoleToggleMarker" class="debug-console-mouse-checkbox">
                         <span>中心标记</span>
                     </label>
                     <label class="debug-console-mouse-label">
-                        <input type="checkbox" id="debugConsoleToggleCoords" class="debug-console-mouse-checkbox">
-                        <span>图片坐标</span>
-                    </label>
-                    <label class="debug-console-mouse-label">
                         <input type="checkbox" id="debugConsoleToggleGrid" class="debug-console-mouse-checkbox">
                         <span>调试网格</span>
                     </label>
+                    <span class="debug-console-divider">|</span>
                     <label class="debug-console-mouse-label">
                         <input type="checkbox" id="debugConsoleToggleSample" class="debug-console-mouse-checkbox">
                         <span>样例图片</span>
                     </label>
+                    <span class="debug-console-divider">|</span>
+                    <label class="debug-console-mouse-label">
+                        <input type="checkbox" id="debugConsoleToggleCoords" class="debug-console-mouse-checkbox">
+                        <span>节点坐标</span>
+                    </label>
+                    <label class="debug-console-mouse-label">
+                        <input type="checkbox" id="debugConsoleToggleTime" class="debug-console-mouse-checkbox" checked>
+                        <span>生成耗时</span>
+                    </label>
+                    <label class="debug-console-mouse-label">
+                        <input type="checkbox" id="debugConsoleToggleModelTag" class="debug-console-mouse-checkbox" checked>
+                        <span>模型标签</span>
+                    </label>
+                </div>
+                <div class="debug-console-footer-right">
+                    <button class="debug-console-clear" id="debugConsoleClear">清空</button>
                 </div>
             </div>
         </div>
 
         <!-- 画布缩略图 -->
-        <div id="canvasMinimap" class="fixed bottom-32 left-4 z-20 pointer-events-auto">
+        <div id="canvasMinimap" class="fixed left-4 z-20 pointer-events-auto">
             <div class="minimap-container">
                 <div class="minimap-header">
                     <span class="minimap-title">画布导航</span>
@@ -236,47 +227,55 @@
             </div>
         </div>
 
-        <!-- 画布缩放控制 -->
-        <div id="canvasZoomControl" class="fixed bottom-96 left-4 z-20 pointer-events-auto">
-            <div class="minimap-container">
-                <div class="minimap-header">
-                    <span class="minimap-title">画布缩放</span>
+        <!-- 迷你工具栏 -->
+        <div id="miniToolbar" class="fixed left-1/2 transform -translate-x-1/2 z-20 pointer-events-auto">
+            <div class="flex items-center gap-2">
+                <button id="uploadImageBtn" class="toolbar-upload-btn">
+                    <svg class="toolbar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                </button>
+                <input type="file" id="imageUploadInput" accept="image/*" class="hidden">
+                
+                <!-- 缩放控制按钮 -->
+                <div class="flex items-center gap-1 bg-white rounded-full shadow-lg px-2 py-1">
+                    <button id="toolbarZoomReset" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600" title="重置缩放">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                        </svg>
+                    </button>
+                    <button id="toolbarZoomOut" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600 font-bold" title="缩小">−</button>
+                    <span id="toolbarZoomValue" class="text-sm font-semibold text-gray-700 min-w-[48px] text-center cursor-pointer" title="点击重置">100%</span>
+                    <button id="toolbarZoomIn" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600 font-bold" title="放大">+</button>
+                    <button id="toolbarCenterCanvas" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600" title="回到画布中心">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"/>
+                            <line x1="12" y1="2" x2="12" y2="6"/>
+                            <line x1="12" y1="18" x2="12" y2="22"/>
+                            <line x1="2" y1="12" x2="6" y2="12"/>
+                            <line x1="18" y1="12" x2="22" y2="12"/>
+                        </svg>
+                    </button>
                 </div>
-                <div class="zoom-control-content">
-                    <div class="zoom-buttons">
-                        <button id="zoomOutBtn" class="zoom-btn" title="缩小 (Ctrl+-)">−</button>
-                        <div class="zoom-slider-container">
-                            <input type="range" id="zoomSlider" class="zoom-slider" min="50" max="250" step="25" value="100">
-                        </div>
-                        <span id="zoomValue" class="zoom-value" title="点击重置为100%">100%</span>
-                        <button id="zoomInBtn" class="zoom-btn" title="放大 (Ctrl+=)">+</button>
-                        <button id="zoomResetBtn" class="zoom-btn" title="重置缩放">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                                <path d="M3 3v5h5"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
+                
+                <!-- 设置按钮 -->
+                <button id="toolbarSettingsBtn" class="toolbar-settings-btn" title="设置">
+                    <svg class="toolbar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                </button>
             </div>
         </div>
-
-        <!-- 迷你工具栏 -->
-        <div id="miniToolbar" class="fixed bottom-16 left-1/2 transform -translate-x-1/2 z-20 pointer-events-auto">
-            <button id="uploadImageBtn" class="toolbar-upload-btn">
-                <svg class="toolbar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="17 8 12 3 7 8"/>
-                    <line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
-            </button>
-            <input type="file" id="imageUploadInput" accept="image/*" class="hidden">
-        </div>
+        
         
         <!-- 画布中心标记 -->
-        <div id="canvasCenterMarker" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none">
+        <div id="canvasCenterMarker" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none hidden">
             <div class="w-2 h-2 bg-red-500 rounded-full"></div>
-            <div class="text-xs text-red-500 mt-2 whitespace-nowrap">中心坐标: 计算中...</div>
+            <div class="text-xs text-red-500 mt-2 whitespace-nowrap">中心坐标: (0, 0)</div>
         </div>
     </div>
 
@@ -297,7 +296,7 @@
         </div>
     </div>
 
-    <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[1100] p-4">
+    <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[100002] p-4">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
             <div class="flex items-center mb-4">
                 <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
@@ -317,6 +316,22 @@
         </div>
     </div>
 
+    <!-- 保存成功提示模态框 -->
+    <div id="saveSuccessModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[100002] p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <div class="flex items-center mb-4">
+                <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                    <span class="text-green-600 text-xl">✓</span>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">保存成功</h3>
+            </div>
+            <p class="text-gray-600 mb-6" id="saveSuccessModalMessage">设置已成功保存</p>
+            <div class="flex justify-end">
+                <button id="saveSuccessModalOk" class="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors">确定</button>
+            </div>
+        </div>
+    </div>
+
     <script type="importmap">
     {
       "imports": {
@@ -327,19 +342,32 @@
     
     <script type="module">
         import { GoogleGenerativeAI } from "@google/generative-ai";
-        import { CONFIG, TEXT_MODELS, IMAGE_MODELS } from "./config.js";
+        import { CONFIG, TEXT_MODELS, IMAGE_MODELS, VIDEO_MODELS, VIDEO_RATIOS, IMAGE_RATIOS, IMAGE_SIZES, getProviderByModelId, migrateOldStorageFormat, getModelDisplayName } from "./config.js";
         import { AppState, minimapDragStartX, minimapDragStartY, minimapPanStartX, minimapPanStartY } from "./js/app-state.js";
+        import { PinManager } from "./js/pin-manager.js";
+        import { apiClient, initializeAPIClient } from "./js/api-client.js";
+        import { ProviderManager } from "./js/providers.js";
+        import { UIManager } from "./js/ui.js";
+        import "./js/node-factory.js";
+        import "./js/main.js";
+        import { TemplateLoader } from "./js/template-loader.js";
+        import { DebugConsole } from "./js/debug-console.js";
 
         const sendBtn = document.getElementById('sendBtn');
         const promptInput = document.getElementById('promptInput');
-        const apiKeyInput = document.getElementById('apiKeyInput');
-        const responseOutput = document.getElementById('responseOutput');
         const loader = document.getElementById('loader');
         const statusTag = document.getElementById('statusTag');
-        const testApiKeyBtn = document.getElementById('testApiKeyBtn');
-        const testLoader = document.getElementById('testLoader');
-        const apiStatus = document.getElementById('apiStatus');
-        const imageGenMode = document.getElementById('imageGenMode');
+        const videoModelNameWrapper = document.getElementById('videoModelNameWrapper');
+        const videoRatioSelect = document.getElementById('videoRatioSelect');
+        
+        let currentMode = 'image';
+        
+        window.currentMode = currentMode;
+        
+        const tabText = document.getElementById('tabText');
+        const tabImage = document.getElementById('tabImage');
+        const tabVideo = document.getElementById('tabVideo');
+        
         const imageGenOptions = document.getElementById('imageGenOptions');
         const aspectRatio = document.getElementById('aspectRatio');
         const imageSize = document.getElementById('imageSize');
@@ -347,10 +375,103 @@
         const topP = document.getElementById('topP');
         const temperatureValue = document.getElementById('temperatureValue');
         const topPValue = document.getElementById('topPValue');
+        const imageModelNameWrapper = document.getElementById('imageModelNameWrapper');
         const imageResponseContainer = document.getElementById('imageResponseContainer');
-        const textModelName = document.getElementById('textModelName');
-        const visionModelName = document.getElementById('visionModelName');
-        const imageModelName = document.getElementById('imageModelName');
+        
+        PinManager.setPromptInput(promptInput);
+        
+        // 添加模型变更监听器
+        // 初始更新分辨率选项
+        updateResolutionOptions();
+        
+        function updateResolutionOptions() {
+            const selectedModel = CONFIG.IMAGE_MODEL_NAME;
+            
+            // 判断模型分组
+            const isFirstGroup = selectedModel.includes('3.1-flash-image-preview');
+            
+            // 更新比例选项
+            const imageRatioSelect = document.getElementById('imageRatio');
+            if (imageRatioSelect) {
+                imageRatioSelect.innerHTML = '';
+                
+                IMAGE_RATIOS.forEach(ratio => {
+                    // 第一组允许所有比例，第二组排除8:1, 4:1, 1:4, 1:8
+                    if (isFirstGroup || !['8:1', '4:1', '1:4', '1:8'].includes(ratio.value)) {
+                        const option = document.createElement('option');
+                        option.value = ratio.value;
+                        option.textContent = ratio.name;
+                        imageRatioSelect.appendChild(option);
+                    }
+                });
+            }
+            
+            // 更新分辨率选项
+            const imageSizeSelect = document.getElementById('imageSize');
+            if (imageSizeSelect) {
+                // 清空现有选项
+                imageSizeSelect.innerHTML = '';
+                
+                // 根据模型添加可用选项
+                IMAGE_SIZES.forEach(size => {
+                    // 第一组允许所有分辨率，第二组排除0.5K
+                    if (isFirstGroup || size.value !== '512px') {
+                        const option = document.createElement('option');
+                        option.value = size.value;
+                        option.textContent = size.name;
+                        imageSizeSelect.appendChild(option);
+                    }
+                });
+                
+                // 设置默认值
+                imageSizeSelect.value = '1K'; // 默认1K
+            }
+        }
+        
+        initializeAPIClient({
+            promptInput: promptInput,
+            debugLog: debugLog,
+            statusTag: statusTag,
+            loader: loader
+        });
+        
+        const saved12AIKey = window.ENV?.['12AI_API_KEY'] || localStorage.getItem('12AI_API_KEY') || '';
+        
+        migrateOldStorageFormat();
+        
+        if (saved12AIKey) {
+            CONFIG.TWELVE_AI_API_KEY = saved12AIKey;
+            apiClient.update12AIKey(saved12AIKey);
+        }
+        
+        const savedModelName = localStorage.getItem('GEMINI_MODEL_NAME');
+        const savedModelProvider = localStorage.getItem('GEMINI_MODEL_PROVIDER');
+        if (savedModelName) {
+            CONFIG.MODEL_NAME = savedModelName;
+        }
+        if (savedModelProvider) {
+            CONFIG.MODEL_PROVIDER = savedModelProvider;
+        }
+        
+        const savedImageModelName = localStorage.getItem('GEMINI_IMAGE_MODEL_NAME');
+        const savedImageModelProvider = localStorage.getItem('GEMINI_IMAGE_MODEL_PROVIDER');
+        if (savedImageModelName) {
+            CONFIG.IMAGE_MODEL_NAME = savedImageModelName;
+        }
+        if (savedImageModelProvider) {
+            CONFIG.IMAGE_MODEL_PROVIDER = savedImageModelProvider;
+        }
+        
+        const savedVideoModelName = localStorage.getItem('GEMINI_VIDEO_MODEL_NAME');
+        const savedVideoModelProvider = localStorage.getItem('GEMINI_VIDEO_MODEL_PROVIDER');
+        if (savedVideoModelName) {
+            CONFIG.VIDEO_MODEL_NAME = savedVideoModelName;
+        }
+        if (savedVideoModelProvider) {
+            CONFIG.VIDEO_MODEL_PROVIDER = savedVideoModelProvider;
+        }
+        
+        const textModelNameWrapper = document.getElementById('textModelNameWrapper');
         const imageModal = document.getElementById('imageModal');
         
         let activeRequests = 0;
@@ -359,9 +480,7 @@
         const closeModalBtn2 = document.getElementById('closeModalBtn2');
         const downloadModalBtn = document.getElementById('downloadModalBtn');
         const openFolderBtn = document.getElementById('openFolderBtn');
-        const toggleApiKeyPanel = document.getElementById('toggleApiKeyPanel');
         const togglePromptPanel = document.getElementById('togglePromptPanel');
-        const apiKeyPanel = document.getElementById('apiKeyPanel');
         const promptPanel = document.getElementById('promptPanel');
         const canvasViewport = document.getElementById('canvasViewport');
         const canvas = document.getElementById('canvas');
@@ -376,14 +495,26 @@
         const minimapViewport = document.getElementById('minimapViewport');
         const uploadImageBtn = document.getElementById('uploadImageBtn');
         const imageUploadInput = document.getElementById('imageUploadInput');
-        const canvasZoomControl = document.getElementById('canvasZoomControl');
-        const zoomSlider = document.getElementById('zoomSlider');
-        const zoomValue = document.getElementById('zoomValue');
-        const zoomOutBtn = document.getElementById('zoomOutBtn');
-        const zoomInBtn = document.getElementById('zoomInBtn');
-        const zoomResetBtn = document.getElementById('zoomResetBtn');
+        const toolbarZoomOut = document.getElementById('toolbarZoomOut');
+        const toolbarZoomIn = document.getElementById('toolbarZoomIn');
+        const toolbarZoomReset = document.getElementById('toolbarZoomReset');
+        const toolbarZoomValue = document.getElementById('toolbarZoomValue');
+        const toolbarCenterCanvas = document.getElementById('toolbarCenterCanvas');
+        const miniToolbar = document.getElementById('miniToolbar');
+        const toolbarSettingsBtn = document.getElementById('toolbarSettingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const settingsApiKeyInput = document.getElementById('settingsApiKeyInput');
+        const settingsApiStatus = document.getElementById('settingsApiStatus');
+        const settingsTestApiKeyBtn = document.getElementById('settingsTestApiKeyBtn');
+        const settingsApiStatusClose = document.getElementById('settingsApiStatusClose');
+        const settingsDefaultTextModelWrapper = document.getElementById('settingsDefaultTextModelWrapper');
+        const settingsDefaultImageModelWrapper = document.getElementById('settingsDefaultImageModelWrapper');
+        const settingsDefaultVideoModelWrapper = document.getElementById('settingsDefaultVideoModelWrapper');
         
-        let showMouseLogs = false;
+
+        
         let currentBlobUrl = null;
         let panzoom = null;
         let selectedNode = null;
@@ -397,175 +528,48 @@
         let uiPanelStartTop = 0;
         let isDraggingMinimapViewport = false;
 
-        function debugLog(message, type = 'info') {
-            const logEntry = document.createElement('div');
-            logEntry.className = `debug-log ${type}`;
-            
-            const timestamp = document.createElement('span');
-            timestamp.className = 'timestamp';
-            const now = new Date();
-            timestamp.textContent = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}]`;
-            
-            const messageSpan = document.createElement('span');
-            messageSpan.className = 'message';
-            messageSpan.textContent = message;
-            
-            const copyIcon = document.createElement('span');
-            copyIcon.className = 'debug-log-copy';
-            copyIcon.innerHTML = '📋';
-            copyIcon.title = '复制';
-            copyIcon.addEventListener('click', (e) => {
-                e.stopPropagation();
-                navigator.clipboard.writeText(message).then(() => {
-                    copyIcon.textContent = '✓';
-                    setTimeout(() => {
-                        copyIcon.textContent = '📋';
-                    }, 1000);
-                });
-            });
-            
-            logEntry.appendChild(timestamp);
-            logEntry.appendChild(messageSpan);
-            logEntry.appendChild(copyIcon);
-            debugConsoleContent.appendChild(logEntry);
-            debugConsoleContent.scrollTop = debugConsoleContent.scrollHeight;
-            
-            const maxLogs = 100;
-            const logs = debugConsoleContent.querySelectorAll('.debug-log');
-            if (logs.length > maxLogs) {
-                for (let i = 0; i < logs.length - maxLogs; i++) {
-                    logs[i].remove();
-                }
-            }
-        }
-
-        debugConsoleHeader.addEventListener('click', () => {
-            debugConsole.classList.toggle('collapsed');
+        DebugConsole.init({
+            debugConsole: debugConsole,
+            debugConsoleContent: debugConsoleContent,
+            debugConsoleHeader: debugConsoleHeader,
+            debugConsoleClear: debugConsoleClear,
+            canvasCenterMarker: canvasCenterMarker,
+            debugGrid: debugGrid,
+            imageResponseContainer: imageResponseContainer,
+            showGenerationTime: true,
+            showModelTag: true
         });
-
-        debugConsoleClear.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const logs = debugConsoleContent.querySelectorAll('.debug-log');
-            logs.forEach(log => log.remove());
-        });
-
-        const debugConsoleToggleMarker = document.getElementById('debugConsoleToggleMarker');
-        const canvasCenterMarker = document.getElementById('canvasCenterMarker');
-        
-        canvasCenterMarker.classList.add('hidden');
-        
-        debugConsoleToggleMarker.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                canvasCenterMarker.classList.remove('hidden');
-            } else {
-                canvasCenterMarker.classList.add('hidden');
-            }
-        });
-        
-        const debugConsoleToggleCoords = document.getElementById('debugConsoleToggleCoords');
-        
-        const allCoordsElements = document.querySelectorAll('.node-center-coords');
-        allCoordsElements.forEach(element => {
-            element.style.display = 'none';
-        });
-        
-        debugConsoleToggleCoords.addEventListener('change', (e) => {
-            const allCoordsElements = document.querySelectorAll('.node-center-coords');
-            allCoordsElements.forEach(element => {
-                if (e.target.checked) {
-                    element.style.display = 'block';
-                } else {
-                    element.style.display = 'none';
-                }
-            });
-        });
-        
-        const debugConsoleToggleGrid = document.getElementById('debugConsoleToggleGrid');
-        const debugGrid = document.getElementById('debugGrid');
-        
-        debugGrid.classList.add('hidden');
-        
-        debugConsoleToggleGrid.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                debugGrid.classList.remove('hidden');
-            } else {
-                debugGrid.classList.add('hidden');
-            }
-        });
-        
-        const debugConsoleToggleSample = document.getElementById('debugConsoleToggleSample');
-        let sampleImageNode = null;
-        
-        debugConsoleToggleSample.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                if (!sampleImageNode) {
-                    sampleImageNode = imageResponseContainer.querySelector('[data-filename="sample_image.png"]');
-                    if (!sampleImageNode) {
-                        addSampleImage();
-                        sampleImageNode = imageResponseContainer.querySelector('[data-filename="sample_image.png"]');
-                    }
-                }
-                if (sampleImageNode) {
-                    sampleImageNode.classList.remove('hidden');
-                }
-            } else {
-                sampleImageNode = imageResponseContainer.querySelector('[data-filename="sample_image.png"]');
-                if (sampleImageNode) {
-                    sampleImageNode.classList.add('hidden');
-                }
-            }
-        });
-        
-        const debugConsoleToggleMouse = document.getElementById('debugConsoleToggleMouse');
-        
-        debugConsoleToggleMouse.addEventListener('change', (e) => {
-            showMouseLogs = e.target.checked;
-            debugLog(`[鼠标日志] ${showMouseLogs ? '启用' : '禁用'}`, 'info');
-        });
-
-        function maskApiKey(apiKey) {
-            if (!apiKey || apiKey.length < 6) return apiKey;
-            return apiKey.substring(0, 3) + '*'.repeat(apiKey.length - 6) + apiKey.substring(apiKey.length - 3);
-        }
 
         function updateApiKeyDisplay() {
             const apiKey = CONFIG.API_KEY;
-            if (apiKey) {
-                apiKeyInput.value = maskApiKey(apiKey);
+            if (apiKey && settingsApiKeyInput) {
+                settingsApiKeyInput.value = maskApiKey(apiKey);
             }
         }
 
-        apiKeyInput.value = CONFIG.API_KEY ? maskApiKey(CONFIG.API_KEY) : '';
+        if (settingsApiKeyInput) {
+            settingsApiKeyInput.value = CONFIG.API_KEY ? maskApiKey(CONFIG.API_KEY) : '';
 
-        apiKeyInput.addEventListener('focus', () => {
-            apiKeyInput.value = CONFIG.API_KEY;
-        });
+            settingsApiKeyInput.addEventListener('focus', () => {
+                settingsApiKeyInput.value = CONFIG.API_KEY;
+            });
 
-        apiKeyInput.addEventListener('blur', () => {
-            const newValue = apiKeyInput.value.trim();
-            if (newValue && newValue !== maskApiKey(CONFIG.API_KEY)) {
-                CONFIG.API_KEY = newValue;
-            }
-            updateApiKeyDisplay();
-        });
+            settingsApiKeyInput.addEventListener('blur', () => {
+                const newValue = settingsApiKeyInput.value.trim();
+                if (newValue && newValue !== maskApiKey(CONFIG.API_KEY)) {
+                    CONFIG.API_KEY = newValue;
+                }
+                updateApiKeyDisplay();
+            });
 
-        apiKeyInput.addEventListener('input', () => {
-            const newValue = apiKeyInput.value.trim();
-            if (newValue && !newValue.includes('*')) {
-                CONFIG.API_KEY = newValue;
-            }
-        });
-
-        toggleApiKeyPanel.addEventListener('click', () => {
-            if (apiKeyPanel.classList.contains('hidden')) {
-                apiKeyPanel.classList.remove('hidden');
-                toggleApiKeyPanel.textContent = '折叠';
-            } else {
-                apiKeyPanel.classList.add('hidden');
-                toggleApiKeyPanel.textContent = '展开';
-            }
-        });
-
+            settingsApiKeyInput.addEventListener('input', () => {
+                const newValue = settingsApiKeyInput.value.trim();
+                if (newValue && !newValue.includes('*')) {
+                    CONFIG.API_KEY = newValue;
+                }
+            });
+        }
+        
         togglePromptPanel.addEventListener('click', () => {
             if (promptPanel.classList.contains('hidden')) {
                 promptPanel.classList.remove('hidden');
@@ -686,13 +690,14 @@
                 const newScale = e.detail.scale;
                 AppState.updateScale(newScale);
                 
-                // 同步更新滑块和缩放值显示
-                zoomSlider.value = Math.round(newScale * 100);
-                zoomValue.textContent = `${Math.round(newScale * 100)}%`;
+                // 更新工具栏缩放值显示
+                if (toolbarZoomValue) {
+                    toolbarZoomValue.textContent = `${Math.round(newScale * 100)}%`;
+                }
                 
                 updateMinimapViewport();
                 updateCenterMarkerCoordinates();
-                if (!debugConsole.contains(e.target) && showMouseLogs) {
+                if (!debugConsole.contains(e.target) && DebugConsole.showMouseLogs) {
                     debugLog(`[缩放事件] 新缩放比例: ${newScale}`, 'event');
                 }
             });
@@ -705,14 +710,14 @@
                 AppState.panY = panY;
                 updateMinimapViewport();
                 updateCenterMarkerCoordinates();
-                if (!debugConsole.contains(e.target) && showMouseLogs) {
+                if (!debugConsole.contains(e.target) && DebugConsole.showMouseLogs) {
                     debugLog(`[平移事件] panX=${panX}, panY=${panY}`, 'event');
                 }
             });
             
             canvasViewport.addEventListener('mousedown', (e) => {
                 if (debugConsole.contains(e.target)) return;
-                if (showMouseLogs) {
+                if (DebugConsole.showMouseLogs) {
                     debugLog(`[鼠标按下] 画布视口: button=${e.button}, clientX=${e.clientX}, clientY=${e.clientY}`, 'event');
                 }
                 if (e.button === 1) {
@@ -721,7 +726,7 @@
                     AppState.lastMouseX = e.clientX;
                     AppState.lastMouseY = e.clientY;
                     canvasViewport.style.cursor = 'grabbing';
-                    if (showMouseLogs) {
+                    if (DebugConsole.showMouseLogs) {
                         debugLog(`[开始拖动] 画布: isMiddleMouseDown=${AppState.isMiddleMouseDown}`, 'info');
                     }
                 } else {
@@ -735,13 +740,13 @@
             });
             
             canvasViewport.addEventListener('mouseup', (e) => {
-                if (showMouseLogs) {
+                if (DebugConsole.showMouseLogs) {
                     debugLog(`[鼠标释放] 画布视口: button=${e.button}, clientX=${e.clientX}, clientY=${e.clientY}`, 'event');
                 }
                 if (e.button === 1) {
                     AppState.isMiddleMouseDown = false;
                     canvasViewport.style.cursor = 'default';
-                    if (showMouseLogs) {
+                    if (DebugConsole.showMouseLogs) {
                         debugLog(`[停止拖动] 画布: isMiddleMouseDown=${AppState.isMiddleMouseDown}`, 'info');
                     }
                 }
@@ -798,6 +803,7 @@
             }
             
             initMinimap();
+            updateToolbarPosition();
             console.log('Canvas initialized successfully');
         }
 
@@ -919,22 +925,41 @@
         function updateMinimapWithImage(node) {
             const minimapScale = 200 / 10000;
             const img = node.querySelector('img');
+            const video = node.querySelector('video');
             
-            if (!img) {
-                return;
-            }
+            let nodeWidth, nodeHeight, bgColor;
             
-            if (!img.complete) {
-                img.onload = () => updateMinimapWithImage(node);
+            if (img) {
+                if (!img.complete) {
+                    img.onload = () => updateMinimapWithImage(node);
+                    return;
+                }
+                nodeWidth = img.offsetWidth || parseInt(img.style.width) || 200;
+                nodeHeight = img.offsetHeight || parseInt(img.style.height) || 200;
+                bgColor = '#10b981';
+            } else if (video) {
+                nodeWidth = 320;
+                nodeHeight = 180;
+                bgColor = '#8b5cf6';
+            } else if (node.classList.contains('text-node') || node.classList.contains('text-loading-placeholder')) {
+                nodeWidth = 400;
+                nodeHeight = 200;
+                bgColor = '#3b82f6';
+            } else if (node.classList.contains('video-node')) {
+                nodeWidth = 320;
+                nodeHeight = 180;
+                bgColor = '#8b5cf6';
+            } else if (node.classList.contains('loading-placeholder')) {
+                nodeWidth = parseInt(node.style.width) || 200;
+                nodeHeight = parseInt(node.style.height) || 200;
+                bgColor = '#10b981';
+            } else {
                 return;
             }
             
             const nodeLeft = parseInt(node.style.left) || 0;
             const nodeTop = parseInt(node.style.top) || 0;
-            const nodeWidth = img.offsetWidth || parseInt(img.style.width) || 200;
-            const nodeHeight = img.offsetHeight || parseInt(img.style.height) || 200;
             
-            // 画布的(5000, 5000)对应缩略图的(100, 100)
             const minimapLeft = 100 + (nodeLeft - 5000) * minimapScale;
             const minimapTop = 100 + (nodeTop - 5000) * minimapScale;
             const minimapWidth = nodeWidth * minimapScale;
@@ -954,6 +979,7 @@
             minimapImage.style.top = `${minimapTop}px`;
             minimapImage.style.width = `${minimapWidth}px`;
             minimapImage.style.height = `${minimapHeight}px`;
+            minimapImage.style.background = bgColor;
         }
 
         function updateAllMinimapImages() {
@@ -1047,31 +1073,297 @@
         });
 
         // 缩放控制事件
-        zoomSlider.addEventListener('input', (e) => {
-            const newScale = parseInt(e.target.value) / 100;
-            updateCanvasScale(newScale);
+        // 工具栏缩放按钮事件
+        if (toolbarZoomOut) {
+            toolbarZoomOut.addEventListener('click', () => {
+                const currentScale = panzoom.getScale();
+                const newScale = Math.max(0.5, currentScale - 0.25);
+                updateCanvasScale(newScale);
+            });
+        }
+        
+        if (toolbarZoomIn) {
+            toolbarZoomIn.addEventListener('click', () => {
+                const currentScale = panzoom.getScale();
+                const newScale = Math.min(2.5, currentScale + 0.25);
+                updateCanvasScale(newScale);
+            });
+        }
+        
+        if (toolbarZoomReset) {
+            toolbarZoomReset.addEventListener('click', () => {
+                updateCanvasScale(1);
+            });
+        }
+        
+        if (toolbarZoomValue) {
+            toolbarZoomValue.addEventListener('click', () => {
+                updateCanvasScale(1);
+            });
+        }
+        
+        if (toolbarCenterCanvas) {
+            toolbarCenterCanvas.addEventListener('click', resetCanvas);
+        }
+        
+        // 设置按钮事件
+        if (toolbarSettingsBtn) {
+            toolbarSettingsBtn.addEventListener('click', () => {
+                openSettingsPanel();
+            });
+        }
+        
+        // 关闭设置面板按钮
+        if (closeSettingsBtn) {
+            closeSettingsBtn.addEventListener('click', () => {
+                closeSettingsPanel();
+            });
+        }
+        
+        // 模型配置管理
+        const modelConfigs = [
+            { containerId: 'geminiTextModels', addBtnId: 'geminiTextModelsAddBtn', colorClass: 'text-blue-600 hover:text-blue-700', defaultFormat: 'gemini' },
+            { containerId: 'geminiImageModels', addBtnId: 'geminiImageModelsAddBtn', colorClass: 'text-blue-600 hover:text-blue-700', defaultFormat: 'gemini' },
+            { containerId: 'geminiVideoModels', addBtnId: 'geminiVideoModelsAddBtn', colorClass: 'text-blue-600 hover:text-blue-700', defaultFormat: 'gemini' },
+            { containerId: '12aiTextModels', addBtnId: '12aiTextModelsAddBtn', colorClass: 'text-purple-600 hover:text-purple-700', defaultFormat: 'openai' },
+            { containerId: '12aiImageModels', addBtnId: '12aiImageModelsAddBtn', colorClass: 'text-purple-600 hover:text-purple-700', defaultFormat: 'openai' },
+            { containerId: '12aiVideoModels', addBtnId: '12aiVideoModelsAddBtn', colorClass: 'text-purple-600 hover:text-purple-700', defaultFormat: 'openai' },
+            { containerId: 'openaiTextModels', addBtnId: 'openaiTextModelsAddBtn', colorClass: 'text-green-600 hover:text-green-700', defaultFormat: 'openai' },
+            { containerId: 'openaiImageModels', addBtnId: 'openaiImageModelsAddBtn', colorClass: 'text-green-600 hover:text-green-700', defaultFormat: 'openai' },
+            { containerId: 'openaiVideoModels', addBtnId: 'openaiVideoModelsAddBtn', colorClass: 'text-green-600 hover:text-green-700', defaultFormat: 'openai' },
+            { containerId: 'claudeTextModels', addBtnId: 'claudeTextModelsAddBtn', colorClass: 'text-orange-600 hover:text-orange-700', defaultFormat: 'openai' },
+            { containerId: 'claudeImageModels', addBtnId: 'claudeImageModelsAddBtn', colorClass: 'text-orange-600 hover:text-orange-700', defaultFormat: 'openai' },
+            { containerId: 'claudeVideoModels', addBtnId: 'claudeVideoModelsAddBtn', colorClass: 'text-orange-600 hover:text-orange-700', defaultFormat: 'openai' }
+        ];
+        
+        function updateAddButtonVisibility(containerId, addBtnId) {
+            const container = document.getElementById(containerId);
+            const addBtn = document.getElementById(addBtnId);
+            if (!container || !addBtn) return;
+            addBtn.classList.remove('hidden');
+        }
+        
+        function createModelItem(defaultFormat) {
+            const div = document.createElement('div');
+            div.className = 'flex gap-1 items-center';
+            const openaiSelected = defaultFormat === 'openai' ? 'selected' : '';
+            const geminiSelected = defaultFormat === 'gemini' ? 'selected' : '';
+            div.innerHTML = `
+                <select class="w-10 px-1 py-1 text-xs rounded border border-gray-200 bg-white model-format-select">
+                    <option value="openai" ${openaiSelected} title="OpenAI格式">O</option>
+                    <option value="gemini" ${geminiSelected} title="Gemini格式">G</option>
+                </select>
+                <input type="text" placeholder="模型名称" class="flex-1 px-2 py-1 text-xs rounded border border-gray-200">
+                <button type="button" class="text-red-500 hover:text-red-700 text-xs model-delete-btn">×</button>
+            `;
+            return div;
+        }
+        
+        // BASE URL格式联动逻辑
+        const formatConfigs = [
+            { 
+                radioName: 'settingsGeminiFormat', 
+                containers: ['geminiTextModels', 'geminiImageModels', 'geminiVideoModels'],
+                defaultFormat: 'gemini'
+            },
+            { 
+                radioName: 'settings12AiFormat', 
+                containers: ['12aiTextModels', '12aiImageModels', '12aiVideoModels'],
+                defaultFormat: 'openai'
+            },
+            { 
+                radioName: 'settingsOpenAIFormat', 
+                containers: ['openaiTextModels', 'openaiImageModels', 'openaiVideoModels'],
+                defaultFormat: 'openai'
+            },
+            { 
+                radioName: 'settingsClaudeFormat', 
+                containers: ['claudeTextModels', 'claudeImageModels', 'claudeVideoModels'],
+                defaultFormat: 'openai'
+            }
+        ];
+        
+        function updateModelSelectsState(containers, format) {
+            containers.forEach(containerId => {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                
+                const selects = container.querySelectorAll('.model-format-select');
+                selects.forEach(select => {
+                    if (format === 'mix') {
+                        select.disabled = false;
+                        select.classList.remove('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        select.disabled = true;
+                        select.classList.add('opacity-50', 'cursor-not-allowed');
+                        select.value = format;
+                    }
+                });
+            });
+        }
+        
+        function initFormatListeners() {
+            formatConfigs.forEach(config => {
+                const radios = document.querySelectorAll(`input[name="${config.radioName}"]`);
+                radios.forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        const selectedFormat = e.target.value;
+                        updateModelSelectsState(config.containers, selectedFormat);
+                    });
+                });
+            });
+        }
+        
+        function applyInitialFormatState() {
+            formatConfigs.forEach(config => {
+                const checkedRadio = document.querySelector(`input[name="${config.radioName}"]:checked`);
+                if (checkedRadio) {
+                    updateModelSelectsState(config.containers, checkedRadio.value);
+                }
+            });
+        }
+        
+        modelConfigs.forEach(config => {
+            const container = document.getElementById(config.containerId);
+            const addBtn = document.getElementById(config.addBtnId);
+            
+            if (container && addBtn) {
+                // 添加按钮点击事件
+                addBtn.addEventListener('click', () => {
+                    const newItem = createModelItem(config.defaultFormat);
+                    container.appendChild(newItem);
+                    updateAddButtonVisibility(config.containerId, config.addBtnId);
+                    
+                    // 应用当前格式状态到新添加的模型
+                    const formatConfig = formatConfigs.find(fc => fc.containers.includes(config.containerId));
+                    if (formatConfig) {
+                        const checkedRadio = document.querySelector(`input[name="${formatConfig.radioName}"]:checked`);
+                        if (checkedRadio) {
+                            const select = newItem.querySelector('.model-format-select');
+                            if (select) {
+                                if (checkedRadio.value === 'mix') {
+                                    select.disabled = false;
+                                    select.classList.remove('opacity-50', 'cursor-not-allowed');
+                                } else {
+                                    select.disabled = true;
+                                    select.classList.add('opacity-50', 'cursor-not-allowed');
+                                    select.value = checkedRadio.value;
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // 删除按钮点击事件（使用事件委托）
+                container.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('model-delete-btn')) {
+                        e.target.closest('.flex').remove();
+                        updateAddButtonVisibility(config.containerId, config.addBtnId);
+                    }
+                });
+            }
         });
-
-        zoomOutBtn.addEventListener('click', () => {
-            const currentScale = panzoom.getScale();
-            const newScale = Math.max(0.5, currentScale - 0.25);
-            updateCanvasScale(newScale);
+        
+        initFormatListeners();
+        applyInitialFormatState();
+        
+        // 保存设置按钮
+        if (saveSettingsBtn) {
+            saveSettingsBtn.addEventListener('click', () => {
+                // 确保所有配置都被保存
+                if (window.providerManager) {
+                    window.providerManager.saveProviders();
+                }
+                // 不要关闭设置面板
+            });
+        }
+        
+        // 点击遮罩层关闭
+        if (settingsPanel) {
+            settingsPanel.addEventListener('click', (e) => {
+                if (e.target === settingsPanel) {
+                    handleCloseSettingsPanel();
+                }
+            });
+        }
+        
+        // ESC 键关闭
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && settingsPanel && settingsPanel.classList.contains('flex')) {
+                handleCloseSettingsPanel();
+            }
         });
-
-        zoomInBtn.addEventListener('click', () => {
-            const currentScale = panzoom.getScale();
-            const newScale = Math.min(2.5, currentScale + 0.25);
-            updateCanvasScale(newScale);
-        });
-
-        zoomResetBtn.addEventListener('click', () => {
-            updateCanvasScale(1);
-        });
-
-        zoomValue.addEventListener('click', () => {
-            updateCanvasScale(1);
-        });
-
+        
+        // 处理关闭设置面板
+        async function handleCloseSettingsPanel() {
+            // 检查是否有未保存的修改
+            if (window.providerManager && window.providerManager.checkUnsavedChanges()) {
+                // 显示确认对话框
+                const confirmed = await window.providerManager.showConfirmModal('有未保存的修改，是否保存？');
+                if (confirmed) {
+                    // 用户选择保存
+                    window.providerManager.saveProviders();
+                }
+                // 无论用户选择保存还是不保存，都关闭面板
+                closeSettingsPanel();
+            } else {
+                // 没有未保存的修改，直接关闭
+                closeSettingsPanel();
+            }
+        }
+        
+        function openSettingsPanel() {
+            const panel = document.getElementById('settingsPanel');
+            if (panel) {
+                panel.classList.remove('hidden');
+                panel.classList.add('flex');
+                if (typeof syncFromModeToSettingsSelects === 'function') {
+                    syncFromModeToSettingsSelects();
+                }
+                applyInitialFormatState();
+                
+                // 默认选中第一个table
+                const firstTab = document.querySelector('#settingsTabs button:not(#settingsTabAdd)');
+                if (firstTab) {
+                    firstTab.click();
+                }
+            }
+        }
+        
+        function closeSettingsPanel() {
+            const panel = document.getElementById('settingsPanel');
+            if (panel) {
+                panel.classList.add('hidden');
+                panel.classList.remove('flex');
+            }
+        }
+        
+        // API状态关闭按钮
+        function setupStatusClose(closeBtn, statusEl, statusContainer) {
+            if (closeBtn && statusEl && statusContainer) {
+                closeBtn.addEventListener('click', () => {
+                    statusEl.textContent = '';
+                });
+            }
+        }
+        
+        setupStatusClose(settingsApiStatusClose, settingsApiStatus, document.getElementById('settingsApiStatusContainer'));
+        
+        function updateToolbarPosition() {
+            if (!miniToolbar || !debugConsole) return;
+            
+            const isCollapsed = debugConsole.classList.contains('collapsed');
+            const debugConsoleHeight = isCollapsed ? 24 : 364;
+            const toolbarBottom = debugConsoleHeight + 16;
+            
+            miniToolbar.style.bottom = `${toolbarBottom}px`;
+            
+            const minimapBottom = debugConsoleHeight + 16;
+            if (canvasMinimap) {
+                canvasMinimap.style.bottom = `${minimapBottom}px`;
+            }
+        }
+        
         function updateCanvasScale(newScale) {
             const uiPanel = document.getElementById('uiPanel');
             const uiPanelWidth = uiPanel ? uiPanel.offsetWidth : 400;
@@ -1082,8 +1374,11 @@
             const focalPoint = { x: focalX, y: focalY };
             
             panzoom.zoom(newScale, { focalPoint, animate: true });
-            zoomSlider.value = Math.round(newScale * 100);
-            zoomValue.textContent = `${Math.round(newScale * 100)}%`;
+            
+            // 更新工具栏缩放显示
+            if (toolbarZoomValue) {
+                toolbarZoomValue.textContent = `${Math.round(newScale * 100)}%`;
+            }
             debugLog(`[缩放] 新缩放: ${Math.round(newScale * 100)}%`, 'info');
         }
 
@@ -1104,7 +1399,7 @@
                 
                 updateMinimapWithImage(AppState.dragNode);
                 
-                if (showMouseLogs) {
+                if (DebugConsole.showMouseLogs) {
                     debugLog(`拖动图片: delta=(${deltaX},${deltaY}), newPos=(${newLeft},${newTop}), scale=${scale}`, 'event');
                 }
             }
@@ -1140,7 +1435,7 @@
                 AppState.lastMouseY = e.clientY;
                 
                 if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
-                    if (!debugConsole.contains(e.target) && showMouseLogs) {
+                    if (!debugConsole.contains(e.target) && DebugConsole.showMouseLogs) {
                         debugLog(`画布拖动: deltaX=${deltaX}, deltaY=${deltaY}, panX=${AppState.panX}, panY=${AppState.panY}`, 'event');
                     }
                 }
@@ -1160,19 +1455,19 @@
                     img.style.width = `${newWidth}px`;
                     img.style.height = `${newHeight}px`;
                     updateMinimapWithImage(AppState.resizeNode);
-                    refreshPinsOnNode(AppState.resizeNode);
+                    PinManager.refreshPinsOnNode(AppState.resizeNode);
                 }
             }
         });
 
         document.addEventListener('mouseup', (e) => {
             if (debugConsole.contains(e.target)) return;
-            if (showMouseLogs) {
+            if (DebugConsole.showMouseLogs) {
                 debugLog(`[鼠标抬起] 全局: button=${e.button}, clientX=${e.clientX}, clientY=${e.clientY}`, 'event');
             }
             
             if (AppState.isDraggingNode && AppState.dragNode) {
-                if (showMouseLogs) {
+                if (DebugConsole.showMouseLogs) {
                     debugLog(`[结束拖动] 图片: node=${AppState.dragNode.dataset.filename}`, 'info');
                 }
                 AppState.dragNode.style.cursor = 'grab';
@@ -1181,7 +1476,7 @@
             }
             
             if (AppState.isResizingNode && AppState.resizeNode) {
-                if (showMouseLogs) {
+                if (DebugConsole.showMouseLogs) {
                     debugLog(`[结束调整大小] 节点: node=${AppState.resizeNode.dataset.filename}`, 'info');
                 }
                 AppState.isResizingNode = false;
@@ -1190,7 +1485,7 @@
             }
             
             if (AppState.isMiddleMouseDown) {
-                if (showMouseLogs) {
+                if (DebugConsole.showMouseLogs) {
                     debugLog(`[鼠标中键释放] 全局: isMiddleMouseDown=${AppState.isMiddleMouseDown}`, 'info');
                 }
                 AppState.isMiddleMouseDown = false;
@@ -1198,7 +1493,7 @@
             }
         });
 
-        function createImageNode(imageUrl, prompt = '', index = 0, filename = '', resolution = '') {
+        function createImageNode(imageUrl, prompt = '', index = 0, filename = '', resolution = '', generationTime = null, modelName = '') {
             console.log('Creating image node...');
             console.log('Image URL:', imageUrl);
             console.log('Prompt:', prompt);
@@ -1258,7 +1553,7 @@
             copyPromptBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(prompt || '').then(() => {
-                    if (showMouseLogs) {
+                    if (DebugConsole.showMouseLogs) {
                         debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
                     }
                 });
@@ -1318,6 +1613,21 @@
             const info = document.createElement('div');
             info.className = 'node-info';
             info.textContent = prompt || `Image ${index + 1}`;
+            info.title = '点击复制提示词';
+            info.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const textToCopy = prompt || info.textContent;
+                debugLog(`[node-info 点击] prompt: ${prompt}, infoText: ${info.textContent}, textToCopy: ${textToCopy}`, 'info');
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    debugLog(`[复制成功] ${textToCopy}`, 'success');
+                    info.classList.add('copied');
+                    setTimeout(() => {
+                        info.classList.remove('copied');
+                    }, 500);
+                }).catch(err => {
+                    debugLog(`[复制失败] ${err}`, 'error');
+                });
+            });
             
             node.appendChild(header);
             node.appendChild(toolbar);
@@ -1325,6 +1635,36 @@
             node.appendChild(resizeHandle);
             node.appendChild(info);
             node.appendChild(centerCoords);
+            
+            const sidebar = document.createElement('div');
+            sidebar.className = 'node-sidebar';
+            
+            if (generationTime !== null && generationTime !== undefined) {
+                const timeElement = document.createElement('div');
+                timeElement.className = 'node-generation-time';
+                timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
+                timeElement.textContent = formatGenerationTime(generationTime);
+                timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
+                sidebar.appendChild(timeElement);
+            }
+            
+            if (modelName) {
+                const modelTag = document.createElement('div');
+                modelTag.className = 'node-model-tag';
+                modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
+                if (typeof modelName === 'object' && modelName.name) {
+                    modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
+                    modelTag.title = `${modelName.name} (${modelName.provider})`;
+                } else {
+                    modelTag.textContent = modelName;
+                    modelTag.title = modelName;
+                }
+                sidebar.appendChild(modelTag);
+            }
+            
+            if (sidebar.children.length > 0) {
+                node.appendChild(sidebar);
+            }
             
             node.dataset.pins = JSON.stringify([]);
             
@@ -1334,6 +1674,7 @@
             // 设置为画布中心 (0, 0)，这样会显示在视口中心
             node.style.left = `${5000 - width / 2}px`;
             node.style.top = `${5000 - height / 2}px`;
+            node.style.zIndex = '10';
             
             // 对于可能需要计算实际尺寸的图片，仍然添加onload事件
             img.onload = function() {
@@ -1366,23 +1707,23 @@
             
             img.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (showMouseLogs) {
+                if (DebugConsole.showMouseLogs) {
                     debugLog(`图片点击: button=${e.button}, ctrlKey=${e.ctrlKey}, metaKey=${e.metaKey}, selected=${node.classList.contains('selected')}`, 'event');
                 }
                 if (e.ctrlKey || e.metaKey) {
                     if (node.classList.contains('selected')) {
-                        if (showMouseLogs) {
+                        if (DebugConsole.showMouseLogs) {
                             debugLog(`添加 PIN: 图片已选中`, 'info');
                         }
-                        addPinToImage(node, e);
+                        PinManager.addPinToImage(node, e);
                     } else {
-                        if (showMouseLogs) {
+                        if (DebugConsole.showMouseLogs) {
                             debugLog(`选中图片: 未选中，按住 Ctrl/Meta`, 'info');
                         }
                         selectNode(node);
                     }
                 } else {
-                    if (showMouseLogs) {
+                    if (DebugConsole.showMouseLogs) {
                         debugLog(`选中图片: 左键点击`, 'info');
                     }
                     selectNode(node);
@@ -1390,25 +1731,24 @@
             });
             
             node.addEventListener('mousedown', (e) => {
-                if (showMouseLogs) {
+                if (e.target.closest('.node-info')) return;
+                if (DebugConsole.showMouseLogs) {
                     debugLog(`[鼠标按下] 节点: button=${e.button}, clientX=${e.clientX}, clientY=${e.clientY}, selected=${node.classList.contains('selected')}, ctrlKey=${e.ctrlKey}, metaKey=${e.metaKey}`, 'event');
                 }
                 if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
                     e.stopPropagation();
                     selectNode(node);
                     
-                    // 设置全局拖动状态
                     AppState.isDraggingNode = true;
                     AppState.dragNode = node;
                     AppState.activeNode = node;
                     
-                    // 记录初始位置
                     AppState.dragStartX = e.clientX;
                     AppState.dragStartY = e.clientY;
                     AppState.dragNodeStartLeft = parseInt(node.style.left || '0');
                     AppState.dragNodeStartTop = parseInt(node.style.top || '0');
                     
-                    if (showMouseLogs) {
+                    if (DebugConsole.showMouseLogs) {
                         debugLog(`[开始拖动] 图片: node=${node.dataset.filename}`, 'info');
                     }
                 }
@@ -1437,9 +1777,11 @@
         function selectNode(node) {
             if (selectedNode) {
                 selectedNode.classList.remove('selected');
+                selectedNode.style.zIndex = '10';
             }
             selectedNode = node;
             node.classList.add('selected');
+            node.style.zIndex = '100';
         }
 
 
@@ -1465,11 +1807,11 @@
                 promptInput.blur();
             }
             
-            if (showMouseLogs) {
+            if (DebugConsole.showMouseLogs) {
                 debugLog(`画布点击: button=${e.button}, target=${e.target.id || e.target.className}`, 'event');
             }
             if (e.target === canvas || e.target === imageResponseContainer) {
-                if (showMouseLogs) {
+                if (DebugConsole.showMouseLogs) {
                     debugLog(`取消选中所有节点`, 'info');
                 }
                 deselectAllNodes();
@@ -1494,7 +1836,7 @@
             if (img.src.startsWith('data:')) {
                 navigator.clipboard.writeText(img.src).then(() => {
                     console.log('图片已复制到剪贴板');
-                    if (showMouseLogs) {
+                    if (DebugConsole.showMouseLogs) {
                         debugLog(`[复制] 图片: ${selectedNode.dataset.filename}`, 'info');
                     }
                     clipboardNode = selectedNode;
@@ -1517,7 +1859,7 @@
                         })
                     ]).then(() => {
                         console.log('图片已复制到剪贴板');
-                        if (showMouseLogs) {
+                        if (DebugConsole.showMouseLogs) {
                             debugLog(`[复制] 图片: ${selectedNode.dataset.filename}`, 'info');
                         }
                         clipboardNode = selectedNode;
@@ -1626,16 +1968,15 @@
             debugLog(`[粘贴] 图片: ${newNode.dataset.filename}`, 'info');
         }
 
-        function createTextNode(text, prompt = '', index = 0) {
+        function createTextNode(text, prompt = '', index = 0, filename = '', resolution = '', generationTime = null, modelName = '') {
             const node = document.createElement('div');
             node.className = 'canvas-node text-node';
             node.dataset.index = index;
-            node.dataset.filename = `Text ${index + 1}`;
+            node.dataset.filename = filename || `Text ${index + 1}`;
             node.dataset.nodeType = 'text';
-            
-            const promptElement = document.createElement('div');
-            promptElement.className = 'text-prompt';
-            promptElement.textContent = prompt || '文本回复';
+            if (modelName) {
+                node.dataset.modelName = modelName;
+            }
             
             const textContent = document.createElement('div');
             textContent.className = 'text-content';
@@ -1651,7 +1992,7 @@
             copyPromptBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(prompt || '').then(() => {
-                    if (showMouseLogs) {
+                    if (DebugConsole.showMouseLogs) {
                         debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
                     }
                 });
@@ -1664,7 +2005,7 @@
             copyBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(text).then(() => {
-                    if (showMouseLogs) {
+                    if (DebugConsole.showMouseLogs) {
                         debugLog(`[复制] 文本节点: ${node.dataset.filename}`, 'info');
                     }
                 });
@@ -1684,16 +2025,63 @@
             toolbar.appendChild(copyBtn);
             toolbar.appendChild(deleteBtn);
             
-            node.appendChild(promptElement);
             node.appendChild(textContent);
             node.appendChild(toolbar);
             
+            const sidebar = document.createElement('div');
+            sidebar.className = 'node-sidebar';
+            
+            const timeElement = document.createElement('div');
+            timeElement.className = 'node-generation-time';
+            timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
+            if (generationTime !== null && generationTime !== undefined) {
+                timeElement.textContent = formatGenerationTime(generationTime);
+                timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
+            }
+            sidebar.appendChild(timeElement);
+            
+            if (modelName) {
+                const modelTag = document.createElement('div');
+                modelTag.className = 'node-model-tag';
+                modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
+                if (typeof modelName === 'object' && modelName.name) {
+                    modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
+                    modelTag.title = `${modelName.name} (${modelName.provider})`;
+                } else {
+                    modelTag.textContent = modelName;
+                    modelTag.title = modelName;
+                }
+                sidebar.appendChild(modelTag);
+            }
+            node.appendChild(sidebar);
+            
+            const info = document.createElement('div');
+            info.className = 'node-info';
+            info.textContent = prompt || '文本回复';
+            info.title = '点击复制提示词';
+            info.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const textToCopy = prompt || info.textContent;
+                debugLog(`[node-info 点击] prompt: ${prompt}, textToCopy: ${textToCopy}`, 'info');
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    debugLog(`[复制成功] ${textToCopy}`, 'success');
+                    info.classList.add('copied');
+                    setTimeout(() => {
+                        info.classList.remove('copied');
+                    }, 500);
+                }).catch(err => {
+                    debugLog(`[复制失败] ${err}`, 'error');
+                });
+            });
+            node.appendChild(info);
+            
             node.style.left = '5000px';
             node.style.top = '5000px';
+            node.style.zIndex = '10';
             
             node.addEventListener('mousedown', (e) => {
                 if (e.button === 0 && !e.target.closest('.toolbar-btn')) {
-                    if (showMouseLogs) {
+                    if (DebugConsole.showMouseLogs) {
                         debugLog(`[开始拖动] 文本节点: ${node.dataset.filename}`, 'info');
                     }
                     selectNode(node);
@@ -1742,11 +2130,12 @@
             imageResponseContainer.appendChild(node);
         }
 
-        function createTextLoadingPlaceholder(prompt, x, y) {
+        function createTextLoadingPlaceholder(prompt, x, y, modelName = '') {
             const node = document.createElement('div');
             node.className = 'canvas-node text-loading-placeholder';
             node.dataset.index = nodeCounter++;
             node.dataset.filename = 'Loading...';
+            node.dataset.modelName = modelName;
             node.style.left = `${x}px`;
             node.style.top = `${y}px`;
             
@@ -1755,6 +2144,42 @@
             loadingText.textContent = '正在生成回复...';
             
             node.appendChild(loadingText);
+            
+            // 添加耗时显示和模型标签
+            const sidebar = document.createElement('div');
+            sidebar.className = 'node-sidebar';
+            
+            const timeElement = document.createElement('div');
+            timeElement.className = 'node-generation-time';
+            timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
+            sidebar.appendChild(timeElement);
+            
+            if (modelName) {
+                const modelTag = document.createElement('div');
+                modelTag.className = 'node-model-tag';
+                modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
+                if (typeof modelName === 'object' && modelName.name) {
+                    modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
+                    modelTag.title = `${modelName.name} (${modelName.provider})`;
+                } else {
+                    modelTag.textContent = modelName;
+                    modelTag.title = modelName;
+                }
+                sidebar.appendChild(modelTag);
+            }
+            
+            node.appendChild(sidebar);
+            
+            // 创建中心坐标显示
+            const centerCoords = document.createElement('div');
+            centerCoords.className = 'node-center-coords';
+            centerCoords.textContent = '(0, 0)';
+            centerCoords.style.display = 'none';
+            node.appendChild(centerCoords);
+            
+            // 固定尺寸
+            node.style.width = '400px';
+            node.style.height = '200px';
             
             // 添加鼠标按下事件，确保可以拖动
             node.addEventListener('mousedown', (e) => {
@@ -1778,20 +2203,20 @@
             return node;
         }
         
-        function updateTextLoadingPlaceholder(node, text, prompt) {
+        function updateTextLoadingPlaceholder(node, text, prompt, generationTime = null, modelName = '') {
             node.classList.remove('text-loading-placeholder');
             node.classList.add('text-node');
             node.dataset.filename = `Text ${node.dataset.index}`;
             node.dataset.nodeType = 'text';
+            if (modelName) {
+                node.dataset.modelName = modelName;
+            }
+            node.style.height = '';
             
             const loadingText = node.querySelector('.loading-text');
             if (loadingText) {
                 loadingText.remove();
             }
-            
-            const promptElement = document.createElement('div');
-            promptElement.className = 'text-prompt';
-            promptElement.textContent = prompt || '文本回复';
             
             const textContent = document.createElement('div');
             textContent.className = 'text-content';
@@ -1807,7 +2232,7 @@
             copyPromptBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(prompt || '').then(() => {
-                    if (showMouseLogs) {
+                    if (DebugConsole.showMouseLogs) {
                         debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
                     }
                 });
@@ -1820,7 +2245,7 @@
             copyBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(text).then(() => {
-                    if (showMouseLogs) {
+                    if (DebugConsole.showMouseLogs) {
                         debugLog(`[复制] 文本节点: ${node.dataset.filename}`, 'info');
                     }
                 });
@@ -1840,13 +2265,77 @@
             toolbar.appendChild(copyBtn);
             toolbar.appendChild(deleteBtn);
             
-            node.appendChild(promptElement);
             node.appendChild(textContent);
             node.appendChild(toolbar);
             
+            const info = document.createElement('div');
+            info.className = 'node-info';
+            info.textContent = prompt || '文本回复';
+            info.title = '点击复制提示词';
+            info.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const textToCopy = prompt || info.textContent;
+                debugLog(`[node-info 点击] prompt: ${prompt}, textToCopy: ${textToCopy}`, 'info');
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    debugLog(`[复制成功] ${textToCopy}`, 'success');
+                    info.classList.add('copied');
+                    setTimeout(() => {
+                        info.classList.remove('copied');
+                    }, 500);
+                }).catch(err => {
+                    debugLog(`[复制失败] ${err}`, 'error');
+                });
+            });
+            node.appendChild(info);
+            
+            // 更新中心坐标
+            setTimeout(() => {
+                const left = parseInt(node.style.left) || 0;
+                const top = parseInt(node.style.top) || 0;
+                const width = node.offsetWidth || 400;
+                const height = node.offsetHeight || 200;
+                const centerX = Math.round(left + width / 2);
+                const centerY = Math.round(top + height / 2);
+                const coordsElement = node.querySelector('.node-center-coords');
+                if (coordsElement) {
+                    coordsElement.textContent = `(${centerX}, ${centerY})`;
+                }
+            }, 0);
+            
+            // 更新侧边栏中的计时器和模型标签
+            const sidebar = node.querySelector('.node-sidebar');
+            if (sidebar) {
+                const timeElement = sidebar.querySelector('.node-generation-time');
+                if (timeElement) {
+                    timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
+                    if (generationTime !== null && generationTime !== undefined) {
+                        timeElement.textContent = formatGenerationTime(generationTime);
+                        timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
+                    }
+                }
+                
+                // 更新模型标签
+                if (modelName) {
+                    const existingModelTag = sidebar.querySelector('.node-model-tag');
+                    if (!existingModelTag) {
+                        const modelTag = document.createElement('div');
+                        modelTag.className = 'node-model-tag';
+                        modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
+                        if (typeof modelName === 'object' && modelName.name) {
+                            modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
+                            modelTag.title = `${modelName.name} (${modelName.provider})`;
+                        } else {
+                            modelTag.textContent = modelName;
+                            modelTag.title = modelName;
+                        }
+                        sidebar.appendChild(modelTag);
+                    }
+                }
+            }
+            
             node.addEventListener('mousedown', (e) => {
                 if (e.button === 0 && !e.target.closest('.toolbar-btn')) {
-                    if (showMouseLogs) {
+                    if (DebugConsole.showMouseLogs) {
                         debugLog(`[开始拖动] 文本节点: ${node.dataset.filename}`, 'info');
                     }
                     selectNode(node);
@@ -1862,15 +2351,17 @@
             });
         }
 
-        function createLoadingPlaceholder(width, height, x, y) {
+        function createLoadingPlaceholder(width, height, x, y, modelName = '') {
             const node = document.createElement('div');
             node.className = 'canvas-node loading-placeholder';
             node.dataset.index = nodeCounter++;
             node.dataset.filename = 'Loading...';
+            node.dataset.modelName = modelName;
             node.style.width = `${width}px`;
             node.style.height = `${height}px`;
             node.style.left = `${x}px`;
             node.style.top = `${y}px`;
+            node.style.zIndex = '10';
             
             // 添加加载动画
             const loadingContainer = document.createElement('div');
@@ -1962,13 +2453,40 @@
             deleteBtn.title = '删除图片';
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (confirm('确定要取消生成吗？')) {
+                const confirmModal = document.getElementById('confirmModal');
+                const confirmModalMessage = document.getElementById('confirmModalMessage');
+                const confirmModalCheckbox = document.getElementById('confirmModalCheckbox');
+                const confirmModalCancel = document.getElementById('confirmModalCancel');
+                const confirmModalOk = document.getElementById('confirmModalOk');
+                
+                confirmModalMessage.textContent = '确定要取消生成吗？';
+                confirmModalCheckbox.parentElement.style.display = 'none';
+                confirmModal.classList.remove('hidden');
+                confirmModal.classList.add('flex');
+                
+                const handleConfirm = () => {
                     const minimapImage = minimapCanvas.querySelector(`[data-node-id="${node.dataset.index}"]`);
                     if (minimapImage) {
                         minimapImage.remove();
                     }
                     node.remove();
-                }
+                    closeConfirmModal();
+                };
+                
+                const handleCancel = () => {
+                    closeConfirmModal();
+                };
+                
+                const closeConfirmModal = () => {
+                    confirmModal.classList.add('hidden');
+                    confirmModal.classList.remove('flex');
+                    confirmModalCheckbox.parentElement.style.display = 'flex';
+                    confirmModalOk.removeEventListener('click', handleConfirm);
+                    confirmModalCancel.removeEventListener('click', handleCancel);
+                };
+                
+                confirmModalOk.addEventListener('click', handleConfirm);
+                confirmModalCancel.addEventListener('click', handleCancel);
             });
             
             toolbar.appendChild(copyPromptBtn);
@@ -1984,6 +2502,31 @@
             node.appendChild(toolbar);
             node.appendChild(loadingContainer);
             node.appendChild(info);
+            
+            // 添加耗时显示和模型标签
+            const sidebar = document.createElement('div');
+            sidebar.className = 'node-sidebar';
+            
+            const timeElement = document.createElement('div');
+            timeElement.className = 'node-generation-time';
+            timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
+            sidebar.appendChild(timeElement);
+            
+            if (modelName) {
+                const modelTag = document.createElement('div');
+                modelTag.className = 'node-model-tag';
+                modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
+                if (typeof modelName === 'object' && modelName.name) {
+                    modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
+                    modelTag.title = `${modelName.name} (${modelName.provider})`;
+                } else {
+                    modelTag.textContent = modelName;
+                    modelTag.title = modelName;
+                }
+                sidebar.appendChild(modelTag);
+            }
+            
+            node.appendChild(sidebar);
             
             // 添加鼠标按下事件，确保可以拖动
             node.addEventListener('mousedown', (e) => {
@@ -2007,15 +2550,16 @@
             return node;
         }
         
-        function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resolution) {
+        function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resolution, generationTime = null, modelName = '') {
             // 更新节点属性
             node.classList.remove('loading-placeholder');
             node.dataset.imageUrl = imageUrl;
             node.dataset.filename = filename || `Image ${node.dataset.index}`;
+            if (modelName) {
+                node.dataset.modelName = modelName;
+            }
             
-            // 清除固定的宽高样式，让图片正常显示
-            node.style.width = '';
-            node.style.height = '';
+            // 保留占位符尺寸，不清除宽高样式
             
             // 移除加载动画
             const loadingContainer = node.querySelector('.loading-container');
@@ -2053,6 +2597,21 @@
             const info = node.querySelector('.node-info');
             if (info) {
                 info.textContent = prompt || `Image ${node.dataset.index}`;
+                info.title = '点击复制提示词';
+                info.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const textToCopy = prompt || info.textContent;
+                    debugLog(`[node-info 点击] prompt: ${prompt}, textToCopy: ${textToCopy}`, 'info');
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        debugLog(`[复制成功] ${textToCopy}`, 'success');
+                        info.classList.add('copied');
+                        setTimeout(() => {
+                            info.classList.remove('copied');
+                        }, 500);
+                    }).catch(err => {
+                        debugLog(`[复制失败] ${err}`, 'error');
+                    });
+                });
             }
             
             // 更新工具栏按钮状态
@@ -2066,7 +2625,7 @@
                         if (index === 0) {
                             // 复制提示词按钮
                             navigator.clipboard.writeText(prompt || '').then(() => {
-                                if (showMouseLogs) {
+                                if (DebugConsole.showMouseLogs) {
                                     debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
                                 }
                             });
@@ -2092,6 +2651,35 @@
                 const actualWidth = this.naturalWidth || parseInt(this.style.width) || 500;
                 const actualHeight = this.naturalHeight || parseInt(this.style.height) || 500;
                 
+                // 获取CSS中定义的最大尺寸
+                const maxWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--canvas-node-max-width')) || 300;
+                const maxHeight = 300; // 对应CSS中的 max-height: 300px
+                
+                // 计算显示尺寸，不超过最大限制
+                let displayWidth = actualWidth;
+                let displayHeight = actualHeight;
+                
+                if (displayWidth > maxWidth) {
+                    const ratio = maxWidth / displayWidth;
+                    displayWidth = maxWidth;
+                    displayHeight = Math.floor(displayHeight * ratio);
+                }
+                
+                if (displayHeight > maxHeight) {
+                    const ratio = maxHeight / displayHeight;
+                    displayHeight = maxHeight;
+                    displayWidth = Math.floor(displayWidth * ratio);
+                }
+                
+                // 更新节点尺寸以匹配显示的图片尺寸
+                node.style.width = `${displayWidth}px`;
+                node.style.height = `${displayHeight}px`;
+                
+                // 让图片填充整个节点
+                this.style.width = '100%';
+                this.style.height = '100%';
+                this.style.objectFit = 'contain';
+                
                 // 更新分辨率显示
                 const resolutionText = `${actualWidth}x${actualHeight}`;
                 const resolutionElement = node.querySelector('.node-resolution');
@@ -2114,12 +2702,13 @@
             const header = node.querySelector('.node-header');
             const toolbar = node.querySelector('.node-toolbar');
             const infoElement = node.querySelector('.node-info');
+            const sidebar = node.querySelector('.node-sidebar');
             
             if (header && toolbar && infoElement) {
-                // 清空节点内容，保留头部和工具栏
+                // 清空节点内容，保留头部、工具栏、信息元素和侧边栏
                 const children = [...node.children];
                 children.forEach(child => {
-                    if (child !== header && child !== toolbar && child !== infoElement) {
+                    if (child !== header && child !== toolbar && child !== infoElement && child !== sidebar) {
                         child.remove();
                     }
                 });
@@ -2128,6 +2717,31 @@
                 node.insertBefore(img, infoElement);
                 node.insertBefore(resizeHandle, infoElement);
                 node.insertBefore(centerCoords, infoElement);
+            }
+            
+            // 更新侧边栏中的模型标签
+            if (sidebar) {
+                const existingModelTag = sidebar.querySelector('.node-model-tag');
+                if (modelName && !existingModelTag) {
+                    const modelTag = document.createElement('div');
+                    modelTag.className = 'node-model-tag';
+                    modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
+                    if (typeof modelName === 'object' && modelName.name) {
+                        modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
+                        modelTag.title = `${modelName.name} (${modelName.provider})`;
+                    } else {
+                        modelTag.textContent = modelName;
+                        modelTag.title = modelName;
+                    }
+                    sidebar.appendChild(modelTag);
+                }
+                
+                // 更新计时器
+                const timeElement = sidebar.querySelector('.node-generation-time');
+                if (timeElement && generationTime !== null) {
+                    timeElement.textContent = formatGenerationTime(generationTime);
+                    timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
+                }
             }
             
             // 添加调整大小功能
@@ -2156,7 +2770,7 @@
                 e.stopPropagation();
                 if (e.ctrlKey || e.metaKey) {
                     if (node.classList.contains('selected')) {
-                        addPinToImage(node, e);
+                        PinManager.addPinToImage(node, e);
                     }
                 }
             });
@@ -2227,39 +2841,441 @@
             }
         });
 
-        apiKeyInput.value = CONFIG.API_KEY;
+        function getSelectedProvider(selectElement) {
+            const selectedOption = selectElement.selectedOptions[0];
+            return selectedOption ? selectedOption.dataset.provider : 'google';
+        }
+
+        // 更新视频时长选项
+        function updateVideoDurationOptions(modelValue) {
+            const model = VIDEO_MODELS.find(m => m.value === modelValue);
+            if (model && model.params && model.params.durations) {
+                videoDurationSelect.innerHTML = '';
+                model.params.durations.forEach(duration => {
+                    const option = document.createElement('option');
+                    option.value = duration;
+                    option.textContent = duration + ' 秒';
+                    videoDurationSelect.appendChild(option);
+                });
+                // 选择第一个选项
+                videoDurationSelect.value = model.params.durations[0];
+                // 更新分辨率选项
+                updateVideoResolutionOptions(modelValue, model.params.durations[0]);
+            } else {
+                // 12AI 模型保持默认时长选项
+                videoDurationSelect.innerHTML = '';
+                ['4', '6', '8'].forEach(duration => {
+                    const option = document.createElement('option');
+                    option.value = duration;
+                    option.textContent = duration + ' 秒';
+                    if (duration === '6') option.selected = true;
+                    videoDurationSelect.appendChild(option);
+                });
+                // 显示所有分辨率选项
+                videoResolutionSelect.innerHTML = '';
+                ['720p', '1080p', '4k'].forEach(res => {
+                    const option = document.createElement('option');
+                    option.value = res;
+                    option.textContent = res;
+                    videoResolutionSelect.appendChild(option);
+                });
+            }
+        }
+
+        // 更新视频分辨率选项
+        function updateVideoResolutionOptions(modelValue, durationValue) {
+            const model = VIDEO_MODELS.find(m => m.value === modelValue);
+            if (model && model.params && model.params.resolutions && model.params.resolutions[durationValue]) {
+                const resolutions = model.params.resolutions[durationValue];
+                videoResolutionSelect.innerHTML = '';
+                resolutions.forEach(res => {
+                    const option = document.createElement('option');
+                    option.value = res;
+                    option.textContent = res;
+                    videoResolutionSelect.appendChild(option);
+                });
+                // 选择第一个选项
+                videoResolutionSelect.value = resolutions[0];
+            } else if (model && model.params && Object.keys(model.params.resolutions).length === 0) {
+                // Veo 2 不支持分辨率选择
+                videoResolutionSelect.innerHTML = '';
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = '不支持指定';
+                option.disabled = true;
+                videoResolutionSelect.appendChild(option);
+            } else {
+                // 12AI 模型显示所有分辨率选项
+                videoResolutionSelect.innerHTML = '';
+                ['720p', '1080p', '4k'].forEach(res => {
+                    const option = document.createElement('option');
+                    option.value = res;
+                    option.textContent = res;
+                    videoResolutionSelect.appendChild(option);
+                });
+            }
+        }
 
         function populateModelSelects() {
-            TEXT_MODELS.forEach(model => {
-                const option = document.createElement('option');
-                option.value = model.value;
-                option.textContent = model.name;
-                if (model.value === CONFIG.MODEL_NAME) {
-                    option.selected = true;
-                }
-                textModelName.appendChild(option);
+            function populateMainCustomSelect(wrapper, models, defaultModelId, defaultProvider, currentModelId, currentProvider, onModelChange) {
+                if (!wrapper) return;
                 
-                const visionOption = document.createElement('option');
-                visionOption.value = model.value;
-                visionOption.textContent = model.name;
-                if (model.value === CONFIG.MODEL_NAME) {
-                    visionOption.selected = true;
+                let dropdown = wrapper._fixedDropdown;
+                if (!dropdown) {
+                    dropdown = document.createElement('div');
+                    dropdown.className = 'custom-select-dropdown-fixed';
+                    document.body.appendChild(dropdown);
+                    wrapper._fixedDropdown = dropdown;
                 }
-                visionModelName.appendChild(visionOption);
+                const trigger = wrapper.querySelector('.custom-select-trigger');
+                const selectedText = trigger.querySelector('.selected-text');
+                
+                dropdown.innerHTML = '';
+                
+                const groups = {};
+                let currentModel = null;
+                
+                models.forEach(model => {
+                    const groupName = model.group || 'Other';
+                    if (!groups[groupName]) {
+                        groups[groupName] = [];
+                    }
+                    groups[groupName].push(model);
+                    
+                    if (model.value === currentModelId && model.provider === currentProvider) {
+                        currentModel = model;
+                    }
+                });
+                
+                Object.keys(groups).forEach(groupName => {
+                    const groupLabel = document.createElement('div');
+                    groupLabel.className = 'custom-option-group';
+                    groupLabel.textContent = groupName;
+                    dropdown.appendChild(groupLabel);
+                    
+                    groups[groupName].forEach(model => {
+                        const option = document.createElement('div');
+                        option.className = 'custom-option';
+                        option.dataset.value = model.value;
+                        option.dataset.provider = model.provider;
+                        
+                        const isDefault = model.value === defaultModelId && model.provider === defaultProvider;
+                        const isCurrent = model.value === currentModelId && model.provider === currentProvider;
+                        
+                        if (isCurrent) {
+                            option.classList.add('current');
+                        }
+                        
+                        const textSpan = document.createElement('span');
+                        textSpan.textContent = model.name;
+                        option.appendChild(textSpan);
+                        
+                        if (isDefault) {
+                            const dot = document.createElement('span');
+                            dot.className = 'default-dot';
+                            dot.textContent = ' •';
+                            option.appendChild(dot);
+                        }
+                        
+                        option.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            
+                            dropdown.querySelectorAll('.custom-option').forEach(opt => {
+                                opt.classList.remove('current');
+                            });
+                            
+                            option.classList.add('current');
+                            selectedText.textContent = model.name;
+                            dropdown.style.display = 'none';
+                            wrapper.classList.remove('open');
+                            
+                            if (onModelChange) {
+                                onModelChange(model.value, model.provider);
+                            }
+                        });
+                        
+                        dropdown.appendChild(option);
+                    });
+                });
+                
+                if (currentModel) {
+                    selectedText.textContent = currentModel.name;
+                }
+                
+                trigger.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    
+                    document.querySelectorAll('.custom-select-dropdown-fixed').forEach(d => {
+                        if (d !== dropdown) d.style.display = 'none';
+                    });
+                    document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
+                        if (w !== wrapper) w.classList.remove('open');
+                    });
+                    
+                    const isOpen = dropdown.style.display === 'block';
+                    if (isOpen) {
+                        dropdown.style.display = 'none';
+                        wrapper.classList.remove('open');
+                    } else {
+                        const rect = trigger.getBoundingClientRect();
+                        dropdown.style.top = (rect.bottom + 4) + 'px';
+                        dropdown.style.left = rect.left + 'px';
+                        dropdown.style.width = rect.width + 'px';
+                        dropdown.style.display = 'block';
+                        wrapper.classList.add('open');
+                    }
+                });
+            }
+
+            populateMainCustomSelect(
+                textModelNameWrapper, 
+                TEXT_MODELS, 
+                CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER,
+                CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER,
+                (value, provider) => {
+                    CONFIG.MODEL_NAME = value;
+                    CONFIG.MODEL_PROVIDER = provider;
+                }
+            );
+            
+            populateMainCustomSelect(
+                imageModelNameWrapper, 
+                IMAGE_MODELS, 
+                CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER,
+                CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER,
+                (value, provider) => {
+                    CONFIG.IMAGE_MODEL_NAME = value;
+                    CONFIG.IMAGE_MODEL_PROVIDER = provider;
+                    updateResolutionOptions();
+                }
+            );
+            
+            populateMainCustomSelect(
+                videoModelNameWrapper, 
+                VIDEO_MODELS, 
+                CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER,
+                CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER,
+                (value, provider) => {
+                    CONFIG.VIDEO_MODEL_NAME = value;
+                    CONFIG.VIDEO_MODEL_PROVIDER = provider;
+                }
+            );
+
+            function populateSettingsModelSelects() {
+                function populateCustomSelect(wrapper, models, defaultModelId, defaultProvider, configKey, providerKey) {
+                    if (!wrapper) return;
+                    
+                    const dropdown = wrapper.querySelector('.custom-select-dropdown');
+                    const trigger = wrapper.querySelector('.custom-select-trigger');
+                    const selectedText = trigger.querySelector('.selected-text');
+                    
+                    dropdown.innerHTML = '';
+                    
+                    const groups = {};
+                    let selectedModel = null;
+                    
+                    models.forEach(model => {
+                        const groupName = model.group || 'Other';
+                        if (!groups[groupName]) {
+                            groups[groupName] = [];
+                        }
+                        groups[groupName].push(model);
+                        
+                        if (model.value === defaultModelId && model.provider === defaultProvider) {
+                            selectedModel = model;
+                        }
+                    });
+                    
+                    Object.keys(groups).forEach(groupName => {
+                        const groupLabel = document.createElement('div');
+                        groupLabel.className = 'custom-option-group';
+                        groupLabel.textContent = groupName;
+                        dropdown.appendChild(groupLabel);
+                        
+                        groups[groupName].forEach(model => {
+                            const option = document.createElement('div');
+                            option.className = 'custom-option';
+                            option.dataset.value = model.value;
+                            option.dataset.provider = model.provider;
+                            
+                            const isSelected = model.value === defaultModelId && model.provider === defaultProvider;
+                            if (isSelected) {
+                                option.classList.add('selected');
+                            }
+                            
+                            const textSpan = document.createElement('span');
+                            textSpan.textContent = model.name;
+                            option.appendChild(textSpan);
+                            
+                            if (isSelected) {
+                                const dot = document.createElement('span');
+                                dot.className = 'default-dot';
+                                dot.textContent = ' •';
+                                option.appendChild(dot);
+                            }
+                            
+                            option.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                
+                                dropdown.querySelectorAll('.custom-option').forEach(opt => {
+                                    opt.classList.remove('selected');
+                                    const dot = opt.querySelector('.default-dot');
+                                    if (dot) dot.remove();
+                                });
+                                
+                                option.classList.add('selected');
+                                const newDot = document.createElement('span');
+                                newDot.className = 'default-dot';
+                                newDot.textContent = ' •';
+                                option.appendChild(newDot);
+                                
+                                selectedText.textContent = model.name;
+                                wrapper.classList.remove('open');
+                                
+                                CONFIG[configKey] = model.value;
+                                CONFIG[providerKey] = model.provider;
+                                localStorage.setItem('GEMINI_' + configKey, model.value);
+                                localStorage.setItem('GEMINI_' + providerKey, model.provider);
+                                
+                                syncFromSettingsToModeSelects();
+                            });
+                            
+                            dropdown.appendChild(option);
+                        });
+                    });
+                    
+                    if (selectedModel) {
+                        selectedText.textContent = selectedModel.name;
+                    }
+                    
+                    trigger.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
+                            if (w !== wrapper) w.classList.remove('open');
+                        });
+                        wrapper.classList.toggle('open');
+                    });
+                }
+                
+                populateCustomSelect(settingsDefaultTextModelWrapper, TEXT_MODELS, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, 'MODEL_NAME', 'MODEL_PROVIDER');
+                populateCustomSelect(settingsDefaultImageModelWrapper, IMAGE_MODELS, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, 'IMAGE_MODEL_NAME', 'IMAGE_MODEL_PROVIDER');
+                populateCustomSelect(settingsDefaultVideoModelWrapper, VIDEO_MODELS, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, 'VIDEO_MODEL_NAME', 'VIDEO_MODEL_PROVIDER');
+                
+                document.addEventListener('click', () => {
+                    document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
+                        w.classList.remove('open');
+                    });
+                    document.querySelectorAll('.custom-select-dropdown-fixed').forEach(d => {
+                        d.style.display = 'none';
+                    });
+                });
+            }
+
+            populateSettingsModelSelects();
+
+            let isSyncingModels = false;
+
+            function syncFromSettingsToModeSelects() {
+                if (isSyncingModels) return;
+                isSyncingModels = true;
+
+                function updateMainCustomSelectCurrent(wrapper, value, provider, models) {
+                    if (!wrapper) return;
+                    const trigger = wrapper.querySelector('.custom-select-trigger');
+                    const selectedText = trigger.querySelector('.selected-text');
+                    const dropdown = wrapper.querySelector('.custom-select-dropdown');
+                    
+                    const model = models.find(m => m.value === value && m.provider === provider);
+                    if (model) {
+                        selectedText.textContent = model.name;
+                        
+                        dropdown.querySelectorAll('.custom-option').forEach(opt => {
+                            opt.classList.toggle('current', opt.dataset.value === value && opt.dataset.provider === provider);
+                        });
+                    }
+                }
+                
+                updateMainCustomSelectCurrent(textModelNameWrapper, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, TEXT_MODELS);
+                updateMainCustomSelectCurrent(imageModelNameWrapper, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, IMAGE_MODELS);
+                updateMainCustomSelectCurrent(videoModelNameWrapper, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, VIDEO_MODELS);
+
+                isSyncingModels = false;
+            }
+
+            function syncFromModeToSettingsSelects() {
+                if (isSyncingModels) return;
+                isSyncingModels = true;
+                
+                function updateCustomSelect(wrapper, value, provider, models) {
+                    if (!wrapper) return;
+                    const trigger = wrapper.querySelector('.custom-select-trigger');
+                    const selectedText = trigger.querySelector('.selected-text');
+                    const dropdown = wrapper.querySelector('.custom-select-dropdown');
+                    
+                    const model = models.find(m => m.value === value && m.provider === provider);
+                    if (model) {
+                        selectedText.textContent = model.name;
+                        
+                        dropdown.querySelectorAll('.custom-option').forEach(opt => {
+                            const isSelected = opt.dataset.value === value && opt.dataset.provider === provider;
+                            opt.classList.toggle('selected', isSelected);
+                            
+                            let dot = opt.querySelector('.default-dot');
+                            if (isSelected && !dot) {
+                                dot = document.createElement('span');
+                                dot.className = 'default-dot';
+                                dot.textContent = ' •';
+                                opt.appendChild(dot);
+                            } else if (!isSelected && dot) {
+                                dot.remove();
+                            }
+                        });
+                    }
+                }
+                
+                updateCustomSelect(settingsDefaultTextModelWrapper, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, TEXT_MODELS);
+                updateCustomSelect(settingsDefaultImageModelWrapper, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, IMAGE_MODELS);
+                updateCustomSelect(settingsDefaultVideoModelWrapper, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, VIDEO_MODELS);
+
+                isSyncingModels = false;
+            }
+
+            updateVideoDurationOptions(CONFIG.VIDEO_MODEL_NAME);
+            
+            // 时长选择事件
+            videoDurationSelect.addEventListener('change', () => {
+                // 更新分辨率选项
+                updateVideoResolutionOptions(CONFIG.VIDEO_MODEL_NAME, videoDurationSelect.value);
             });
 
-            IMAGE_MODELS.forEach(model => {
+            // 初始化宽高比选项
+            IMAGE_RATIOS.forEach(ratio => {
                 const option = document.createElement('option');
-                option.value = model.value;
-                option.textContent = model.name;
-                if (model.value === CONFIG.IMAGE_MODEL_NAME) {
+                option.value = ratio.value;
+                option.textContent = ratio.name;
+                if (ratio.value === '1:1') {
                     option.selected = true;
                 }
-                imageModelName.appendChild(option);
+                aspectRatio.appendChild(option);
+            });
+
+            // 清空视频比例选择器（移除HTML硬编码选项）
+            videoRatioSelect.innerHTML = '';
+            VIDEO_RATIOS.forEach(ratio => {
+                const option = document.createElement('option');
+                option.value = ratio.value;
+                option.textContent = ratio.name;
+                if (ratio.value === '16:9') {
+                    option.selected = true;
+                }
+                videoRatioSelect.appendChild(option);
             });
         }
 
         populateModelSelects();
+        
+        // 初始化视频参数
+        updateVideoDurationOptions(CONFIG.VIDEO_MODEL_NAME);
 
         let imageDataList = [];
         let pasteImageCounter = 0;
@@ -2384,10 +3400,20 @@
                         };
                         
                         const imageTag = createImageTag(imageData, imageDataList.length);
-                        insertAtCursor(imageTag);
+                        PinManager.insertAtCursor(imageTag);
                         updateImageDataList();
                         
                         pasteImageCounter++;
+                        
+                        if (currentMode === 'image') {
+                            const node = createImageNode(base64Data, '粘贴图片', nodeCounter++, uniqueName, '500x500');
+                            const centerX = 5000 - (window.innerWidth - 400) / 2 + 250;
+                            const centerY = 5000 - window.innerHeight / 2 + 250;
+                            node.style.left = `${centerX + pasteImageCounter * 20}px`;
+                            node.style.top = `${centerY + pasteImageCounter * 20}px`;
+                            imageResponseContainer.appendChild(node);
+                            debugLog(`[粘贴图片] 创建画布节点: ${uniqueName}`, 'info');
+                        }
                         
                         debugLog(`[粘贴图片] 文件名: ${uniqueName}, 来源: 剪贴板`, 'info');
                     };
@@ -2398,7 +3424,7 @@
         });
         
         document.addEventListener('paste', (e) => {
-            if (!imageGenMode.checked) return;
+            if (currentMode !== 'image') return;
             
             const isInInput = document.activeElement === promptInput || promptInput.contains(document.activeElement);
             if (isInInput) return;
@@ -2444,58 +3470,6 @@
                 pasteNode();
             }
         });
-
-        function insertAtCursor(node) {
-            const selection = window.getSelection();
-            
-            if (selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                
-                const parent = promptInput;
-                if (parent.contains(range.commonAncestorContainer) || parent === range.commonAncestorContainer) {
-                    range.deleteContents();
-                    
-                    const spaceBefore = document.createTextNode(' ');
-                    const spaceAfter = document.createTextNode(' ');
-                    
-                    range.insertNode(spaceBefore);
-                    range.insertNode(node);
-                    range.insertNode(spaceAfter);
-                    
-                    const newRange = document.createRange();
-                    newRange.setStartAfter(node);
-                    newRange.collapse(true);
-                    selection.removeAllRanges();
-                    selection.addRange(newRange);
-                } else {
-                    const spaceBefore = document.createTextNode(' ');
-                    const spaceAfter = document.createTextNode(' ');
-                    promptInput.appendChild(spaceBefore);
-                    promptInput.appendChild(node);
-                    promptInput.appendChild(spaceAfter);
-                    
-                    const newRange = document.createRange();
-                    newRange.setStartAfter(node);
-                    newRange.collapse(true);
-                    selection.removeAllRanges();
-                    selection.addRange(newRange);
-                }
-            } else {
-                const spaceBefore = document.createTextNode(' ');
-                const spaceAfter = document.createTextNode(' ');
-                promptInput.appendChild(spaceBefore);
-                promptInput.appendChild(node);
-                promptInput.appendChild(spaceAfter);
-                
-                const newRange = document.createRange();
-                newRange.setStartAfter(node);
-                newRange.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(newRange);
-            }
-            
-            promptInput.focus();
-        }
 
         function updateImageDataList() {
             imageDataList = [];
@@ -2550,7 +3524,7 @@
             };
             
             const imageTag = createImageTag(imageData, imageDataList.length);
-            insertAtCursor(imageTag);
+            PinManager.insertAtCursor(imageTag);
             updateImageDataList();
             
             debugLog(`[插入图片] 文件名: ${filename}, 数据格式: ${imageDataUrl.startsWith('data:') ? 'Base64' : 'URL'}`, 'info');
@@ -2717,7 +3691,7 @@
             pins.forEach(pin => {
                 if (!existingPinNumbers.has(pin.number)) {
                     const tag = createPinnedImageTag(imageUrl, filename, pin.number, pin.x, pin.y);
-                    insertAtCursor(tag);
+                    PinManager.insertAtCursor(tag);
                 }
             });
         }
@@ -2969,24 +3943,51 @@
             tooltip.style.top = `${top}px`;
         }
 
-        imageGenMode.addEventListener('change', () => {
-            console.log('Image gen mode changed:', imageGenMode.checked);
-            if (imageGenMode.checked) {
-                imageResponseContainer.style.display = 'block';
-                responseOutput.style.display = 'none';
-            } else {
-                imageResponseContainer.style.display = 'block';
-                responseOutput.style.display = 'none';
-            }
-        });
-
-        if (imageGenMode.checked) {
-            imageResponseContainer.style.display = 'block';
-            responseOutput.style.display = 'none';
-        } else {
-            imageResponseContainer.style.display = 'block';
-            responseOutput.style.display = 'none';
+        function switchToTextMode() {
+            currentMode = 'text';
+            window.currentMode = 'text';
+            tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white';
+            tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
+            tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50';
+            
+            document.getElementById('textParams').classList.remove('hidden');
+            document.getElementById('imageParams').classList.add('hidden');
+            document.getElementById('videoParams').classList.add('hidden');
         }
+
+        function switchToImageMode() {
+            currentMode = 'image';
+            window.currentMode = 'image';
+            tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
+            tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white';
+            tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50';
+            
+            document.getElementById('textParams').classList.add('hidden');
+            document.getElementById('imageParams').classList.remove('hidden');
+            document.getElementById('videoParams').classList.add('hidden');
+        }
+
+        function switchToVideoMode() {
+            currentMode = 'video';
+            window.currentMode = 'video';
+            tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
+            tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
+            tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-purple-600 text-white';
+            
+            document.getElementById('textParams').classList.add('hidden');
+            document.getElementById('imageParams').classList.add('hidden');
+            document.getElementById('videoParams').classList.remove('hidden');
+        }
+
+        tabText.addEventListener('click', switchToTextMode);
+        tabImage.addEventListener('click', switchToImageMode);
+        tabVideo.addEventListener('click', switchToVideoMode);
+        
+        document.getElementById('tabText').onclick = switchToTextMode;
+        document.getElementById('tabImage').onclick = switchToImageMode;
+        document.getElementById('tabVideo').onclick = switchToVideoMode;
+        
+        switchToImageMode();
 
         temperature.addEventListener('input', () => {
             temperatureValue.textContent = temperature.value;
@@ -2996,117 +3997,10 @@
             topPValue.textContent = topP.value;
         });
 
-        async function testApiKey() {
-            const apiKey = CONFIG.API_KEY.trim();
-            
-            if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
-                apiStatus.innerHTML = '<span class="text-red-600">请输入有效的 API Key</span>';
-                return;
-            }
 
-            testApiKeyBtn.disabled = true;
-            testLoader.classList.remove('hidden');
-            apiStatus.innerHTML = '<span class="text-blue-600">正在验证 API Key...</span>';
 
-            try {
-                const genAI = new GoogleGenerativeAI(apiKey);
-                const model = genAI.getGenerativeModel({ model: CONFIG.MODEL_NAME });
-                
-                const result = await model.generateContent("test");
-                await result.response;
-                
-                apiStatus.innerHTML = '<span class="text-green-600">✓ API Key 验证成功</span>';
-            } catch (error) {
-                console.error(error);
-                apiStatus.innerHTML = '<span class="text-red-600">✗ API Key 无效: ' + error.message + '</span>';
-            } finally {
-                testApiKeyBtn.disabled = false;
-                testLoader.classList.add('hidden');
-            }
-        }
-
-        async function saveApiKey() {
-            const apiKey = CONFIG.API_KEY.trim();
-            
-            if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
-                apiStatus.innerHTML = '<span class="text-red-600">请输入有效的 API Key</span>';
-                return;
-            }
-
-            try {
-                const saveEnvResponse = await fetch('/save-env', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        apiKey: apiKey,
-                        modelName: textModelName.value,
-                        imageModelName: imageModelName.value
-                    })
-                });
-                
-                const saveEnvResult = await saveEnvResponse.json();
-                
-                if (saveEnvResult.success) {
-                    const reloadEnvResponse = await fetch('/reload-env', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    
-                    const reloadEnvResult = await reloadEnvResponse.json();
-                    
-                    if (reloadEnvResult.success) {
-                        CONFIG.API_KEY = apiKey;
-                        CONFIG.MODEL_NAME = textModelName.value;
-                        CONFIG.IMAGE_MODEL_NAME = imageModelName.value;
-                        apiStatus.innerHTML = '<span class="text-green-600">✓ API Key 已保存到服务器</span>';
-                    } else {
-                        apiStatus.innerHTML = '<span class="text-yellow-600">✓ API Key 已保存，但环境变量重载失败: ' + reloadEnvResult.error + '</span>';
-                    }
-                } else {
-                    apiStatus.innerHTML = '<span class="text-red-600">✗ 保存失败: ' + saveEnvResult.error + '</span>';
-                }
-            } catch (error) {
-                console.error(error);
-                apiStatus.innerHTML = '<span class="text-red-600">✗ 保存失败: ' + error.message + '</span>';
-            }
-        }
-
-        async function clearApiKey() {
-            try {
-                const clearEnvResponse = await fetch('/clear-env', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const clearEnvResult = await clearEnvResponse.json();
-                
-                if (clearEnvResult.success) {
-                    CONFIG.API_KEY = '';
-                    CONFIG.MODEL_NAME = 'gemini-3-flash-preview';
-                    CONFIG.IMAGE_MODEL_NAME = 'gemini-3-pro-image-preview';
-                    apiKeyInput.value = '';
-                    apiStatus.innerHTML = '<span class="text-green-600">✓ API Key 已从服务器清除</span>';
-                } else {
-                    apiStatus.innerHTML = '<span class="text-red-600">✗ 清除失败: ' + clearEnvResult.error + '</span>';
-                }
-            } catch (error) {
-                console.error(error);
-                apiStatus.innerHTML = '<span class="text-red-600">✗ 清除失败: ' + error.message + '</span>';
-            }
-        }
-
-        testApiKeyBtn.addEventListener('click', testApiKey);
-        document.getElementById('saveApiKeyBtn').addEventListener('click', saveApiKey);
-        document.getElementById('clearApiKeyBtn').addEventListener('click', clearApiKey);
-
-        async function callAPI() {
-            debugLog(`[开始调用] callAPI 函数`, 'info');
+        async function handleAPICall() {
+            debugLog(`[开始调用] handleAPICall 函数`, 'info');
             
             updateImageDataList();
             
@@ -3124,7 +4018,7 @@
                 const pinNumber = tag.dataset.pinNumber;
                 const filename = tag.querySelector('.pin-filename').textContent;
                 
-                const node = findNodeByImageUrl(imageUrl);
+                const node = PinManager.findNodeByImageUrl(imageUrl);
                 if (node) {
                     const pins = JSON.parse(node.dataset.pins || '[]');
                     const pin = pins.find(p => p.number == pinNumber);
@@ -3150,31 +4044,25 @@
             }
             
             const prompt = processedPrompt;
-            const apiKey = CONFIG.API_KEY.trim();
-            const isImageGenMode = imageGenMode.checked;
+            const isImageGenMode = currentMode === 'image';
             
-            debugLog(`[参数检查] 提示词: "${prompt}", 生图模式: ${isImageGenMode}, 图片数量: ${imageDataList.length}, PIN数量: ${pinInfo.length}`, 'info');
-            debugLog(`[API Key] ${apiKey.substring(0, 10)}...`, 'info');
-            
-            if (!prompt && imageDataList.length === 0 && pinInfo.length === 0) {
-                debugLog(`[错误] 请输入内容或粘贴图片`, 'error');
-                return alert("请输入内容或粘贴图片");
-            }
-            if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
-                debugLog(`[错误] 请输入有效的 API Key`, 'error');
-                return alert("请输入有效的 API Key");
-            }
-
-            const genAI = new GoogleGenerativeAI(apiKey);
+            debugLog(`[参数检查] 模式: ${currentMode}, 提示词: "${prompt}", 图片数量: ${imageDataList.length}, PIN数量: ${pinInfo.length}`, 'info');
             
             let modelName;
-            if (isImageGenMode) {
-                modelName = imageModelName.value;
-            } else if (imageDataList.length > 0) {
-                modelName = visionModelName.value;
+            let modelProvider;
+            
+            if (currentMode === 'image') {
+                modelName = CONFIG.IMAGE_MODEL_NAME;
+                modelProvider = CONFIG.IMAGE_MODEL_PROVIDER;
+            } else if (currentMode === 'text') {
+                modelName = CONFIG.MODEL_NAME;
+                modelProvider = CONFIG.MODEL_PROVIDER;
             } else {
-                modelName = textModelName.value;
+                modelName = CONFIG.VIDEO_MODEL_NAME;
+                modelProvider = CONFIG.VIDEO_MODEL_PROVIDER;
             }
+            
+            const modelDisplayName = getModelDisplayName(modelName, modelProvider);
             
             const generationConfig = {
                 temperature: parseFloat(temperature.value),
@@ -3190,12 +4078,42 @@
                 };
             }
             
-            const model = genAI.getGenerativeModel({ 
-                model: modelName,
-                generationConfig: generationConfig
-            });
-
             debugLog(`[模型配置] 模型: ${modelName}, 温度: ${generationConfig.temperature}, TopP: ${generationConfig.topP}`, 'info');
+            
+            let allImageData = [...imageDataList];
+            
+            for (const info of pinInfo) {
+                const node = PinManager.findNodeByImageUrl(info.imageUrl);
+                if (node) {
+                    const img = node.querySelector('img');
+                    const pins = JSON.parse(node.dataset.pins || '[]');
+                    
+                    let base64Data;
+                    if (img.src.startsWith('data:')) {
+                        base64Data = img.src;
+                    } else {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = img.naturalWidth || img.width;
+                        canvas.height = img.naturalHeight || img.height;
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        base64Data = canvas.toDataURL('image/png');
+                    }
+                    
+                    if (pins.length > 0) {
+                        debugLog(`[PIN标记] 在图片上绘制 ${pins.length} 个PIN标记`, 'info');
+                        base64Data = await drawPinsOnImage(base64Data, pins);
+                    }
+                    
+                    const existing = allImageData.find(data => data.data === base64Data);
+                    if (!existing) {
+                        allImageData.push({
+                            data: base64Data,
+                            name: info.filename
+                        });
+                    }
+                }
+            }
             
             activeRequests++;
             if (activeRequests === 1) {
@@ -3205,66 +4123,33 @@
                     statusTag.className = "text-xs px-2 py-1 rounded bg-blue-50 text-blue-600";
                 }
             }
+            
             debugLog(`[请求状态] 活跃请求数: ${activeRequests}`, 'info');
-            responseOutput.classList.remove('italic', 'text-gray-400');
-            responseOutput.innerText = "正在处理...";
             imageResponseContainer.classList.remove('hidden');
-
+            
             let loadingPlaceholder = null;
             if (isImageGenMode) {
                 const aspectRatioValue = aspectRatio.value;
                 const imageSizeValue = imageSize.value;
                 
                 let width, height;
-                const baseSize = imageSizeValue === '1K' ? 1024 : imageSizeValue === '2K' ? 2048 : 4096;
+                const baseSize = imageSizeValue === '512px' ? 512 : imageSizeValue === '1K' ? 1024 : imageSizeValue === '2K' ? 2048 : 3840;
                 
                 switch (aspectRatioValue) {
-                    case '1:1':
-                        width = baseSize;
-                        height = baseSize;
-                        break;
-                    case '16:9':
-                        width = baseSize;
-                        height = Math.round(baseSize * 9 / 16);
-                        break;
-                    case '9:16':
-                        width = Math.round(baseSize * 9 / 16);
-                        height = baseSize;
-                        break;
-                    case '21:9':
-                        width = baseSize;
-                        height = Math.round(baseSize * 9 / 21);
-                        break;
-                    case '4:3':
-                        width = baseSize;
-                        height = Math.round(baseSize * 3 / 4);
-                        break;
-                    case '3:4':
-                        width = Math.round(baseSize * 3 / 4);
-                        height = baseSize;
-                        break;
-                    case '3:2':
-                        width = baseSize;
-                        height = Math.round(baseSize * 2 / 3);
-                        break;
-                    case '2:3':
-                        width = Math.round(baseSize * 2 / 3);
-                        height = baseSize;
-                        break;
-                    case '5:4':
-                        width = baseSize;
-                        height = Math.round(baseSize * 4 / 5);
-                        break;
-                    case '4:5':
-                        width = Math.round(baseSize * 4 / 5);
-                        height = baseSize;
-                        break;
-                    default:
-                        width = baseSize;
-                        height = Math.round(baseSize * 9 / 16);
+                    case '1:1': width = baseSize; height = baseSize; break;
+                    case '16:9': width = baseSize; height = Math.round(baseSize * 9 / 16); break;
+                    case '9:16': width = Math.round(baseSize * 9 / 16); height = baseSize; break;
+                    case '21:9': width = baseSize; height = Math.round(baseSize * 9 / 21); break;
+                    case '4:3': width = baseSize; height = Math.round(baseSize * 3 / 4); break;
+                    case '3:4': width = Math.round(baseSize * 3 / 4); height = baseSize; break;
+                    case '3:2': width = baseSize; height = Math.round(baseSize * 2 / 3); break;
+                    case '2:3': width = Math.round(baseSize * 2 / 3); height = baseSize; break;
+                    case '5:4': width = baseSize; height = Math.round(baseSize * 4 / 5); break;
+                    case '4:5': width = Math.round(baseSize * 4 / 5); height = baseSize; break;
+                    default: width = baseSize; height = Math.round(baseSize * 9 / 16);
                 }
                 
-                const displayWidth = Math.min(width, 400);
+                const displayWidth = Math.min(width, 300);
                 const displayHeight = Math.round(displayWidth * height / width);
                 
                 const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
@@ -3273,7 +4158,6 @@
                 
                 if (existingNodes.length > 0) {
                     const lastNode = existingNodes[existingNodes.length - 1];
-                    
                     const lastNodeX = parseInt(lastNode.style.left) || 0;
                     const lastNodeY = parseInt(lastNode.style.top) || 0;
                     const lastNodeWidth = lastNode.offsetWidth;
@@ -3288,164 +4172,203 @@
                     }
                 }
                 
-                // 创建一个canvas-node元素作为占位符
-                loadingPlaceholder = createLoadingPlaceholder(displayWidth, displayHeight, x, y);
+                loadingPlaceholder = createLoadingPlaceholder(displayWidth, displayHeight, x, y, modelDisplayName);
                 imageResponseContainer.appendChild(loadingPlaceholder);
-                
-                // 立即更新缩略图，显示占位符
                 updateMinimapWithImage(loadingPlaceholder);
+                
+                const imgGenStartTime = Date.now();
+                const imgTimeElement = loadingPlaceholder.querySelector('.node-sidebar .node-generation-time');
+                if (imgTimeElement) {
+                    imgTimeElement.textContent = '⏱️ 0.0s';
+                    const imgTimer = setInterval(() => {
+                        const elapsed = (Date.now() - imgGenStartTime) / 1000;
+                        imgTimeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
+                    }, 100);
+                    loadingPlaceholder._timer = imgTimer;
+                    loadingPlaceholder._startTime = imgGenStartTime;
+                }
+            } else if (currentMode !== 'video') {
+                const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
+                let x = 5000;
+                let y = 5000;
+                
+                if (existingNodes.length > 0) {
+                    const lastNode = existingNodes[existingNodes.length - 1];
+                    const lastNodeX = parseInt(lastNode.style.left) || 0;
+                    const lastNodeY = parseInt(lastNode.style.top) || 0;
+                    const lastNodeWidth = lastNode.offsetWidth;
+                    const lastNodeHeight = lastNode.offsetHeight;
+                    
+                    x = lastNodeX + lastNodeWidth + 50;
+                    y = lastNodeY;
+                    
+                    if (x > 6000) {
+                        x = 5000;
+                        y = lastNodeY + lastNodeHeight + 50;
+                    }
+                }
+                
+                loadingPlaceholder = createTextLoadingPlaceholder(prompt, x, y, modelDisplayName);
+                imageResponseContainer.appendChild(loadingPlaceholder);
+                updateMinimapWithImage(loadingPlaceholder);
+                
+                const textGenStartTime = Date.now();
+                const textTimeElement = loadingPlaceholder.querySelector('.node-generation-time');
+                if (textTimeElement) {
+                    textTimeElement.textContent = '⏱️ 0.0s';
+                    const textTimer = setInterval(() => {
+                        const elapsed = (Date.now() - textGenStartTime) / 1000;
+                        textTimeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
+                    }, 100);
+                    loadingPlaceholder._timer = textTimer;
+                    loadingPlaceholder._startTime = textGenStartTime;
+                }
             }
-
+            
             try {
-                let content;
+                const isVideoGenMode = currentMode === 'video';
                 
-                debugLog(`[API请求] 模式: ${isImageGenMode ? '生图' : '文本'}, 提示词: ${prompt}`, 'info');
-                
-                if (isImageGenMode) {
-                    const allImageData = [...imageDataList];
-                    
-                    for (const info of pinInfo) {
-                        const node = findNodeByImageUrl(info.imageUrl);
-                        if (node) {
-                            const img = node.querySelector('img');
-                            const pins = JSON.parse(node.dataset.pins || '[]');
-                            
-                            let base64Data;
-                            if (img.src.startsWith('data:')) {
-                                base64Data = img.src;
-                            } else {
-                                const canvas = document.createElement('canvas');
-                                const ctx = canvas.getContext('2d');
-                                canvas.width = img.naturalWidth || img.width;
-                                canvas.height = img.naturalHeight || img.height;
-                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                                base64Data = canvas.toDataURL('image/png');
-                            }
-                            
-                            if (pins.length > 0) {
-                                debugLog(`[PIN标记] 在图片上绘制 ${pins.length} 个PIN标记`, 'info');
-                                base64Data = await drawPinsOnImage(base64Data, pins);
-                            }
-                            
-                            const existing = allImageData.find(data => data.data === base64Data);
-                            if (!existing) {
-                                allImageData.push({
-                                    data: base64Data,
-                                    name: info.filename
-                                });
-                            }
-                        }
+                if (isVideoGenMode) {
+                    const apiKey = settings12AiApiKeyInput.value.trim();
+                    if (!apiKey) {
+                        debugLog(`[12AI] 请输入 12AI API Key`, 'error');
+                        alert('请输入 12AI API Key');
+                        return;
                     }
                     
-                    if (allImageData.length > 0) {
-                        if (prompt) {
-                            content = allImageData.map(imageData => ({
-                                inlineData: { 
-                                    data: imageData.data.split(',')[1], 
-                                    mimeType: imageData.data.split(';')[0].split(':')[1] 
-                                }
-                            }));
-                            const pinNote = pinInfo.length > 0 ? '完全移除图片上的所有红色数字标记，不要在生成的图片中显示任何标记。' : '';
-                            content.push(`${prompt}，使用${aspectRatio.value}宽高比。${pinNote}`);
-                        } else {
-                            content = allImageData.map(imageData => ({
-                                inlineData: { 
-                                    data: imageData.data.split(',')[1], 
-                                    mimeType: imageData.data.split(';')[0].split(':')[1] 
-                                }
-                            }));
-                            const pinNote = pinInfo.length > 0 ? '完全移除图片上的所有红色数字标记，不要在生成的图片中显示任何标记。' : '';
-                            content.push(`请美化这张图片，使用${aspectRatio.value}宽高比。${pinNote}`);
-                        }
-                    } else {
-                        content = `${prompt}，使用${aspectRatio.value}宽高比`;
-                    }
-                } else {
-                    const allImageData = [...imageDataList];
+                    apiClient.update12AIKey(apiKey);
                     
-                    for (const info of pinInfo) {
-                        const node = findNodeByImageUrl(info.imageUrl);
-                        if (node) {
-                            const img = node.querySelector('img');
-                            const pins = JSON.parse(node.dataset.pins || '[]');
-                            
-                            let base64Data;
-                            if (img.src.startsWith('data:')) {
-                                base64Data = img.src;
-                            } else {
-                                const canvas = document.createElement('canvas');
-                                const ctx = canvas.getContext('2d');
-                                canvas.width = img.naturalWidth || img.width;
-                                canvas.height = img.naturalHeight || img.height;
-                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                                base64Data = canvas.toDataURL('image/png');
-                            }
-                            
-                            if (pins.length > 0) {
-                                debugLog(`[PIN标记] 在图片上绘制 ${pins.length} 个PIN标记`, 'info');
-                                base64Data = await drawPinsOnImage(base64Data, pins);
-                            }
-                            
-                            const existing = allImageData.find(data => data.data === base64Data);
-                            if (!existing) {
-                                allImageData.push({
-                                    data: base64Data,
-                                    name: info.filename
-                                });
-                            }
-                        }
-                    }
-                    
-                    if (allImageData.length > 0) {
-                        content = allImageData.map(imageData => ({
-                            inlineData: {
-                                data: imageData.data.split(',')[1],
-                                mimeType: imageData.data.split(';')[0].split(':')[1]
-                            }
-                        }));
-                        content.push(`${prompt}`);
-                    } else {
-                        content = prompt;
+                    const selectedNode = AppState.selectedNode;
+                    let selectedImageUrl = null;
+                    if (selectedNode && selectedNode.querySelector('img')) {
+                        selectedImageUrl = selectedNode.querySelector('img').src;
                     }
                     
                     const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
-                    let x = 5000;
-                    let y = 5000;
+                    let nodeX = 5000;
+                    let nodeY = 5000;
                     
                     if (existingNodes.length > 0) {
                         const lastNode = existingNodes[existingNodes.length - 1];
-                        
                         const lastNodeX = parseInt(lastNode.style.left) || 0;
                         const lastNodeY = parseInt(lastNode.style.top) || 0;
                         const lastNodeWidth = lastNode.offsetWidth;
                         const lastNodeHeight = lastNode.offsetHeight;
                         
-                        x = lastNodeX + lastNodeWidth + 50;
-                        y = lastNodeY;
+                        nodeX = lastNodeX + lastNodeWidth + 50;
+                        nodeY = lastNodeY;
                         
-                        if (x > 6000) {
-                            x = 5000;
-                            y = lastNodeY + lastNodeHeight + 50;
+                        if (nodeX > 6000) {
+                            nodeX = 5000;
+                            nodeY = lastNodeY + lastNodeHeight + 50;
                         }
                     }
                     
-                    loadingPlaceholder = createTextLoadingPlaceholder(prompt, x, y);
-                    imageResponseContainer.appendChild(loadingPlaceholder);
-                    updateMinimapWithImage(loadingPlaceholder);
+                    const videoModel = CONFIG.VIDEO_MODEL_NAME;
+                    const videoProvider = CONFIG.VIDEO_MODEL_PROVIDER;
+                    const videoModelDisplayName = getModelDisplayName(videoModel, videoProvider);
+                    const videoPlaceholder = NodeFactory.createVideoPlaceholder(nodeX, nodeY, prompt, videoModelDisplayName, videoRatioSelect.value);
+                    imageResponseContainer.appendChild(videoPlaceholder);
+                    updateMinimapWithImage(videoPlaceholder);
+                    selectNode(videoPlaceholder);
+                    
+                    const videoGenStartTime = Date.now();
+                    const videoTimeElement = videoPlaceholder.querySelector('.node-sidebar .node-generation-time');
+                    if (videoTimeElement) {
+                        videoTimeElement.textContent = '⏱️ 0.0s';
+                        const videoTimer = setInterval(() => {
+                            const elapsed = (Date.now() - videoGenStartTime) / 1000;
+                            videoTimeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
+                        }, 100);
+                        videoPlaceholder._timer = videoTimer;
+                        videoPlaceholder._startTime = videoGenStartTime;
+                    }
+                    
+                    await apiClient.request({
+                        prompt,
+                        isVideoGenMode: true,
+                        videoModel: CONFIG.VIDEO_MODEL_NAME,
+                        videoProvider: CONFIG.VIDEO_MODEL_PROVIDER,
+                        videoRatio: videoRatioSelect.value,
+                        videoResolution: videoResolutionSelect.value,
+                        videoDuration: videoDurationSelect.value,
+                        selectedImageUrl: selectedImageUrl,
+                        onVideoProgress: (progress) => {
+                            debugLog(`[视频进度] ${progress}%`, 'info');
+                            if (videoPlaceholder && videoPlaceholder._updateProgress) {
+                                videoPlaceholder._updateProgress(progress);
+                            }
+                        },
+                        onVideoGenerated: async (videoUrl) => {
+                            debugLog(`[视频完成] ${videoUrl}`, 'info');
+                            
+                            if (videoPlaceholder && videoPlaceholder._timer) {
+                                clearInterval(videoPlaceholder._timer);
+                                videoPlaceholder._timer = null;
+                            }
+                            
+                            if (videoPlaceholder && videoPlaceholder._updateProgress) {
+                                videoPlaceholder._updateProgress(100);
+                            }
+                            
+                            const videoGenEndTime = Date.now();
+                            const genTime = videoPlaceholder._startTime ? (videoGenEndTime - videoPlaceholder._startTime) / 1000 : 0;
+                            
+                            const proxyUrl = `/api/video-proxy?url=${encodeURIComponent(videoUrl)}`;
+                            debugLog(`[视频代理] 使用代理URL: ${proxyUrl}`, 'info');
+                            
+                            try {
+                                debugLog(`[保存视频] 开始保存到服务器`, 'info');
+                                const saveResponse = await fetch('/api/save-video', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        videoUrl: videoUrl,
+                                        prompt: prompt,
+                                        aspectRatio: videoRatioSelect.value,
+                                        duration: videoDurationSelect.value,
+                                        modelName: videoModelDisplayName
+                                    })
+                                });
+                                const saveResult = await saveResponse.json();
+                                if (saveResult.success) {
+                                    debugLog(`[保存视频] 保存成功: ${saveResult.fileName}`, 'success');
+                                } else {
+                                    debugLog(`[保存视频] 保存失败: ${saveResult.error}`, 'error');
+                                }
+                            } catch (saveError) {
+                                debugLog(`[保存视频] 保存异常: ${saveError.message}`, 'error');
+                            }
+                            
+                            NodeFactory.replaceWithVideo(videoPlaceholder, proxyUrl, prompt, videoModelDisplayName, genTime, videoRatioSelect.value);
+                        },
+                        onError: (error) => {
+                            debugLog(`[视频错误] ${error.message}`, 'error');
+                            if (videoPlaceholder) {
+                                if (videoPlaceholder._timer) {
+                                    clearInterval(videoPlaceholder._timer);
+                                }
+                                videoPlaceholder.remove();
+                            }
+                        }
+                    });
+                    
+                    nodeCounter++;
+                    return;
                 }
                 
-                const result = await model.generateContent(content);
-                const response = await result.response;
-                
-                debugLog(`[API响应] 收到响应, 候选数量: ${response.candidates?.length || 0}`, 'info');
-                
-                if (isImageGenMode) {
-                    const imagePart = response.candidates[0]?.content?.parts.find(part => part.inlineData);
-                    debugLog(`[生图模式] 图片数据: ${imagePart ? '存在' : '不存在'}`, 'info');
-                    
-                    if (imagePart) {
-                        const imageData = imagePart.inlineData.data;
-                        debugLog(`[图片数据] Base64长度: ${imageData.length}`, 'info');
+                await apiClient.request({
+                    prompt,
+                    images: allImageData,
+                    pinInfo,
+                    modelName,
+                    modelProvider,
+                    generationConfig,
+                    isImageGenMode,
+                    aspectRatio: aspectRatio.value,
+                    imageSize: imageSize.value,
+                    onImageGenerated: async (imageData) => {
+                        debugLog(`[API响应] 收到响应, 候选数量: 1`, 'info');
                         
                         const byteCharacters = atob(imageData);
                         const byteNumbers = new Array(byteCharacters.length);
@@ -3463,9 +4386,7 @@
                             debugLog(`[保存图片] 开始保存到服务器`, 'info');
                             const saveResponse = await fetch('/save-image', {
                                 method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
+                                headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ 
                                     imageData: imageData,
                                     prompt: prompt,
@@ -3478,21 +4399,15 @@
                             if (saveResult.success) {
                                 filename = saveResult.fileName || '';
                                 debugLog(`[保存图片] 文件名: ${filename}`, 'success');
-                                if (statusTag) {
-                                    statusTag.innerText = "成功";
-                                }
+                                if (statusTag) statusTag.innerText = "成功";
                             } else {
                                 debugLog(`[保存图片] 保存失败: ${saveResult.message || '未知错误'}`, 'error');
-                                if (statusTag) {
-                                    statusTag.innerText = "保存失败";
-                                }
+                                if (statusTag) statusTag.innerText = "保存失败";
                             }
                         } catch (saveError) {
                             console.error('保存图片失败:', saveError);
                             debugLog(`[保存图片] 异常: ${saveError.message}`, 'error');
-                            if (statusTag) {
-                                statusTag.innerText = "保存失败";
-                            }
+                            if (statusTag) statusTag.innerText = "保存失败";
                         }
                         
                         const tempImg = new Image();
@@ -3505,93 +4420,118 @@
                         });
                         
                         if (loadingPlaceholder) {
-                            // 更新现有的loading占位符节点
-                            updateLoadingPlaceholder(loadingPlaceholder, blobUrl, prompt, filename, resolution);
+                            const genTime = loadingPlaceholder._startTime ? (Date.now() - loadingPlaceholder._startTime) / 1000 : null;
+                            updateLoadingPlaceholder(loadingPlaceholder, blobUrl, prompt, filename, resolution, genTime, modelDisplayName);
                         } else {
-                            // 如果没有占位符，创建新节点
-                            const node = createImageNode(blobUrl, prompt, nodeCounter++, filename, resolution);
-                        imageResponseContainer.appendChild(node);
-                        selectNode(node);
+                            const node = createImageNode(blobUrl, prompt, nodeCounter++, filename, resolution, null, modelDisplayName);
+                            imageResponseContainer.appendChild(node);
+                            selectNode(node);
+                        }
                         debugLog(`[创建节点] 图片节点: ${filename}, 分辨率: ${resolution}`, 'success');
+                    },
+                    onTextGenerated: (text) => {
+                        debugLog(`[文本模式] 开始处理文本响应`, 'info');
+                        debugLog(`[文本响应] 文本长度: ${text.length}`, 'info');
+                        // 计算生成耗时
+                        let generationTime = null;
+                        if (loadingPlaceholder && loadingPlaceholder._startTime) {
+                            generationTime = (Date.now() - loadingPlaceholder._startTime) / 1000;
+                        }
+                        if (loadingPlaceholder) {
+                            updateTextLoadingPlaceholder(loadingPlaceholder, text, prompt, generationTime, modelDisplayName);
+                            debugLog(`[更新节点] 文本占位符已更新`, 'success');
+                        } else {
+                            const node = createTextNode(text, prompt, nodeCounter++, '', '', null, modelDisplayName);
+                            imageResponseContainer.appendChild(node);
+                            selectNode(node);
+                            updateMinimapWithImage(node);
+                            debugLog(`[创建节点] 文本节点已创建`, 'success');
+                        }
+                    },
+                    onError: (error) => {
+                        console.error(error);
+                        debugLog(`[API错误] 模式: ${isImageGenMode ? '生图' : '文本'}, 错误: ${error.message}`, 'error');
+                        const errorText = "发生错误: " + error.message;
+                        
+                        // 计算生成耗时
+                        let generationTime = null;
+                        if (loadingPlaceholder && loadingPlaceholder._startTime) {
+                            generationTime = (Date.now() - loadingPlaceholder._startTime) / 1000;
+                        }
+                        
+                        if (loadingPlaceholder) {
+                            if (loadingPlaceholder._timer) {
+                                clearInterval(loadingPlaceholder._timer);
+                            }
+                            if (loadingPlaceholder.classList.contains('text-loading-placeholder')) {
+                                updateTextLoadingPlaceholder(loadingPlaceholder, errorText, prompt, generationTime, modelDisplayName);
+                                loadingPlaceholder.querySelector('.text-content').style.background = '#fef2f2';
+                                loadingPlaceholder.querySelector('.text-content').style.color = '#dc2626';
+                            } else {
+                                const node = createTextNode(errorText, prompt, nodeCounter++, '', '', generationTime, modelDisplayName);
+                                node.style.left = loadingPlaceholder.style.left;
+                                node.style.top = loadingPlaceholder.style.top;
+                                node.querySelector('.text-content').style.background = '#fef2f2';
+                                node.querySelector('.text-content').style.color = '#dc2626';
+                                imageResponseContainer.appendChild(node);
+                                selectNode(node);
+                                updateMinimapWithImage(node);
+                                loadingPlaceholder.remove();
+                            }
+                        } else {
+                            const node = createTextNode(errorText, prompt, nodeCounter++, '', '', null, modelDisplayName);
+                            node.querySelector('.text-content').style.background = '#fef2f2';
+                            node.querySelector('.text-content').style.color = '#dc2626';
+                            imageResponseContainer.appendChild(node);
+                            selectNode(node);
+                            updateMinimapWithImage(node);
+                        }
+                        if (activeRequests === 0 && statusTag) {
+                            statusTag.innerText = "失败";
+                            statusTag.className = "text-xs px-2 py-1 rounded bg-red-50 text-red-600";
+                        }
+                    },
+                    onComplete: (error, result) => {
+                        if (!error && result) {
+                            const genTime = result.generationTime;
+                            
+                            if (loadingPlaceholder) {
+                                if (loadingPlaceholder._timer) {
+                                    clearInterval(loadingPlaceholder._timer);
+                                }
+                                const timeElement = loadingPlaceholder.querySelector('.node-generation-time');
+                                if (timeElement && genTime !== null && genTime !== undefined) {
+                                    timeElement.textContent = formatGenerationTime(genTime);
+                                    timeElement.title = `生成耗时: ${genTime.toFixed(2)}秒`;
+                                }
+                                loadingPlaceholder = null;
+                            }
+                        }
                     }
-                } else {
-                    debugLog(`[生图模式] 无图片数据`, 'warning');
-                    if (statusTag) {
-                        statusTag.innerText = "无图片数据";
-                    }
-                }
-            } else {
-                debugLog(`[文本模式] 开始处理文本响应`, 'info');
-                const text = response.text();
-                debugLog(`[文本响应] 文本长度: ${text.length}`, 'info');
-                if (loadingPlaceholder) {
-                    updateTextLoadingPlaceholder(loadingPlaceholder, text, prompt);
-                    debugLog(`[更新节点] 文本占位符已更新`, 'success');
-                } else {
-                    const node = createTextNode(text, prompt, nodeCounter++);
-                    imageResponseContainer.appendChild(node);
-                    selectNode(node);
-                    updateMinimapWithImage(node);
-                    debugLog(`[创建节点] 文本节点已创建`, 'success');
-                }
-            }
-                
-                debugLog(`[API响应] 模式: ${isImageGenMode ? '生图' : '文本'}, 状态: 成功`, 'success');
-                
-                if (activeRequests === 0 && statusTag) {
-                    statusTag.innerText = "成功";
-                    statusTag.className = "text-xs px-2 py-1 rounded bg-green-50 text-green-600";
-                }
-            } catch (error) {
-                console.error(error);
-                debugLog(`[API错误] 模式: ${isImageGenMode ? '生图' : '文本'}, 错误: ${error.message}`, 'error');
-                const errorText = "发生错误: " + error.message;
-                if (loadingPlaceholder) {
-                    if (loadingPlaceholder.classList.contains('text-loading-placeholder')) {
-                        updateTextLoadingPlaceholder(loadingPlaceholder, errorText, prompt);
-                        loadingPlaceholder.querySelector('.text-prompt').style.background = '#fef2f2';
-                        loadingPlaceholder.querySelector('.text-prompt').style.color = '#dc2626';
-                    } else {
-                        const node = createTextNode(errorText, prompt, nodeCounter++);
-                        node.querySelector('.text-prompt').style.background = '#fef2f2';
-                        node.querySelector('.text-prompt').style.color = '#dc2626';
-                        imageResponseContainer.appendChild(node);
-                        selectNode(node);
-                        updateMinimapWithImage(node);
-                        loadingPlaceholder.remove();
-                    }
-                } else {
-                    const node = createTextNode(errorText, prompt, nodeCounter++);
-                    node.querySelector('.text-prompt').style.background = '#fef2f2';
-                    node.querySelector('.text-prompt').style.color = '#dc2626';
-                    imageResponseContainer.appendChild(node);
-                    selectNode(node);
-                    updateMinimapWithImage(node);
-                }
-                if (activeRequests === 0 && statusTag) {
-                    statusTag.innerText = "失败";
-                    statusTag.className = "text-xs px-2 py-1 rounded bg-red-50 text-red-600";
-                }
+                });
             } finally {
                 activeRequests--;
                 if (activeRequests === 0) {
                     loader.classList.add('hidden');
                 }
-                // 清空输入框
-                promptInput.innerHTML = '';
             }
         }
 
-        sendBtn.addEventListener('click', callAPI);
+        sendBtn.addEventListener('click', async () => {
+            await handleAPICall();
+        });
 
         promptInput.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') callAPI();
+            if (e.ctrlKey && e.key === 'Enter') handleAPICall();
         });
 
         document.addEventListener('wheel', (e) => {
             if (!e.ctrlKey) return;
             
-            if (document.activeElement === promptInput) return;
+            if (document.activeElement === promptInput) {
+                e.preventDefault();
+                return;
+            }
             
             e.preventDefault();
             
@@ -3606,10 +4546,13 @@
             if (e.ctrlKey && e.key === '`') {
                 e.preventDefault();
                 debugConsole.classList.toggle('collapsed');
+                updateToolbarPosition();
                 return;
             }
             
+            // 如果焦点在输入框或调试控制面板中，不执行画布快捷键
             if (document.activeElement === promptInput) return;
+            if (debugConsole.contains(document.activeElement)) return;
             
             // 画布缩放快捷键（Ctrl +/-）
             if (e.ctrlKey && !e.shiftKey && (e.key === '=' || e.key === '+')) {
@@ -3630,6 +4573,9 @@
             
             if (selectedNode) {
                 if (e.ctrlKey || e.metaKey) {
+                    const selection = window.getSelection();
+                    if (selection.toString().length > 0) return;
+                    
                     if (e.key === 'c' || e.key === 'C') {
                         e.preventDefault();
                         copySelectedNode();
@@ -3674,8 +4620,54 @@
             }
         });
 
-        window.addEventListener('load', () => {
+        window.createImageNode = createImageNode;
+        window.createTextNode = createTextNode;
+        window.createLoadingPlaceholder = createLoadingPlaceholder;
+        window.createTextLoadingPlaceholder = createTextLoadingPlaceholder;
+        window.updateLoadingPlaceholder = updateLoadingPlaceholder;
+        window.updateTextLoadingPlaceholder = updateTextLoadingPlaceholder;
+        window.updateImageDataList = updateImageDataList;
+        window.drawPinsOnImage = drawPinsOnImage;
+        window.selectNode = selectNode;
+        window.updateMinimapWithImage = updateMinimapWithImage;
+
+        window.switchToTextMode = switchToTextMode;
+        window.switchToImageMode = switchToImageMode;
+        window.switchToVideoMode = switchToVideoMode;
+
+        window.addEventListener('load', async () => {
             setTimeout(initCanvas, 100);
+            await TemplateLoader.loadSettingsPanel();
+            
+            // 自动调整BASE URL输入框宽度
+            function adjustBaseUrlInputWidth(input) {
+                const measureEl = document.getElementById('text-measure');
+                if (!measureEl) return;
+                
+                measureEl.textContent = input.value || input.placeholder || '';
+                const width = Math.max(280, measureEl.offsetWidth + 20); // 20px padding
+                input.style.width = width + 'px';
+            }
+            
+            // 初始化和监听所有BASE URL输入框
+            const baseUrlInputs = [
+                'settingsGeminiBaseUrl',
+                'settings12AiBaseUrl', 
+                'settingsOpenAIBaseUrl',
+                'settingsClaudeBaseUrl'
+            ];
+            
+            baseUrlInputs.forEach(id => {
+                const input = document.getElementById(id);
+                if (input) {
+                    adjustBaseUrlInputWidth(input);
+                    input.addEventListener('input', () => adjustBaseUrlInputWidth(input));
+                }
+            });
+            
+            // 初始化Provider管理和UI管理
+            window.providerManager = new ProviderManager();
+            new UIManager();
         });
         
         // 动态监听resize事件，当窗口大小改变时自动刷新UI
