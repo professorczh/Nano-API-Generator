@@ -1,9 +1,16 @@
-import { CONFIG } from '../../config.js';
+import { CONFIG, PROTOCOL_MAP } from '../../config.js';
 
 export class TwelveAIProvider {
-    constructor() {
-        this.apiKey = CONFIG.TWELVE_AI_API_KEY;
-        this.baseUrl = CONFIG.TWELVE_AI_SELECTED_LINE === 2 ? CONFIG.TWELVE_AI_BASE_URL_2 : CONFIG.TWELVE_AI_BASE_URL_1;
+    constructor(config = {}) {
+        this.apiKey = config.apiKey || CONFIG.TWELVE_AI_API_KEY;
+        const rawBaseUrl = config.baseUrl || (CONFIG.TWELVE_AI_SELECTED_LINE === 2 ? CONFIG.TWELVE_AI_BASE_URL_2 : CONFIG.TWELVE_AI_BASE_URL_1);
+        this.baseUrl = rawBaseUrl.replace(/\/$/, '');
+        this.providerProtocol = config.providerProtocol || 'openai';
+        this.getProtocol = config.getProtocol || ((modelName) => this.providerProtocol);
+    }
+
+    getSuffix(protocol) {
+        return PROTOCOL_MAP[protocol]?.suffix || '/v1';
     }
 
     updateAPIKey(apiKey) {
@@ -11,7 +18,7 @@ export class TwelveAIProvider {
     }
 
     updateBaseUrl(baseUrl) {
-        this.baseUrl = baseUrl;
+        this.baseUrl = baseUrl.replace(/\/$/, '');
     }
 
     async generateVideo(config) {
@@ -218,7 +225,8 @@ export class TwelveAIProvider {
             debugLog
         } = config;
 
-        const endpoint = `${this.baseUrl}/v1beta/models/${modelName}:generateContent`;
+        const baseUrl = this.baseUrl.replace(/\/$/, '');
+        const endpoint = `${baseUrl}/v1beta/models/${modelName}:generateContent`;
 
         if (debugLog) {
             debugLog(`[12AI Gemini] 端点: ${endpoint}`, 'info');

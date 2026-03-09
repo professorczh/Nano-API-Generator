@@ -1,55 +1,101 @@
-﻿// 管理Provider的动态创建和删除
+﻿﻿// 管理Provider的动态创建和删除
 
 class ProviderManager {
     constructor() {
-        this.providerCounter = 4;
+        this.providerCounter = 0;
         this.hasUnsavedChanges = false;
         this.defaultProviders = [
             {
                 id: 'Gemini',
                 name: 'Google',
-                deletable: false,
                 baseUrl: 'https://generativelanguage.googleapis.com',
-                baseUrlSuffix: '/v1beta',
-                formats: ['openai', 'gemini', 'mix'],
-                defaultFormat: 'gemini',
-                color: 'blue'
+                apiKey: '',
+                protocol: 'gemini'
             },
             {
                 id: '12AI',
                 name: '12AI',
-                deletable: true,
                 baseUrl: 'https://api.12ai.com',
-                baseUrlSuffix: '/v1',
-                formats: ['openai'],
-                defaultFormat: 'openai',
-                color: 'purple'
+                apiKey: '',
+                protocol: 'openai'
             },
             {
                 id: 'OpenAI',
                 name: 'OpenAI',
-                deletable: true,
                 baseUrl: 'https://api.openai.com',
-                baseUrlSuffix: '/v1',
-                formats: ['openai'],
-                defaultFormat: 'openai',
-                color: 'green'
+                apiKey: '',
+                protocol: 'openai'
             },
             {
                 id: 'Claude',
                 name: 'Claude',
-                deletable: true,
                 baseUrl: 'https://api.anthropic.com',
-                baseUrlSuffix: '/v1',
-                formats: ['openai', 'gemini', 'mix'],
-                defaultFormat: 'openai',
-                color: 'orange'
+                apiKey: '',
+                protocol: 'openai'
             }
         ];
         this.init();
         this.loadProviders();
     }
-
+    
+    // 获取所有Provider的模型列表（用于下拉选项）
+    getAllModels() {
+        try {
+            const savedProviders = localStorage.getItem('nano_api_providers');
+            if (!savedProviders) return { text: [], image: [], video: [] };
+            
+            const providers = JSON.parse(savedProviders);
+            const textModels = [];
+            const imageModels = [];
+            const videoModels = [];
+            
+            providers.forEach(provider => {
+                if (!provider.enabled) return;
+                
+                if (provider.textModels) {
+                    provider.textModels.forEach(m => {
+                        textModels.push({
+                            name: `${m.name}(${provider.name})`,
+                            value: m.name,
+                            provider: provider.id,
+                            group: provider.name,
+                            protocol: m.protocol || provider.protocol
+                        });
+                    });
+                }
+                
+                if (provider.imageModels) {
+                    provider.imageModels.forEach(m => {
+                        imageModels.push({
+                            name: `${m.name}(${provider.name})`,
+                            value: m.name,
+                            provider: provider.id,
+                            group: provider.name,
+                            protocol: m.protocol || provider.protocol
+                        });
+                    });
+                }
+                
+                if (provider.videoModels) {
+                    provider.videoModels.forEach(m => {
+                        videoModels.push({
+                            name: `${m.name}(${provider.name})`,
+                            value: m.name,
+                            provider: provider.id,
+                            group: provider.name,
+                            protocol: m.protocol || provider.protocol
+                        });
+                    });
+                }
+            });
+            
+            return { text: textModels, image: imageModels, video: videoModels };
+        } catch (e) {
+            console.error('Error getting all models:', e);
+            return { text: [], image: [], video: [] };
+        }
+    }
+    
     init() {
         const addBtn = document.getElementById('settingsTabAdd');
         if (addBtn) {
@@ -64,6 +110,26 @@ class ProviderManager {
                 this.deleteProvider(providerId);
             });
         });
+        
+        // 监听默认模型选择区域的变化
+         setTimeout(() => {
+             const defaultModelWrappers = [
+                 'settingsDefaultTextModelWrapper',
+                 'settingsDefaultImageModelWrapper', 
+                 'settingsDefaultVideoModelWrapper'
+             ];
+             
+             defaultModelWrappers.forEach(wrapperId => {
+                 const wrapper = document.getElementById(wrapperId);
+                 if (wrapper) {
+                     wrapper.addEventListener('click', (e) => {
+                         if (e.target.classList.contains('custom-option')) {
+                             this.autoSave();
+                         }
+                     });
+                 }
+             });
+         }, 500);
     }
 
     createDefaultProviders() {
@@ -78,8 +144,9 @@ class ProviderManager {
     }
 
     createProvider(config) {
-        const { id, name, deletable, baseUrl, baseUrlSuffix, formats, defaultFormat, color } = config;
+        const { id, name, baseUrl, apiKey, protocol } = config;
         const providerId = id;
+        const providerProtocol = protocol || 'openai';
         
         const tabContainer = document.getElementById('settingsTabs');
         const addButton = document.getElementById('settingsTabAdd');
@@ -98,18 +165,21 @@ class ProviderManager {
         newConfig.id = `settings${providerId}Config`;
         newConfig.className = 'hidden';
         
-        const formatOptions = formats.map(fmt => {
-            const checked = fmt === defaultFormat ? 'checked' : '';
+        const suffixMap = { 'gemini': '/v1beta', 'openai': '/v1', 'mix': '' };
+        const suffixValue = suffixMap[providerProtocol] || '/v1';
+        const suffixReadonly = providerProtocol === 'mix' ? '' : 'readonly';
+        const suffixHidden = providerProtocol === 'mix' ? 'hidden' : '';
+        
+        const protocolOptions = ['openai', 'gemini', 'mix'].map(fmt => {
+            const checked = fmt === providerProtocol ? 'checked' : '';
             const labels = { openai: 'OpenAI格式', gemini: 'Gemini格式', mix: 'Mix兼容格式' };
-            return `<label class="flex items-center gap-1.5 text-xs cursor-pointer ${fmt === defaultFormat ? 'text-gray-700' : 'text-gray-500'}">
-                <input type="radio" name="settings${providerId}Format" value="${fmt}" ${checked} class="accent-${color}-500 w-3.5 h-3.5">
+            return `<label class="flex items-center gap-1.5 text-xs cursor-pointer ${fmt === providerProtocol ? 'text-gray-700' : 'text-gray-500'}">
+                <input type="radio" name="settings${providerId}Format" value="${fmt}" ${checked} class="accent-blue-500 w-3.5 h-3.5">
                 <span>${labels[fmt] || fmt}</span>
             </label>`;
         }).join('');
 
-        const deleteBtnHtml = deletable 
-            ? `<button type="button" class="ml-auto px-4 py-1.5 text-sm rounded border border-red-300 text-white bg-red-500 hover:border-red-400 hover:bg-red-600 transition-all provider-delete-btn" data-provider-id="${providerId}" title="删除此Provider">删除</button>`
-            : `<button type="button" class="ml-auto px-4 py-1.5 text-sm rounded border border-red-300 text-white bg-red-500 opacity-50 cursor-not-allowed" disabled title="默认Provider不可删除">删除</button>`;
+        const deleteBtnHtml = `<button type="button" class="ml-auto px-4 py-1.5 text-sm rounded border border-red-300 text-white bg-red-500 hover:border-red-400 hover:bg-red-600 transition-all provider-delete-btn" data-provider-id="${providerId}" title="删除此Provider">删除</button>`;
 
         newConfig.innerHTML = `
             <div class="mb-4">
@@ -117,13 +187,13 @@ class ProviderManager {
                 <div class="flex gap-3 items-center">
                     <div class="flex gap-2 w-1/5">
                         <input type="text" id="settings${providerId}Provider" 
-                            class="flex-1 px-3 py-2 rounded-lg border border-gray-100 bg-gray-50 focus:border-${color}-300 focus:ring-2 focus:ring-${color}-100 outline-none text-sm transition-all"
+                            class="flex-1 px-3 py-2 rounded-lg border border-gray-100 bg-gray-50 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
                             value="${name}">
                     </div>
                     <span class="text-xs text-gray-500">启用</span>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="settings${providerId}Enabled" class="sr-only peer" checked>
-                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-${color}-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[&quot;&quot;] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-${color}-500"></div>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
                     </label>
                     ${deleteBtnHtml}
                 </div>
@@ -132,24 +202,24 @@ class ProviderManager {
                 <label class="block text-xs text-gray-500 mb-1.5">BASE URL</label>
                 <div class="flex gap-2 items-center">
                     <input type="text" id="settings${providerId}BaseUrl" 
-                        class="px-3 py-2 rounded-lg border border-gray-100 bg-gray-50 focus:border-${color}-300 focus:ring-2 focus:ring-${color}-100 outline-none text-sm transition-all"
+                        class="px-3 py-2 rounded-lg border border-gray-100 bg-gray-50 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
                         value="${baseUrl}">
                     <input type="text" id="settings${providerId}BaseUrlSuffix" 
-                        class="w-16 px-2 py-2 rounded-lg border border-gray-100 bg-gray-100 text-gray-400 text-sm text-center"
-                        value="${baseUrlSuffix}" readonly>
+                        class="w-20 px-2 py-2 rounded-lg border border-gray-100 bg-gray-100 text-gray-400 text-sm text-center ${suffixHidden}"
+                        value="${suffixValue}" ${suffixReadonly}>
                 </div>
                 <div class="flex gap-4 mt-2">
-                    ${formatOptions}
+                    ${protocolOptions}
                 </div>
             </div>
             <div class="mb-4">
                 <label class="block text-xs text-gray-500 mb-1.5">API KEY</label>
                 <div class="flex gap-2 items-center">
                     <input type="text" id="settings${providerId}ApiKeyInput" 
-                        class="px-3 py-2 rounded-lg border border-gray-100 bg-gray-50 focus:border-${color}-300 focus:ring-2 focus:ring-${color}-100 outline-none text-sm transition-all"
-                        placeholder="输入 API Key" style="width: 200px;">
+                        class="px-3 py-2 rounded-lg border border-gray-100 bg-gray-50 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
+                        placeholder="输入 API Key" style="width: 200px;" value="${apiKey || ''}">
                     <button id="settingsTest${providerId}KeyBtn" 
-                        class="bg-${color}-600 hover:bg-${color}-700 text-white px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all">
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all">
                         测试
                     </button>
                     <div id="settings${providerId}StatusContainer" class="flex items-center w-[200px] bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
@@ -165,11 +235,11 @@ class ProviderManager {
                         <label class="block text-xs text-gray-400 mb-2">文本模型</label>
                         <div id="${providerId}TextModels" class="space-y-1.5 mb-2 model-list-container">
                             <div class="flex gap-1.5 items-center model-row">
-                                <select class="w-9 px-1 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 model-format-select focus:border-${color}-300 focus:ring-1 focus:ring-${color}-100 outline-none">
+                                <select class="w-9 px-1 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 model-format-select focus:border-blue-300 focus:ring-1 focus:ring-blue-100 outline-none">
                                     <option value="openai" selected title="OpenAI格式">O</option>
                                     <option value="gemini" title="Gemini格式">G</option>
                                 </select>
-                                <input type="text" placeholder="模型名称" class="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 focus:border-${color}-300 focus:ring-1 focus:ring-${color}-100 outline-none">
+                                <input type="text" placeholder="模型名称" class="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 focus:border-blue-300 focus:ring-1 focus:ring-blue-100 outline-none">
                                 <button type="button" class="text-gray-300 hover:text-red-400 text-sm model-row-delete transition-colors">×</button>
                             </div>
                         </div>
@@ -179,11 +249,11 @@ class ProviderManager {
                         <label class="block text-xs text-gray-400 mb-2">图像模型</label>
                         <div id="${providerId}ImageModels" class="space-y-1.5 mb-2 model-list-container">
                             <div class="flex gap-1.5 items-center model-row">
-                                <select class="w-9 px-1 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 model-format-select focus:border-${color}-300 focus:ring-1 focus:ring-${color}-100 outline-none">
+                                <select class="w-9 px-1 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 model-format-select focus:border-blue-300 focus:ring-1 focus:ring-blue-100 outline-none">
                                     <option value="openai" selected title="OpenAI格式">O</option>
                                     <option value="gemini" title="Gemini格式">G</option>
                                 </select>
-                                <input type="text" placeholder="模型名称" class="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 focus:border-${color}-300 focus:ring-1 focus:ring-${color}-100 outline-none">
+                                <input type="text" placeholder="模型名称" class="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 focus:border-blue-300 focus:ring-1 focus:ring-blue-100 outline-none">
                                 <button type="button" class="text-gray-300 hover:text-red-400 text-sm model-row-delete transition-colors">×</button>
                             </div>
                         </div>
@@ -193,11 +263,11 @@ class ProviderManager {
                         <label class="block text-xs text-gray-400 mb-2">视频模型</label>
                         <div id="${providerId}VideoModels" class="space-y-1.5 mb-2 model-list-container">
                             <div class="flex gap-1.5 items-center model-row">
-                                <select class="w-9 px-1 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 model-format-select focus:border-${color}-300 focus:ring-1 focus:ring-${color}-100 outline-none">
+                                <select class="w-9 px-1 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 model-format-select focus:border-blue-300 focus:ring-1 focus:ring-blue-100 outline-none">
                                     <option value="openai" selected title="OpenAI格式">O</option>
                                     <option value="gemini" title="Gemini格式">G</option>
                                 </select>
-                                <input type="text" placeholder="模型名称" class="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 focus:border-${color}-300 focus:ring-1 focus:ring-${color}-100 outline-none">
+                                <input type="text" placeholder="模型名称" class="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 focus:border-blue-300 focus:ring-1 focus:ring-blue-100 outline-none">
                                 <button type="button" class="text-gray-300 hover:text-red-400 text-sm model-row-delete transition-colors">×</button>
                             </div>
                         </div>
@@ -225,6 +295,11 @@ class ProviderManager {
             });
             
             newTab.className = 'py-1.5 px-4 text-sm font-medium text-blue-600 bg-blue-50 rounded-full transition-all';
+            
+            // 切换 Provider 时刷新下拉菜单
+            if (typeof populateSettingsModelSelects === 'function') {
+                populateSettingsModelSelects();
+            }
         });
         
         const deleteBtn = newConfig.querySelector('.provider-delete-btn');
@@ -256,42 +331,42 @@ class ProviderManager {
             baseUrlSuffixInput.addEventListener('input', () => this.adjustBaseUrlInputWidth(baseUrlSuffixInput));
         }
         
-        // BASE URL格式联动逻辑
+        // 协议联动逻辑
         const formatRadios = document.querySelectorAll(`input[name="settings${providerId}Format"]`);
         const modelSelects = newConfig.querySelectorAll('.model-format-select');
         
-        const updateFormatState = (selectedFormat) => {
+        const updateProtocolState = (selectedProtocol) => {
+            const suffixMap = { 'gemini': '/v1beta', 'openai': '/v1', 'mix': '' };
+            
             // 更新BASE URL后缀
             if (baseUrlSuffixInput) {
-                if (selectedFormat === 'openai') {
-                    baseUrlSuffixInput.value = '/v1';
+                if (selectedProtocol === 'mix') {
+                    baseUrlSuffixInput.classList.add('hidden');
+                } else {
+                    baseUrlSuffixInput.classList.remove('hidden');
+                    baseUrlSuffixInput.value = suffixMap[selectedProtocol] || '/v1';
                     baseUrlSuffixInput.readOnly = true;
-                } else if (selectedFormat === 'gemini') {
-                    baseUrlSuffixInput.value = '/v1beta';
-                    baseUrlSuffixInput.readOnly = true;
-                } else if (selectedFormat === 'mix') {
-                    baseUrlSuffixInput.readOnly = false;
                 }
                 this.adjustBaseUrlInputWidth(baseUrlSuffixInput);
             }
             
             // 更新模型格式下拉框状态
             modelSelects.forEach(select => {
-                if (selectedFormat === 'mix') {
+                if (selectedProtocol === 'mix') {
                     select.disabled = false;
                     select.classList.remove('opacity-50', 'cursor-not-allowed');
                 } else {
                     select.disabled = true;
                     select.classList.add('opacity-50', 'cursor-not-allowed');
-                    select.value = selectedFormat;
+                    select.value = selectedProtocol;
                 }
             });
         };
         
-        // 绑定格式单选按钮事件
+        // 绑定协议单选按钮事件
         formatRadios.forEach(radio => {
             radio.addEventListener('change', (e) => {
-                updateFormatState(e.target.value);
+                updateProtocolState(e.target.value);
                 this.autoSave();
             });
         });
@@ -299,7 +374,7 @@ class ProviderManager {
         // 应用初始格式状态
         const checkedRadio = document.querySelector(`input[name="settings${providerId}Format"]:checked`);
         if (checkedRadio) {
-            updateFormatState(checkedRadio.value);
+            updateProtocolState(checkedRadio.value);
         }
         
         const providerNameInput = document.getElementById(`settings${providerId}Provider`);
@@ -343,38 +418,83 @@ class ProviderManager {
                 statusEl.innerHTML = '<span class="text-blue-600">正在验证 API Key...</span>';
                 
                 try {
-                    // 根据providerId选择不同的测试方式
+                    // 获取 baseUrl
+                    const baseUrlInput = document.getElementById(`settings${providerId}BaseUrl`);
+                    const baseUrl = baseUrlInput?.value?.trim() || '';
+                    
+                    if (!baseUrl) {
+                        statusEl.innerHTML = '<span class="text-red-600">请填写 BASE URL</span>';
+                        return;
+                    }
+                    
+                    // 获取协议
+                    const formatInputs = document.querySelectorAll(`input[name="settings${providerId}Format"]`);
+                    let selectedProtocol = 'openai';
+                    formatInputs.forEach(input => {
+                        if (input.checked) selectedProtocol = input.value;
+                    });
+                    
+                    // 拼接完整 URL
+                    const fullUrl = baseUrl.replace(/\/$/, '');
+                    
+                    // 发送测试请求
                     let success = false;
                     let message = '';
                     
-                    if (providerId === 'Gemini') {
-                        // Gemini使用GoogleGenerativeAI测试
-                        if (typeof GoogleGenerativeAI !== 'undefined') {
-                            const genAI = new GoogleGenerativeAI(apiKey);
-                            const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
-                            await model.generateContent("test");
-                            success = true;
-                        } else {
-                            message = 'GoogleGenerativeAI 未加载';
-                        }
-                    } else if (providerId === '12AI') {
-                        // 12AI使用apiClient测试
-                        if (window.apiClient && window.apiClient.test12AIKey) {
-                            await new Promise((resolve) => {
-                                window.apiClient.test12AIKey(apiKey, (s, m) => {
-                                    success = s;
-                                    message = m;
-                                    resolve();
-                                });
+                    if (selectedProtocol === 'gemini') {
+                        // Gemini 格式测试 - key 作为 URL 参数
+                        try {
+                            const response = await fetch(`${fullUrl}/v1beta/models?key=${apiKey}`, {
+                                method: 'GET'
                             });
-                        } else {
-                            message = 'API Client 未加载';
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                if (data.models && data.models.length > 0) {
+                                    success = true;
+                                    message = `验证成功 (${data.models.length} 个模型)`;
+                                } else {
+                                    message = '未找到可用模型';
+                                }
+                            } else if (response.status === 401) {
+                                message = 'API Key 无效';
+                            } else if (response.status === 404) {
+                                message = 'URL 可能不正确';
+                            } else {
+                                message = `HTTP ${response.status}`;
+                            }
+                        } catch (e) {
+                            message = '请求失败: ' + e.message;
                         }
                     } else {
-                        // 其他Provider使用通用测试（模拟成功）
-                        // 实际项目中应该根据provider的baseUrl和格式进行测试
-                        success = true;
-                        message = 'API Key 格式有效';
+                        // OpenAI/Mix 格式测试 - key 在 Header
+                        try {
+                            const response = await fetch(`${fullUrl}/v1/models`, {
+                                method: 'GET',
+                                headers: {
+                                    'Authorization': `Bearer ${apiKey}`,
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                if (data.data && data.data.length > 0) {
+                                    success = true;
+                                    message = `验证成功 (${data.data.length} 个模型)`;
+                                } else {
+                                    message = '未找到可用模型';
+                                }
+                            } else if (response.status === 401) {
+                                message = 'API Key 无效';
+                            } else if (response.status === 404) {
+                                message = 'URL 可能不正确';
+                            } else {
+                                message = `HTTP ${response.status}`;
+                            }
+                        } catch (e) {
+                            message = '请求失败: ' + e.message;
+                        }
                     }
                     
                     if (success) {
@@ -417,21 +537,46 @@ class ProviderManager {
             });
         });
         
-        const createModelRow = () => {
+        const createModelRow = (defaultProtocol = 'openai') => {
             const div = document.createElement('div');
             div.className = 'flex gap-1.5 items-center model-row';
             div.innerHTML = `
                 <select class="w-9 px-1 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 model-format-select focus:border-gray-300 focus:ring-1 focus:ring-gray-100 outline-none">
-                    <option value="openai" selected title="OpenAI格式">O</option>
-                    <option value="gemini" title="Gemini格式">G</option>
+                    <option value="openai" ${defaultProtocol === 'openai' ? 'selected' : ''} title="OpenAI格式">O</option>
+                    <option value="gemini" ${defaultProtocol === 'gemini' ? 'selected' : ''} title="Gemini格式">G</option>
                 </select>
                 <input type="text" placeholder="模型名称" class="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 focus:border-gray-300 focus:ring-1 focus:ring-gray-100 outline-none">
                 <button type="button" class="text-gray-300 hover:text-red-400 text-sm model-row-delete transition-colors">×</button>
             `;
+            
+            const select = div.querySelector('select');
+            const protocolRadios = document.querySelectorAll(`input[name="settings${providerId}Format"]`);
+            let currentProtocol = 'openai';
+            protocolRadios.forEach(radio => {
+                if (radio.checked) currentProtocol = radio.value;
+            });
+            
+            if (currentProtocol !== 'mix') {
+                select.disabled = true;
+                select.classList.add('opacity-50', 'cursor-not-allowed');
+                select.value = currentProtocol;
+            }
+            
             div.querySelector('.model-row-delete').addEventListener('click', function() {
                 div.remove();
                 setTimeout(() => self.autoSave(), 100);
             });
+            
+            div.querySelector('input[type="text"]').addEventListener('input', function() {
+                console.log('[模型输入] 检测到输入, providerId:', providerId);
+                setTimeout(() => self.autoSave(), 1000);
+            });
+            
+            div.querySelector('select').addEventListener('change', function() {
+                console.log('[模型选择] 检测到变更, providerId:', providerId);
+                setTimeout(() => self.autoSave(), 100);
+            });
+            
             return div;
         };
         
@@ -440,7 +585,12 @@ class ProviderManager {
                 const containerId = this.dataset.container;
                 const container = document.getElementById(containerId);
                 if (container) {
-                    container.appendChild(createModelRow());
+                    const protocolRadios = document.querySelectorAll(`input[name="settings${providerId}Format"]`);
+                    let currentProtocol = 'openai';
+                    protocolRadios.forEach(radio => {
+                        if (radio.checked) currentProtocol = radio.value;
+                    });
+                    container.appendChild(createModelRow(currentProtocol === 'mix' ? 'openai' : currentProtocol));
                 }
             });
         });
@@ -454,12 +604,9 @@ class ProviderManager {
         this.createProvider({
             id: providerId,
             name: providerName,
-            deletable: true,
             baseUrl: 'https://api.example.com',
-            baseUrlSuffix: '/v1',
-            formats: ['openai', 'gemini', 'mix'],
-            defaultFormat: 'openai',
-            color: 'indigo'
+            apiKey: '',
+            protocol: 'openai'
         });
         
         // 自动切换到新标签
@@ -516,13 +663,14 @@ class ProviderManager {
     }
 
     // 显示确认模态框
-    showConfirmModal(message) {
+    showConfirmModal(message, options = {}) {
         return new Promise((resolve) => {
             const confirmModal = document.getElementById('confirmModal');
             const confirmModalMessage = document.getElementById('confirmModalMessage');
             const confirmModalCheckbox = document.getElementById('confirmModalCheckbox');
             const confirmModalCancel = document.getElementById('confirmModalCancel');
             const confirmModalOk = document.getElementById('confirmModalOk');
+            const confirmModalTitle = confirmModal?.querySelector('h3');
             
             if (!confirmModal || !confirmModalOk || !confirmModalCancel) {
                 console.error('Confirm modal elements not found');
@@ -533,6 +681,21 @@ class ProviderManager {
             // 将模态框移动到body的最后，确保它在所有其他元素之上
             document.body.appendChild(confirmModal);
             
+            // 自定义标题
+            if (options.title) {
+                confirmModalTitle.textContent = options.title;
+            } else {
+                confirmModalTitle.textContent = '确认删除';
+            }
+            
+            // 自定义按钮文字
+            confirmModalOk.textContent = options.okText || '删除';
+            confirmModalCancel.textContent = options.cancelText || '取消';
+            
+            // 自定义按钮样式
+            confirmModalOk.className = options.okClass || 'px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors';
+            confirmModalCancel.className = options.cancelClass || 'px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors';
+            
             confirmModalMessage.textContent = message;
             confirmModalCheckbox.parentElement.style.display = 'none';
             confirmModal.classList.remove('hidden');
@@ -541,6 +704,12 @@ class ProviderManager {
             const cleanup = () => {
                 confirmModalOk.removeEventListener('click', handleConfirm);
                 confirmModalCancel.removeEventListener('click', handleCancel);
+                // 恢复默认样式
+                confirmModalOk.textContent = '删除';
+                confirmModalOk.className = 'px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors';
+                confirmModalCancel.textContent = '取消';
+                confirmModalCancel.className = 'px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors';
+                confirmModalTitle.textContent = '确认删除';
             };
             
             const handleConfirm = () => {
@@ -607,10 +776,10 @@ class ProviderManager {
     }
 
     adjustApiKeyInputWidth(input) {
-        const minWidth = 200;
-        const maxWidth = 400;
+        const minWidth = 220;
+        const maxWidth = 450;
         const textLength = input.value.length;
-        const newWidth = Math.min(maxWidth, Math.max(minWidth, textLength * 8 + 16));
+        const newWidth = Math.min(maxWidth, Math.max(minWidth, textLength * 9 + 24));
         input.style.width = `${newWidth}px`;
     }
 
@@ -642,34 +811,57 @@ class ProviderManager {
                     const imageModels = this.collectModels(`${providerId}ImageModels`);
                     const videoModels = this.collectModels(`${providerId}VideoModels`);
                     
+                    // 收集当前选中的默认模型（从 localStorage 读取）
+                    const defaultTextModel = localStorage.getItem('GEMINI_MODEL_NAME') || '';
+                    const defaultTextProvider = localStorage.getItem('GEMINI_MODEL_PROVIDER') || '';
+                    const defaultImageModel = localStorage.getItem('GEMINI_IMAGE_MODEL_NAME') || '';
+                    const defaultImageProvider = localStorage.getItem('GEMINI_IMAGE_MODEL_PROVIDER') || '';
+                    const defaultVideoModel = localStorage.getItem('GEMINI_VIDEO_MODEL_NAME') || '';
+                    const defaultVideoProvider = localStorage.getItem('GEMINI_VIDEO_MODEL_PROVIDER') || '';
+                    
                     providers.push({
                         id: providerId,
                         name: providerNameInput.value,
                         baseUrl: baseUrlInput.value,
-                        baseUrlSuffix: baseUrlSuffixInput?.value || '/v1',
                         apiKey: apiKeyInput?.value || '',
                         enabled: enabledInput?.checked || false,
-                        format: selectedFormat,
+                        protocol: selectedFormat,
                         textModels,
                         imageModels,
                         videoModels,
-                        deletable: !panel.querySelector('.provider-delete-btn[disabled]')
+                        defaultModel: {
+                            text: { value: defaultTextModel, provider: defaultTextProvider },
+                            image: { value: defaultImageModel, provider: defaultImageProvider },
+                            video: { value: defaultVideoModel, provider: defaultVideoProvider }
+                        }
                     });
                 }
             });
             
             localStorage.setItem('nano_api_providers', JSON.stringify(providers));
             localStorage.setItem('nano_api_provider_counter', this.providerCounter.toString());
-            console.log('Providers saved successfully');
+            console.log('Providers saved successfully, providers:', providers);
             
             // 保存成功后清除未保存标志
             const hadUnsavedChanges = this.hasUnsavedChanges;
+            console.log('[保存] hadUnsavedChanges:', hadUnsavedChanges, 'showSuccessMessage:', showSuccessMessage);
             this.hasUnsavedChanges = false;
+            this.updateSaveButtonState();
             
             // 只有在有未保存修改且需要显示提示时才显示保存成功提示
             if (hadUnsavedChanges && showSuccessMessage) {
-                // 显示保存成功提示
+                console.log('[保存] 准备显示成功提示');
                 this.showSaveSuccessModal('设置已成功保存到本地');
+            }
+            
+            // 保存后刷新上方默认模型下拉菜单
+            if (typeof populateSettingsModelSelects === 'function') {
+                populateSettingsModelSelects();
+            }
+            
+            // 刷新提示词面板的模型下拉菜单
+            if (window.modelSelectManager) {
+                window.modelSelectManager.populateModelSelects();
             }
         } catch (error) {
             console.error('Error saving providers:', error);
@@ -702,12 +894,9 @@ class ProviderManager {
                         this.createProvider({
                             id: provider.id,
                             name: provider.name,
-                            deletable: provider.deletable,
                             baseUrl: provider.baseUrl,
-                            baseUrlSuffix: provider.baseUrlSuffix,
-                            formats: ['openai', 'gemini', 'mix'],
-                            defaultFormat: provider.format || 'openai',
-                            color: 'gray'
+                            apiKey: provider.apiKey,
+                            protocol: provider.protocol || 'openai'
                         });
                         
                         // 恢复API Key
@@ -726,10 +915,30 @@ class ProviderManager {
                         this.restoreModels(`${provider.id}TextModels`, provider.textModels);
                         this.restoreModels(`${provider.id}ImageModels`, provider.imageModels);
                         this.restoreModels(`${provider.id}VideoModels`, provider.videoModels);
+                        
+                        // 恢复默认模型选择
+                        if (provider.defaultModel) {
+                            if (provider.defaultModel.text) {
+                                localStorage.setItem('GEMINI_MODEL_NAME', provider.defaultModel.text.value || '');
+                                localStorage.setItem('GEMINI_MODEL_PROVIDER', provider.defaultModel.text.provider || '');
+                            }
+                            if (provider.defaultModel.image) {
+                                localStorage.setItem('GEMINI_IMAGE_MODEL_NAME', provider.defaultModel.image.value || '');
+                                localStorage.setItem('GEMINI_IMAGE_MODEL_PROVIDER', provider.defaultModel.image.provider || '');
+                            }
+                            if (provider.defaultModel.video) {
+                                localStorage.setItem('GEMINI_VIDEO_MODEL_NAME', provider.defaultModel.video.value || '');
+                                localStorage.setItem('GEMINI_VIDEO_MODEL_PROVIDER', provider.defaultModel.video.provider || '');
+                            }
+                        }
                     }
                 });
                 
                 console.log('Providers loaded successfully');
+                
+                // 初始化保存按钮状态
+                this.hasUnsavedChanges = false;
+                this.updateSaveButtonState();
             }
         } catch (error) {
             console.error('Error loading providers:', error);
@@ -740,13 +949,17 @@ class ProviderManager {
     collectModels(containerId) {
         const models = [];
         const container = document.getElementById(containerId);
+        console.log('[collectModels] containerId:', containerId, 'container exists:', !!container);
         if (container) {
-            container.querySelectorAll('.model-row').forEach(row => {
-                const formatSelect = row.querySelector('select');
+            const rows = container.querySelectorAll('.model-row');
+            console.log('[collectModels] model rows count:', rows.length);
+            rows.forEach(row => {
+                const protocolSelect = row.querySelector('select');
                 const modelInput = row.querySelector('input[type="text"]');
-                if (formatSelect && modelInput) {
+                console.log('[collectModels] protocolSelect:', !!protocolSelect, 'modelInput:', !!modelInput, 'value:', modelInput?.value);
+                if (protocolSelect && modelInput) {
                     models.push({
-                        format: formatSelect.value,
+                        protocol: protocolSelect.value,
                         name: modelInput.value
                     });
                 }
@@ -759,41 +972,75 @@ class ProviderManager {
     restoreModels(containerId, models) {
         const container = document.getElementById(containerId);
         if (container && models && models.length > 0) {
-            // 清空现有模型
             container.innerHTML = '';
+            const self = this;
             
-            // 添加保存的模型
             models.forEach(model => {
                 const row = document.createElement('div');
                 row.className = 'flex gap-1.5 items-center model-row';
                 row.innerHTML = `
-                    <select class="w-9 px-1 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 model-format-select focus:border-gray-300 focus:ring-1 focus:ring-gray-100 outline-none">
-                        <option value="openai" ${model.format === 'openai' ? 'selected' : ''} title="OpenAI格式">O</option>
-                        <option value="gemini" ${model.format === 'gemini' ? 'selected' : ''} title="Gemini格式">G</option>
+                    <select class="w-9 px-1 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 model-format-select focus:border-gray-300 focus:ring-1 focus:ring-gray-100 outline-none" disabled>
+                        <option value="openai" ${model.protocol === 'openai' ? 'selected' : ''} title="OpenAI格式">O</option>
+                        <option value="gemini" ${model.protocol === 'gemini' ? 'selected' : ''} title="Gemini格式">G</option>
                     </select>
-                    <input type="text" value="${model.name}" class="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 focus:border-gray-300 focus:ring-1 focus:ring-gray-100 outline-none">
+                    <input type="text" value="${model.name || ''}" class="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 focus:border-gray-300 focus:ring-1 focus:ring-gray-100 outline-none">
                     <button type="button" class="text-gray-300 hover:text-red-400 text-sm model-row-delete transition-colors">×</button>
                 `;
-                const self = this;
+                
                 row.querySelector('.model-row-delete').addEventListener('click', function() {
                     row.remove();
                     setTimeout(() => self.autoSave(), 100);
                 });
+                
+                row.querySelector('input[type="text"]').addEventListener('input', function() {
+                    console.log('[模型输入] 检测到输入, 从restore');
+                    setTimeout(() => self.autoSave(), 1000);
+                });
+                
+                row.querySelector('select').addEventListener('change', function() {
+                    console.log('[模型选择] 检测到变更, 从restore');
+                    setTimeout(() => self.autoSave(), 100);
+                });
+                
                 container.appendChild(row);
             });
         }
     }
 
-    // 自动保存配置
-    autoSave() {
-        // 标记有未保存的修改
+    // 标记需要更新保存按钮状态
+    markDirty() {
         this.hasUnsavedChanges = true;
-        
-        // 延迟保存，避免频繁触发
-        clearTimeout(this.saveTimeout);
-        this.saveTimeout = setTimeout(() => {
-            this.saveProviders();
-        }, 1000);
+        this.updateSaveButtonState();
+    }
+
+    // 更新保存按钮状态
+    updateSaveButtonState() {
+        const saveBtn = document.getElementById('saveSettingsBtn');
+        console.log('[保存按钮] updateSaveButtonState 被调用, hasUnsavedChanges:', this.hasUnsavedChanges, '按钮元素:', !!saveBtn);
+        if (saveBtn) {
+            if (this.hasUnsavedChanges) {
+                saveBtn.disabled = false;
+                saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                console.log('[保存按钮] 已启用');
+            } else {
+                saveBtn.disabled = true;
+                saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                console.log('[保存按钮] 已禁用');
+            }
+        }
+    }
+
+    // 保存配置（手动点击保存按钮）
+    saveNow() {
+        console.log('[保存] saveNow 被调用');
+        this.hasUnsavedChanges = true;
+        this.saveProviders(true);
+    }
+
+    // 自动保存配置（已弃用，改用手动保存）
+    autoSave() {
+        // 不再自动保存，只标记脏状态
+        this.markDirty();
     }
     
     // 检查是否有未保存的修改

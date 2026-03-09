@@ -67,6 +67,7 @@ class Application {
         
         this.settingsPanel = new SettingsPanel();
         this.modelSelectManager = new ModelSelectManager();
+        window.modelSelectManager = this.modelSelectManager;
         this.eventHandler = new EventHandler();
         this.apiOperations = new ApiOperations();
         
@@ -81,7 +82,7 @@ class Application {
         
         initializeAPIClient({
             promptInput: this.promptInput,
-            debugLog: (message, type) => debugLog(message, type, this.debugConsoleContent),
+            debugLog: (message, type) => debugLog(message, type),
             statusTag: this.statusTag,
             loader: this.loader
         });
@@ -123,12 +124,7 @@ class Application {
             });
         }
         
-        if (this.debugConsoleHeader) {
-            this.debugConsoleHeader.addEventListener('click', () => {
-                this.debugConsole.classList.toggle('collapsed');
-                this.updateToolbarPosition();
-            });
-        }
+        // debugConsoleHeader 的折叠功能已移至 DebugConsole 类
         
         if (this.debugConsoleClear) {
             this.debugConsoleClear.addEventListener('click', (e) => {
@@ -212,7 +208,8 @@ class Application {
     }
     
     handleSend() {
-        const prompt = this.promptInput.value.trim();
+        if (!this.promptInput) return;
+        const prompt = (this.promptInput.innerText || this.promptInput.value || '').trim();
         if (!prompt) return;
         
         if (this.currentMode === 'text') {
@@ -225,15 +222,15 @@ class Application {
     }
     
     handleTextGeneration(prompt) {
-        debugLog(`[文本生成] 开始生成: ${prompt}`, 'info', this.debugConsoleContent);
+        debugLog(`[文本生成] 开始生成: ${prompt}`, 'info');
     }
     
     handleImageGeneration(prompt) {
-        debugLog(`[图片生成] 开始生成: ${prompt}`, 'info', this.debugConsoleContent);
+        debugLog(`[图片生成] 开始生成: ${prompt}`, 'info');
     }
     
     handleVideoGeneration(prompt) {
-        debugLog(`[视频生成] 开始生成: ${prompt}`, 'info', this.debugConsoleContent);
+        debugLog(`[视频生成] 开始生成: ${prompt}`, 'info');
     }
     
     updateToolbarPosition() {

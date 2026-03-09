@@ -1,9 +1,20 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { PROTOCOL_MAP } from '../../config.js';
 
 export class GeminiProvider {
-    constructor(apiKey) {
-        this.apiKey = apiKey;
-        this.genAI = new GoogleGenerativeAI(apiKey);
+    constructor(config = {}) {
+        this.apiKey = config.apiKey || '';
+        this.baseUrl = config.baseUrl || '';
+        this.providerProtocol = config.providerProtocol || 'gemini';
+        this.getProtocol = config.getProtocol || ((modelName) => this.providerProtocol);
+        
+        if (this.apiKey) {
+            this.genAI = new GoogleGenerativeAI(this.apiKey);
+        }
+    }
+
+    getSuffix(protocol) {
+        return PROTOCOL_MAP[protocol]?.suffix || '/v1beta';
     }
 
     async generateContent(config) {

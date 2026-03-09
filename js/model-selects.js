@@ -165,9 +165,11 @@ export class ModelSelectManager {
     }
     
     populateModelSelects() {
+        const allModels = window.providerManager ? window.providerManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
+        
         this.populateMainCustomSelect(
             this.textModelNameWrapper, 
-            TEXT_MODELS, 
+            allModels.text, 
             CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER,
             CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER,
             (value, provider) => {
@@ -178,7 +180,7 @@ export class ModelSelectManager {
         
         this.populateMainCustomSelect(
             this.imageModelNameWrapper, 
-            IMAGE_MODELS, 
+            allModels.image, 
             CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER,
             CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER,
             (value, provider) => {
@@ -190,7 +192,7 @@ export class ModelSelectManager {
         
         this.populateMainCustomSelect(
             this.videoModelNameWrapper, 
-            VIDEO_MODELS, 
+            allModels.video, 
             CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER,
             CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER,
             (value, provider) => {
@@ -286,6 +288,9 @@ export class ModelSelectManager {
         if (currentModel) {
             selectedText.textContent = currentModel.name;
         }
+        
+        if (wrapper.dataset.listening) return;
+        wrapper.dataset.listening = 'true';
         
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();

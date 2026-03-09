@@ -24,6 +24,11 @@ function getEnvValue(key) {
     return null;
 }
 
+export const PROTOCOL_MAP = {
+    'gemini': { suffix: '/v1beta', authType: 'API_KEY' },
+    'openai': { suffix: '/v1', authType: 'BEARER' }
+};
+
 export const TEXT_MODELS = [
     { name: "gemini-3-flash-preview(google)", value: "gemini-3-flash-preview", provider: "google", group: "Google" },
     { name: "gemini-3-pro-preview(google)", value: "gemini-3-pro-preview", provider: "google", group: "Google" },

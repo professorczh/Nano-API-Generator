@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -268,6 +268,16 @@
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
                 </button>
+                
+                <!-- Provider 切换 Toggle -->
+                <div class="flex items-center gap-1 bg-white rounded-full shadow-lg px-2 py-1">
+                    <span id="providerToggleLabel" class="text-xs font-medium text-gray-500">当前</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="providerToggle" class="sr-only peer">
+                        <div class="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                    <span id="providerToggleLabelDynamic" class="text-xs font-medium text-gray-400">动态</span>
+                </div>
             </div>
         </div>
         
@@ -352,6 +362,7 @@
         import "./js/main.js";
         import { TemplateLoader } from "./js/template-loader.js";
         import { DebugConsole } from "./js/debug-console.js";
+        import { updateResolutionOptions, updateApiKeyDisplay, updateVideoDurationOptions, updateVideoResolutionOptions, adjustTooltipPosition, generateDebugGrid, updateAddButtonVisibility, createModelItem, findNodeByImageUrl, setupStatusClose, getSelectedProvider, adjustBaseUrlInputWidth, formatGenerationTime, maskApiKey, debugLog } from "./js/utils.js";
 
         const sendBtn = document.getElementById('sendBtn');
         const promptInput = document.getElementById('promptInput');
@@ -383,50 +394,6 @@
         // 添加模型变更监听器
         // 初始更新分辨率选项
         updateResolutionOptions();
-        
-        function updateResolutionOptions() {
-            const selectedModel = CONFIG.IMAGE_MODEL_NAME;
-            
-            // 判断模型分组
-            const isFirstGroup = selectedModel.includes('3.1-flash-image-preview');
-            
-            // 更新比例选项
-            const imageRatioSelect = document.getElementById('imageRatio');
-            if (imageRatioSelect) {
-                imageRatioSelect.innerHTML = '';
-                
-                IMAGE_RATIOS.forEach(ratio => {
-                    // 第一组允许所有比例，第二组排除8:1, 4:1, 1:4, 1:8
-                    if (isFirstGroup || !['8:1', '4:1', '1:4', '1:8'].includes(ratio.value)) {
-                        const option = document.createElement('option');
-                        option.value = ratio.value;
-                        option.textContent = ratio.name;
-                        imageRatioSelect.appendChild(option);
-                    }
-                });
-            }
-            
-            // 更新分辨率选项
-            const imageSizeSelect = document.getElementById('imageSize');
-            if (imageSizeSelect) {
-                // 清空现有选项
-                imageSizeSelect.innerHTML = '';
-                
-                // 根据模型添加可用选项
-                IMAGE_SIZES.forEach(size => {
-                    // 第一组允许所有分辨率，第二组排除0.5K
-                    if (isFirstGroup || size.value !== '512px') {
-                        const option = document.createElement('option');
-                        option.value = size.value;
-                        option.textContent = size.name;
-                        imageSizeSelect.appendChild(option);
-                    }
-                });
-                
-                // 设置默认值
-                imageSizeSelect.value = '1K'; // 默认1K
-            }
-        }
         
         initializeAPIClient({
             promptInput: promptInput,
@@ -504,7 +471,6 @@
         const toolbarSettingsBtn = document.getElementById('toolbarSettingsBtn');
         const settingsPanel = document.getElementById('settingsPanel');
         const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
         const settingsApiKeyInput = document.getElementById('settingsApiKeyInput');
         const settingsApiStatus = document.getElementById('settingsApiStatus');
         const settingsTestApiKeyBtn = document.getElementById('settingsTestApiKeyBtn');
@@ -540,13 +506,6 @@
             showModelTag: true
         });
 
-        function updateApiKeyDisplay() {
-            const apiKey = CONFIG.API_KEY;
-            if (apiKey && settingsApiKeyInput) {
-                settingsApiKeyInput.value = maskApiKey(apiKey);
-            }
-        }
-
         if (settingsApiKeyInput) {
             settingsApiKeyInput.value = CONFIG.API_KEY ? maskApiKey(CONFIG.API_KEY) : '';
 
@@ -559,7 +518,7 @@
                 if (newValue && newValue !== maskApiKey(CONFIG.API_KEY)) {
                     CONFIG.API_KEY = newValue;
                 }
-                updateApiKeyDisplay();
+                updateApiKeyDisplay(settingsApiKeyInput);
             });
 
             settingsApiKeyInput.addEventListener('input', () => {
@@ -570,15 +529,7 @@
             });
         }
         
-        togglePromptPanel.addEventListener('click', () => {
-            if (promptPanel.classList.contains('hidden')) {
-                promptPanel.classList.remove('hidden');
-                togglePromptPanel.textContent = '折叠';
-            } else {
-                promptPanel.classList.add('hidden');
-                togglePromptPanel.textContent = '展开';
-            }
-        });
+        // togglePromptPanel 的功能已移至 js/event-handlers.js 中的 EventHandler 类
 
         // UI面板拖动功能
         uiPanel.addEventListener('mousedown', (e) => {
@@ -805,34 +756,6 @@
             initMinimap();
             updateToolbarPosition();
             console.log('Canvas initialized successfully');
-        }
-
-        // 生成调试网格
-        function generateDebugGrid() {
-            const svg = document.getElementById('debugGridSvg');
-            if (!svg) return;
-            
-            let svgContent = '';
-            
-            // 生成网格线
-            for (let i = 0; i <= 100; i++) {
-                const pos = i * 100;
-                // 垂直线
-                svgContent += `<line x1="${pos}" y1="0" x2="${pos}" y2="10000" stroke="#00ff00" stroke-width="1" stroke-opacity="0.2"/>`;
-                // 水平线
-                svgContent += `<line x1="0" y1="${pos}" x2="10000" y2="${pos}" stroke="#00ff00" stroke-width="1" stroke-opacity="0.2"/>`;
-            }
-            
-            // 生成网格文字（每个格子中心）
-            for (let row = 1; row <= 100; row++) {
-                for (let col = 1; col <= 100; col++) {
-                    const x = (col - 1) * 100 + 50;
-                    const y = (row - 1) * 100 + 50;
-                    svgContent += `<text x="${x}" y="${y}" font-size="12" text-anchor="middle" dominant-baseline="middle" fill="#00ff00" fill-opacity="0.5">${row}.${col}</text>`;
-                }
-            }
-            
-            svg.innerHTML = svgContent;
         }
 
         function resetCanvas() {
@@ -1113,11 +1036,35 @@
             });
         }
         
-        // 关闭设置面板按钮
-        if (closeSettingsBtn) {
-            closeSettingsBtn.addEventListener('click', () => {
-                closeSettingsPanel();
+        // Provider 切换 Toggle
+        const providerToggle = document.getElementById('providerToggle');
+        const providerToggleLabel = document.getElementById('providerToggleLabel');
+        const providerToggleLabelDynamic = document.getElementById('providerToggleLabelDynamic');
+        
+        // 从 localStorage 读取状态
+        const savedUseDynamic = localStorage.getItem('useDynamicProvider');
+        let useDynamicProvider = savedUseDynamic === 'true';
+        
+        // 初始化 Toggle 状态
+        if (providerToggle) {
+            providerToggle.checked = useDynamicProvider;
+            updateProviderToggleUI(useDynamicProvider);
+            
+            providerToggle.addEventListener('change', (e) => {
+                useDynamicProvider = e.target.checked;
+                localStorage.setItem('useDynamicProvider', useDynamicProvider);
+                updateProviderToggleUI(useDynamicProvider);
+                debugLog(`[Provider切换] 当前模式: ${useDynamicProvider ? '动态' : '当前链路'}`, 'info');
             });
+        }
+        
+        function updateProviderToggleUI(isDynamic) {
+            if (providerToggleLabel) {
+                providerToggleLabel.className = isDynamic ? 'text-xs font-medium text-gray-400' : 'text-xs font-medium text-blue-600';
+            }
+            if (providerToggleLabelDynamic) {
+                providerToggleLabelDynamic.className = isDynamic ? 'text-xs font-medium text-blue-600' : 'text-xs font-medium text-gray-400';
+            }
         }
         
         // 模型配置管理
@@ -1135,29 +1082,6 @@
             { containerId: 'claudeImageModels', addBtnId: 'claudeImageModelsAddBtn', colorClass: 'text-orange-600 hover:text-orange-700', defaultFormat: 'openai' },
             { containerId: 'claudeVideoModels', addBtnId: 'claudeVideoModelsAddBtn', colorClass: 'text-orange-600 hover:text-orange-700', defaultFormat: 'openai' }
         ];
-        
-        function updateAddButtonVisibility(containerId, addBtnId) {
-            const container = document.getElementById(containerId);
-            const addBtn = document.getElementById(addBtnId);
-            if (!container || !addBtn) return;
-            addBtn.classList.remove('hidden');
-        }
-        
-        function createModelItem(defaultFormat) {
-            const div = document.createElement('div');
-            div.className = 'flex gap-1 items-center';
-            const openaiSelected = defaultFormat === 'openai' ? 'selected' : '';
-            const geminiSelected = defaultFormat === 'gemini' ? 'selected' : '';
-            div.innerHTML = `
-                <select class="w-10 px-1 py-1 text-xs rounded border border-gray-200 bg-white model-format-select">
-                    <option value="openai" ${openaiSelected} title="OpenAI格式">O</option>
-                    <option value="gemini" ${geminiSelected} title="Gemini格式">G</option>
-                </select>
-                <input type="text" placeholder="模型名称" class="flex-1 px-2 py-1 text-xs rounded border border-gray-200">
-                <button type="button" class="text-red-500 hover:text-red-700 text-xs model-delete-btn">×</button>
-            `;
-            return div;
-        }
         
         // BASE URL格式联动逻辑
         const formatConfigs = [
@@ -1267,17 +1191,6 @@
         initFormatListeners();
         applyInitialFormatState();
         
-        // 保存设置按钮
-        if (saveSettingsBtn) {
-            saveSettingsBtn.addEventListener('click', () => {
-                // 确保所有配置都被保存
-                if (window.providerManager) {
-                    window.providerManager.saveProviders();
-                }
-                // 不要关闭设置面板
-            });
-        }
-        
         // 点击遮罩层关闭
         if (settingsPanel) {
             settingsPanel.addEventListener('click', (e) => {
@@ -1299,12 +1212,23 @@
             // 检查是否有未保存的修改
             if (window.providerManager && window.providerManager.checkUnsavedChanges()) {
                 // 显示确认对话框
-                const confirmed = await window.providerManager.showConfirmModal('有未保存的修改，是否保存？');
+                const confirmed = await window.providerManager.showConfirmModal('有未保存的修改，是否保存？', {
+                    title: '确认退出',
+                    okText: '保存',
+                    cancelText: '不保存',
+                    okClass: 'px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors',
+                    cancelClass: 'px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors'
+                });
                 if (confirmed) {
-                    // 用户选择保存
-                    window.providerManager.saveProviders();
+                    // 用户选择保存 - 关闭设置面板，再显示成功提示
+                    window.providerManager.saveProviders(false);
+                    closeSettingsPanel();
+                    setTimeout(() => {
+                        window.providerManager.showSaveSuccessModal('设置已成功保存到本地');
+                    }, 100);
+                    return;
                 }
-                // 无论用户选择保存还是不保存，都关闭面板
+                // 用户选择不保存，关闭面板
                 closeSettingsPanel();
             } else {
                 // 没有未保存的修改，直接关闭
@@ -1338,18 +1262,9 @@
             }
         }
         
-        // API状态关闭按钮
-        function setupStatusClose(closeBtn, statusEl, statusContainer) {
-            if (closeBtn && statusEl && statusContainer) {
-                closeBtn.addEventListener('click', () => {
-                    statusEl.textContent = '';
-                });
-            }
-        }
-        
         setupStatusClose(settingsApiStatusClose, settingsApiStatus, document.getElementById('settingsApiStatusContainer'));
         
-        function updateToolbarPosition() {
+        window.updateToolbarPosition = function() {
             if (!miniToolbar || !debugConsole) return;
             
             const isCollapsed = debugConsole.classList.contains('collapsed');
@@ -1362,7 +1277,7 @@
             if (canvasMinimap) {
                 canvasMinimap.style.bottom = `${minimapBottom}px`;
             }
-        }
+        };
         
         function updateCanvasScale(newScale) {
             const uiPanel = document.getElementById('uiPanel');
@@ -2841,233 +2756,18 @@
             }
         });
 
-        function getSelectedProvider(selectElement) {
-            const selectedOption = selectElement.selectedOptions[0];
-            return selectedOption ? selectedOption.dataset.provider : 'google';
-        }
-
-        // 更新视频时长选项
-        function updateVideoDurationOptions(modelValue) {
-            const model = VIDEO_MODELS.find(m => m.value === modelValue);
-            if (model && model.params && model.params.durations) {
-                videoDurationSelect.innerHTML = '';
-                model.params.durations.forEach(duration => {
-                    const option = document.createElement('option');
-                    option.value = duration;
-                    option.textContent = duration + ' 秒';
-                    videoDurationSelect.appendChild(option);
-                });
-                // 选择第一个选项
-                videoDurationSelect.value = model.params.durations[0];
-                // 更新分辨率选项
-                updateVideoResolutionOptions(modelValue, model.params.durations[0]);
-            } else {
-                // 12AI 模型保持默认时长选项
-                videoDurationSelect.innerHTML = '';
-                ['4', '6', '8'].forEach(duration => {
-                    const option = document.createElement('option');
-                    option.value = duration;
-                    option.textContent = duration + ' 秒';
-                    if (duration === '6') option.selected = true;
-                    videoDurationSelect.appendChild(option);
-                });
-                // 显示所有分辨率选项
-                videoResolutionSelect.innerHTML = '';
-                ['720p', '1080p', '4k'].forEach(res => {
-                    const option = document.createElement('option');
-                    option.value = res;
-                    option.textContent = res;
-                    videoResolutionSelect.appendChild(option);
-                });
-            }
-        }
-
-        // 更新视频分辨率选项
-        function updateVideoResolutionOptions(modelValue, durationValue) {
-            const model = VIDEO_MODELS.find(m => m.value === modelValue);
-            if (model && model.params && model.params.resolutions && model.params.resolutions[durationValue]) {
-                const resolutions = model.params.resolutions[durationValue];
-                videoResolutionSelect.innerHTML = '';
-                resolutions.forEach(res => {
-                    const option = document.createElement('option');
-                    option.value = res;
-                    option.textContent = res;
-                    videoResolutionSelect.appendChild(option);
-                });
-                // 选择第一个选项
-                videoResolutionSelect.value = resolutions[0];
-            } else if (model && model.params && Object.keys(model.params.resolutions).length === 0) {
-                // Veo 2 不支持分辨率选择
-                videoResolutionSelect.innerHTML = '';
-                const option = document.createElement('option');
-                option.value = '';
-                option.textContent = '不支持指定';
-                option.disabled = true;
-                videoResolutionSelect.appendChild(option);
-            } else {
-                // 12AI 模型显示所有分辨率选项
-                videoResolutionSelect.innerHTML = '';
-                ['720p', '1080p', '4k'].forEach(res => {
-                    const option = document.createElement('option');
-                    option.value = res;
-                    option.textContent = res;
-                    videoResolutionSelect.appendChild(option);
-                });
-            }
-        }
-
         function populateModelSelects() {
-            function populateMainCustomSelect(wrapper, models, defaultModelId, defaultProvider, currentModelId, currentProvider, onModelChange) {
-                if (!wrapper) return;
-                
-                let dropdown = wrapper._fixedDropdown;
-                if (!dropdown) {
-                    dropdown = document.createElement('div');
-                    dropdown.className = 'custom-select-dropdown-fixed';
-                    document.body.appendChild(dropdown);
-                    wrapper._fixedDropdown = dropdown;
-                }
-                const trigger = wrapper.querySelector('.custom-select-trigger');
-                const selectedText = trigger.querySelector('.selected-text');
-                
-                dropdown.innerHTML = '';
-                
-                const groups = {};
-                let currentModel = null;
-                
-                models.forEach(model => {
-                    const groupName = model.group || 'Other';
-                    if (!groups[groupName]) {
-                        groups[groupName] = [];
-                    }
-                    groups[groupName].push(model);
-                    
-                    if (model.value === currentModelId && model.provider === currentProvider) {
-                        currentModel = model;
-                    }
-                });
-                
-                Object.keys(groups).forEach(groupName => {
-                    const groupLabel = document.createElement('div');
-                    groupLabel.className = 'custom-option-group';
-                    groupLabel.textContent = groupName;
-                    dropdown.appendChild(groupLabel);
-                    
-                    groups[groupName].forEach(model => {
-                        const option = document.createElement('div');
-                        option.className = 'custom-option';
-                        option.dataset.value = model.value;
-                        option.dataset.provider = model.provider;
-                        
-                        const isDefault = model.value === defaultModelId && model.provider === defaultProvider;
-                        const isCurrent = model.value === currentModelId && model.provider === currentProvider;
-                        
-                        if (isCurrent) {
-                            option.classList.add('current');
-                        }
-                        
-                        const textSpan = document.createElement('span');
-                        textSpan.textContent = model.name;
-                        option.appendChild(textSpan);
-                        
-                        if (isDefault) {
-                            const dot = document.createElement('span');
-                            dot.className = 'default-dot';
-                            dot.textContent = ' •';
-                            option.appendChild(dot);
-                        }
-                        
-                        option.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            
-                            dropdown.querySelectorAll('.custom-option').forEach(opt => {
-                                opt.classList.remove('current');
-                            });
-                            
-                            option.classList.add('current');
-                            selectedText.textContent = model.name;
-                            dropdown.style.display = 'none';
-                            wrapper.classList.remove('open');
-                            
-                            if (onModelChange) {
-                                onModelChange(model.value, model.provider);
-                            }
-                        });
-                        
-                        dropdown.appendChild(option);
-                    });
-                });
-                
-                if (currentModel) {
-                    selectedText.textContent = currentModel.name;
-                }
-                
-                trigger.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    
-                    document.querySelectorAll('.custom-select-dropdown-fixed').forEach(d => {
-                        if (d !== dropdown) d.style.display = 'none';
-                    });
-                    document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
-                        if (w !== wrapper) w.classList.remove('open');
-                    });
-                    
-                    const isOpen = dropdown.style.display === 'block';
-                    if (isOpen) {
-                        dropdown.style.display = 'none';
-                        wrapper.classList.remove('open');
-                    } else {
-                        const rect = trigger.getBoundingClientRect();
-                        dropdown.style.top = (rect.bottom + 4) + 'px';
-                        dropdown.style.left = rect.left + 'px';
-                        dropdown.style.width = rect.width + 'px';
-                        dropdown.style.display = 'block';
-                        wrapper.classList.add('open');
-                    }
-                });
-            }
+        }
 
-            populateMainCustomSelect(
-                textModelNameWrapper, 
-                TEXT_MODELS, 
-                CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER,
-                CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER,
-                (value, provider) => {
-                    CONFIG.MODEL_NAME = value;
-                    CONFIG.MODEL_PROVIDER = provider;
-                }
-            );
-            
-            populateMainCustomSelect(
-                imageModelNameWrapper, 
-                IMAGE_MODELS, 
-                CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER,
-                CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER,
-                (value, provider) => {
-                    CONFIG.IMAGE_MODEL_NAME = value;
-                    CONFIG.IMAGE_MODEL_PROVIDER = provider;
-                    updateResolutionOptions();
-                }
-            );
-            
-            populateMainCustomSelect(
-                videoModelNameWrapper, 
-                VIDEO_MODELS, 
-                CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER,
-                CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER,
-                (value, provider) => {
-                    CONFIG.VIDEO_MODEL_NAME = value;
-                    CONFIG.VIDEO_MODEL_PROVIDER = provider;
-                }
-            );
-
-            function populateSettingsModelSelects() {
+        function populateSettingsModelSelects() {
                 function populateCustomSelect(wrapper, models, defaultModelId, defaultProvider, configKey, providerKey) {
                     if (!wrapper) return;
                     
                     const dropdown = wrapper.querySelector('.custom-select-dropdown');
                     const trigger = wrapper.querySelector('.custom-select-trigger');
+                    if (!dropdown || !trigger) return;
                     const selectedText = trigger.querySelector('.selected-text');
+                    if (!selectedText) return;
                     
                     dropdown.innerHTML = '';
                     
@@ -3138,6 +2838,11 @@
                                 localStorage.setItem('GEMINI_' + providerKey, model.provider);
                                 
                                 syncFromSettingsToModeSelects();
+                                
+                                // 标记有修改，启用保存按钮
+                                if (window.providerManager) {
+                                    window.providerManager.autoSave();
+                                }
                             });
                             
                             dropdown.appendChild(option);
@@ -3148,7 +2853,11 @@
                         selectedText.textContent = selectedModel.name;
                     }
                     
-                    trigger.addEventListener('click', (e) => {
+                    if (wrapper.dataset.selectInitialized) return;
+                    wrapper.dataset.selectInitialized = 'true';
+                    
+                    trigger.addEventListener('click', function handler(e) {
+                        console.log('[下拉点击] 触发');
                         e.stopPropagation();
                         document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
                             if (w !== wrapper) w.classList.remove('open');
@@ -3157,11 +2866,21 @@
                     });
                 }
                 
-                populateCustomSelect(settingsDefaultTextModelWrapper, TEXT_MODELS, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, 'MODEL_NAME', 'MODEL_PROVIDER');
-                populateCustomSelect(settingsDefaultImageModelWrapper, IMAGE_MODELS, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, 'IMAGE_MODEL_NAME', 'IMAGE_MODEL_PROVIDER');
-                populateCustomSelect(settingsDefaultVideoModelWrapper, VIDEO_MODELS, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, 'VIDEO_MODEL_NAME', 'VIDEO_MODEL_PROVIDER');
+                const textWrapper = document.getElementById('settingsDefaultTextModelWrapper');
+                const imageWrapper = document.getElementById('settingsDefaultImageModelWrapper');
+                const videoWrapper = document.getElementById('settingsDefaultVideoModelWrapper');
                 
-                document.addEventListener('click', () => {
+                // 从 Provider 动态获取模型列表
+                const allModels = window.providerManager ? window.providerManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
+                
+                populateCustomSelect(textWrapper, allModels.text, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, 'MODEL_NAME', 'MODEL_PROVIDER');
+                populateCustomSelect(imageWrapper, allModels.image, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, 'IMAGE_MODEL_NAME', 'IMAGE_MODEL_PROVIDER');
+                populateCustomSelect(videoWrapper, allModels.video, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, 'VIDEO_MODEL_NAME', 'VIDEO_MODEL_PROVIDER');
+                
+                document.addEventListener('click', (e) => {
+                    if (e.target.closest('.custom-select-trigger') || e.target.closest('.custom-select-dropdown-fixed')) {
+                        return;
+                    }
                     document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
                         w.classList.remove('open');
                     });
@@ -3170,8 +2889,6 @@
                     });
                 });
             }
-
-            populateSettingsModelSelects();
 
             let isSyncingModels = false;
 
@@ -3182,8 +2899,10 @@
                 function updateMainCustomSelectCurrent(wrapper, value, provider, models) {
                     if (!wrapper) return;
                     const trigger = wrapper.querySelector('.custom-select-trigger');
+                    if (!trigger) return;
                     const selectedText = trigger.querySelector('.selected-text');
                     const dropdown = wrapper.querySelector('.custom-select-dropdown');
+                    if (!selectedText || !dropdown) return;
                     
                     const model = models.find(m => m.value === value && m.provider === provider);
                     if (model) {
@@ -3205,6 +2924,10 @@
             function syncFromModeToSettingsSelects() {
                 if (isSyncingModels) return;
                 isSyncingModels = true;
+                
+                const textWrapperEl = document.getElementById('settingsDefaultTextModelWrapper');
+                const imageWrapperEl = document.getElementById('settingsDefaultImageModelWrapper');
+                const videoWrapperEl = document.getElementById('settingsDefaultVideoModelWrapper');
                 
                 function updateCustomSelect(wrapper, value, provider, models) {
                     if (!wrapper) return;
@@ -3233,19 +2956,19 @@
                     }
                 }
                 
-                updateCustomSelect(settingsDefaultTextModelWrapper, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, TEXT_MODELS);
-                updateCustomSelect(settingsDefaultImageModelWrapper, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, IMAGE_MODELS);
-                updateCustomSelect(settingsDefaultVideoModelWrapper, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, VIDEO_MODELS);
+                updateCustomSelect(textWrapperEl, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, TEXT_MODELS);
+                updateCustomSelect(imageWrapperEl, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, IMAGE_MODELS);
+                updateCustomSelect(videoWrapperEl, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, VIDEO_MODELS);
 
                 isSyncingModels = false;
             }
 
-            updateVideoDurationOptions(CONFIG.VIDEO_MODEL_NAME);
+            updateVideoDurationOptions(CONFIG.VIDEO_MODEL_NAME, videoDurationSelect, videoResolutionSelect);
             
             // 时长选择事件
             videoDurationSelect.addEventListener('change', () => {
                 // 更新分辨率选项
-                updateVideoResolutionOptions(CONFIG.VIDEO_MODEL_NAME, videoDurationSelect.value);
+                updateVideoResolutionOptions(CONFIG.VIDEO_MODEL_NAME, videoDurationSelect.value, videoResolutionSelect);
             });
 
             // 初始化宽高比选项
@@ -3270,12 +2993,11 @@
                 }
                 videoRatioSelect.appendChild(option);
             });
-        }
 
         populateModelSelects();
         
         // 初始化视频参数
-        updateVideoDurationOptions(CONFIG.VIDEO_MODEL_NAME);
+        updateVideoDurationOptions(CONFIG.VIDEO_MODEL_NAME, videoDurationSelect, videoResolutionSelect);
 
         let imageDataList = [];
         let pasteImageCounter = 0;
@@ -3799,7 +3521,7 @@
             deleteBtn.textContent = '×';
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const node = findNodeByImageUrl(imageUrl);
+                const node = findNodeByImageUrl(imageUrl, imageResponseContainer);
                 if (node) {
                     const pins = JSON.parse(node.dataset.pins || '[]');
                     const pin = pins.find(p => p.number === pinNumber);
@@ -3819,16 +3541,6 @@
             tag.appendChild(deleteBtn);
             
             return tag;
-        }
-
-        function findNodeByImageUrl(imageUrl) {
-            const nodes = imageResponseContainer.querySelectorAll('.canvas-node');
-            for (let node of nodes) {
-                if (node.dataset.imageUrl === imageUrl) {
-                    return node;
-                }
-            }
-            return null;
         }
 
         function showImageContextMenu(e, node, img) {
@@ -3909,40 +3621,6 @@
             }, 100);
         }
 
-        function adjustTooltipPosition(tooltip, targetElement) {
-            if (!tooltip || !targetElement) return;
-            
-            // 获取输入框标签的绝对位置
-            const targetRect = targetElement.getBoundingClientRect();
-            const windowWidth = window.innerWidth;
-            const windowHeight = window.innerHeight;
-            
-            // 获取预览图的实际宽高
-            const tooltipRect = tooltip.getBoundingClientRect();
-            const tooltipWidth = tooltipRect.width || 300;
-            const tooltipHeight = tooltipRect.height || 300;
-            
-            // 核心逻辑：强制靠左 - 标签左边缘 减去 预览图宽度 减去 12px 间距
-            let left = targetRect.left - tooltipWidth - 12;
-            
-            // 垂直方向：与标签居中对齐
-            let top = targetRect.top + (targetRect.height / 2) - (tooltipHeight / 2);
-            
-            // 防翻车边界检测
-            if (left < 10) {
-                // 如果左边屏幕空间不够，妥协一下放到右边
-                left = targetRect.right + 12;
-            }
-            if (top < 10) top = 10;
-            if (top + tooltipHeight > windowHeight - 10) {
-                top = windowHeight - tooltipHeight - 10;
-            }
-            
-            // 应用最终坐标
-            tooltip.style.left = `${left}px`;
-            tooltip.style.top = `${top}px`;
-        }
-
         function switchToTextMode() {
             currentMode = 'text';
             window.currentMode = 'text';
@@ -3953,6 +3631,8 @@
             document.getElementById('textParams').classList.remove('hidden');
             document.getElementById('imageParams').classList.add('hidden');
             document.getElementById('videoParams').classList.add('hidden');
+            
+            window.modelSelectManager?.populateModelSelects();
         }
 
         function switchToImageMode() {
@@ -3965,6 +3645,8 @@
             document.getElementById('textParams').classList.add('hidden');
             document.getElementById('imageParams').classList.remove('hidden');
             document.getElementById('videoParams').classList.add('hidden');
+            
+            window.modelSelectManager?.populateModelSelects();
         }
 
         function switchToVideoMode() {
@@ -3977,15 +3659,13 @@
             document.getElementById('textParams').classList.add('hidden');
             document.getElementById('imageParams').classList.add('hidden');
             document.getElementById('videoParams').classList.remove('hidden');
+            
+            window.modelSelectManager?.populateModelSelects();
         }
 
         tabText.addEventListener('click', switchToTextMode);
         tabImage.addEventListener('click', switchToImageMode);
         tabVideo.addEventListener('click', switchToVideoMode);
-        
-        document.getElementById('tabText').onclick = switchToTextMode;
-        document.getElementById('tabImage').onclick = switchToImageMode;
-        document.getElementById('tabVideo').onclick = switchToVideoMode;
         
         switchToImageMode();
 
@@ -4545,7 +4225,14 @@
             // Ctrl + ` 切换调试控制面板
             if (e.ctrlKey && e.key === '`') {
                 e.preventDefault();
+                const isCollapsed = debugConsole.classList.contains('collapsed');
                 debugConsole.classList.toggle('collapsed');
+                void debugConsole.offsetHeight;
+                if (isCollapsed) {
+                    debugConsole.style.transform = 'translateY(0)';
+                } else {
+                    debugConsole.style.transform = 'translateY(calc(100% - 24px))';
+                }
                 updateToolbarPosition();
                 return;
             }
@@ -4639,16 +4326,6 @@
             setTimeout(initCanvas, 100);
             await TemplateLoader.loadSettingsPanel();
             
-            // 自动调整BASE URL输入框宽度
-            function adjustBaseUrlInputWidth(input) {
-                const measureEl = document.getElementById('text-measure');
-                if (!measureEl) return;
-                
-                measureEl.textContent = input.value || input.placeholder || '';
-                const width = Math.max(280, measureEl.offsetWidth + 20); // 20px padding
-                input.style.width = width + 'px';
-            }
-            
             // 初始化和监听所有BASE URL输入框
             const baseUrlInputs = [
                 'settingsGeminiBaseUrl',
@@ -4665,9 +4342,40 @@
                 }
             });
             
+            populateSettingsModelSelects();
+            
             // 初始化Provider管理和UI管理
             window.providerManager = new ProviderManager();
             new UIManager();
+            
+            // Provider初始化后再刷新一次下拉菜单（确保使用动态数据）
+            if (typeof populateSettingsModelSelects === 'function') {
+                populateSettingsModelSelects();
+            }
+            
+            // 初始化提示词面板的模型下拉框
+            if (window.modelSelectManager) {
+                window.modelSelectManager.populateModelSelects();
+            }
+            
+            // 关闭设置面板按钮（需要在模板加载后获取）
+            const closeSettingsBtnAfterLoad = document.getElementById('closeSettingsBtn');
+            if (closeSettingsBtnAfterLoad) {
+                closeSettingsBtnAfterLoad.addEventListener('click', () => {
+                    handleCloseSettingsPanel();
+                });
+            }
+            
+            // 保存设置按钮
+            const saveSettingsBtnAfterLoad = document.getElementById('saveSettingsBtn');
+            if (saveSettingsBtnAfterLoad) {
+                saveSettingsBtnAfterLoad.addEventListener('click', () => {
+                    console.log('[保存按钮点击] window.providerManager:', !!window.providerManager);
+                    if (window.providerManager) {
+                        window.providerManager.saveNow();
+                    }
+                });
+            }
         });
         
         // 动态监听resize事件，当窗口大小改变时自动刷新UI

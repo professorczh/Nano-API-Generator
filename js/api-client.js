@@ -2,6 +2,7 @@ import { CONFIG, getProviderByModelId } from '../config.js';
 import { AppState } from './app-state.js';
 import { GeminiProvider } from './providers/gemini-provider.js';
 import { TwelveAIProvider } from './providers/12ai.js';
+import './providers/dynamic-provider.js';
 
 let promptInputElement = null;
 let debugLogFunction = null;
@@ -349,6 +350,8 @@ export class APIClient {
         const provider = modelProvider || this.getProvider(modelName);
         const realModelId = modelName;
         
+        debugLog(`[API Client] provider: "${provider}", modelProvider 参数: "${modelProvider}"`, 'info');
+        
         const validation = this.validateAPIKeys(provider, false);
         
         if (!validation.valid) {
@@ -374,34 +377,81 @@ export class APIClient {
 
         const requestStartTime = Date.now();
         
-        debugLog(`[API请求] 提供商: ${provider}, 模型: ${realModelId}, 模式: ${isImageGenMode ? '生图' : '文本'}`, 'info');
+        // 读取 Provider 切换状态
+        const useDynamicProvider = localStorage.getItem('useDynamicProvider') === 'true';
+        
+        debugLog(`[API请求] 提供商: ${provider}, 模型: ${realModelId}, 模式: ${isImageGenMode ? '生图' : '文本'}, 路径: ${useDynamicProvider ? '动态' : '当前链路'}`, 'info');
 
         try {
             let result;
             
-            if (provider === '12ai') {
-                result = await this.providers.twelveAI.generateContent({
-                    modelName: realModelId,
-                    prompt,
-                    images,
-                    generationConfig,
-                    isImageGenMode,
-                    aspectRatio,
-                    imageSize,
-                    debugLog
-                });
+            // 分流逻辑：根据 Toggle 状态选择路径
+            if (useDynamicProvider) {
+                // 动态路径
+                debugLog(`[动态Provider] 开始调用动态Provider系统`, 'info');
+                
+                // 初始化动态Provider
+                window.dynamicProviderManager.initializeFromStorage();
+                
+                // 检查Provider是否可用
+                const availableProviders = window.dynamicProviderManager.getProviderList();
+                if (!window.dynamicProviderManager.isProviderAvailable(provider)) {
+                    const errorMsg = `动态Provider "${provider}" 未配置或未启用。可用的Provider: ${availableProviders.join(', ') || '无'}。请在设置中创建名为"${provider}"的Provider，或切换到"当前链路"模式。`;
+                    debugLog(`[动态Provider错误] ${errorMsg}`, 'error');
+                    updateStatus('失败', true);
+                    if (onError) onError(new Error(errorMsg));
+                    this.activeRequests = Math.max(0, this.activeRequests - 1);
+                    return;
+                }
+                
+                const dynamicProvider = window.dynamicProviderManager.getProvider(provider);
+                
+                try {
+                    result = await dynamicProvider.generateContent({
+                        modelName: realModelId,
+                        prompt,
+                        images,
+                        generationConfig,
+                        isImageGenMode,
+                        aspectRatio,
+                        imageSize,
+                        pinInfo,
+                        debugLog
+                    });
+                    debugLog(`[动态Provider] 请求成功`, 'success');
+                } catch (dynamicError) {
+                    debugLog(`[动态Provider错误] ${dynamicError.message}`, 'error');
+                    updateStatus('失败', true);
+                    if (onError) onError(dynamicError);
+                    this.activeRequests = Math.max(0, this.activeRequests - 1);
+                    return;
+                }
             } else {
-                result = await this.providers.gemini.generateContent({
-                    modelName: realModelId,
-                    prompt,
-                    images,
-                    generationConfig,
-                    isImageGenMode,
-                    aspectRatio,
-                    imageSize,
-                    pinInfo,
-                    debugLog
-                });
+                // 当前链路（原有硬编码逻辑）
+                if (provider === '12ai') {
+                    result = await this.providers.twelveAI.generateContent({
+                        modelName: realModelId,
+                        prompt,
+                        images,
+                        generationConfig,
+                        isImageGenMode,
+                        aspectRatio,
+                        imageSize,
+                        debugLog
+                    });
+                } else {
+                    result = await this.providers.gemini.generateContent({
+                        modelName: realModelId,
+                        prompt,
+                        images,
+                        generationConfig,
+                        isImageGenMode,
+                        aspectRatio,
+                        imageSize,
+                        pinInfo,
+                        debugLog
+                    });
+                }
             }
 
             if (isImageGenMode) {

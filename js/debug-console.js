@@ -30,17 +30,26 @@ export class DebugConsole {
     }
     
     static setupEventListeners() {
-        console.log('DebugConsole.setupEventListeners called');
-        console.log('debugConsoleHeader:', this.debugConsoleHeader);
-        console.log('debugConsole:', this.debugConsole);
-        
         if (this.debugConsoleHeader) {
             this.debugConsoleHeader.addEventListener('click', () => {
+                const isCollapsed = this.debugConsole.classList.contains('collapsed');
                 this.debugConsole.classList.toggle('collapsed');
+                
+                // 强制触发重绘
+                void this.debugConsole.offsetHeight;
+                
+                if (isCollapsed) {
+                    this.debugConsole.style.transform = 'translateY(0)';
+                } else {
+                    this.debugConsole.style.transform = 'translateY(calc(100% - 24px))';
+                }
+                
                 if (typeof window.updateToolbarPosition === 'function') {
                     window.updateToolbarPosition();
                 }
             });
+        } else {
+            console.log('ERROR: debugConsoleHeader is null');
         }
         
         if (this.debugConsoleClear) {
