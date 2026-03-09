@@ -149,4 +149,74 @@ class UIManager {
     }
 }
 
+let currentMode = 'image';
+let tabText, tabImage, tabVideo;
+
+export function initModeSwitchers() {
+    tabText = document.getElementById('tabText');
+    tabImage = document.getElementById('tabImage');
+    tabVideo = document.getElementById('tabVideo');
+    
+    if (tabText) tabText.addEventListener('click', switchToTextMode);
+    if (tabImage) tabImage.addEventListener('click', switchToImageMode);
+    if (tabVideo) tabVideo.addEventListener('click', switchToVideoMode);
+    
+    switchToImageMode();
+}
+
+export function switchToTextMode() {
+    currentMode = 'text';
+    window.currentMode = 'text';
+    if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white';
+    if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
+    if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50';
+    
+    const textParams = document.getElementById('textParams');
+    const imageParams = document.getElementById('imageParams');
+    const videoParams = document.getElementById('videoParams');
+    if (textParams) textParams.classList.remove('hidden');
+    if (imageParams) imageParams.classList.add('hidden');
+    if (videoParams) videoParams.classList.add('hidden');
+    
+    window.modelSelectManager?.populateModelSelects();
+}
+
+export function switchToImageMode() {
+    currentMode = 'image';
+    window.currentMode = 'image';
+    if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
+    if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white';
+    if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50';
+    
+    const textParams = document.getElementById('textParams');
+    const imageParams = document.getElementById('imageParams');
+    const videoParams = document.getElementById('videoParams');
+    if (textParams) textParams.classList.add('hidden');
+    if (imageParams) imageParams.classList.remove('hidden');
+    if (videoParams) videoParams.classList.add('hidden');
+    
+    window.modelSelectManager?.populateModelSelects();
+}
+
+export function switchToVideoMode() {
+    currentMode = 'video';
+    window.currentMode = 'video';
+    if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
+    if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
+    if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-purple-600 text-white';
+    
+    const textParams = document.getElementById('textParams');
+    const imageParams = document.getElementById('imageParams');
+    const videoParams = document.getElementById('videoParams');
+    if (textParams) textParams.classList.add('hidden');
+    if (imageParams) imageParams.classList.add('hidden');
+    if (videoParams) videoParams.classList.remove('hidden');
+    
+    window.modelSelectManager?.populateModelSelects();
+}
+
+export function getCurrentMode() {
+    return currentMode;
+}
+
 export { UIManager };

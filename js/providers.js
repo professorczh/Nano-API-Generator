@@ -45,6 +45,7 @@ class ProviderManager {
             if (!savedProviders) return { text: [], image: [], video: [] };
             
             const providers = JSON.parse(savedProviders);
+            
             const textModels = [];
             const imageModels = [];
             const videoModels = [];
@@ -124,7 +125,7 @@ class ProviderManager {
                  if (wrapper) {
                      wrapper.addEventListener('click', (e) => {
                          if (e.target.classList.contains('custom-option')) {
-                             this.autoSave();
+                             this.markDirty();
                          }
                      });
                  }
@@ -234,42 +235,18 @@ class ProviderManager {
                     <div>
                         <label class="block text-xs text-gray-400 mb-2">文本模型</label>
                         <div id="${providerId}TextModels" class="space-y-1.5 mb-2 model-list-container">
-                            <div class="flex gap-1.5 items-center model-row">
-                                <select class="w-9 px-1 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 model-format-select focus:border-blue-300 focus:ring-1 focus:ring-blue-100 outline-none">
-                                    <option value="openai" selected title="OpenAI格式">O</option>
-                                    <option value="gemini" title="Gemini格式">G</option>
-                                </select>
-                                <input type="text" placeholder="模型名称" class="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 focus:border-blue-300 focus:ring-1 focus:ring-blue-100 outline-none">
-                                <button type="button" class="text-gray-300 hover:text-red-400 text-sm model-row-delete transition-colors">×</button>
-                            </div>
                         </div>
                         <button type="button" class="text-xs text-gray-500 hover:text-gray-600 add-model-btn" data-container="${providerId}TextModels">+ 添加</button>
                     </div>
                     <div>
                         <label class="block text-xs text-gray-400 mb-2">图像模型</label>
                         <div id="${providerId}ImageModels" class="space-y-1.5 mb-2 model-list-container">
-                            <div class="flex gap-1.5 items-center model-row">
-                                <select class="w-9 px-1 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 model-format-select focus:border-blue-300 focus:ring-1 focus:ring-blue-100 outline-none">
-                                    <option value="openai" selected title="OpenAI格式">O</option>
-                                    <option value="gemini" title="Gemini格式">G</option>
-                                </select>
-                                <input type="text" placeholder="模型名称" class="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 focus:border-blue-300 focus:ring-1 focus:ring-blue-100 outline-none">
-                                <button type="button" class="text-gray-300 hover:text-red-400 text-sm model-row-delete transition-colors">×</button>
-                            </div>
                         </div>
                         <button type="button" class="text-xs text-gray-500 hover:text-gray-600 add-model-btn" data-container="${providerId}ImageModels">+ 添加</button>
                     </div>
                     <div>
                         <label class="block text-xs text-gray-400 mb-2">视频模型</label>
                         <div id="${providerId}VideoModels" class="space-y-1.5 mb-2 model-list-container">
-                            <div class="flex gap-1.5 items-center model-row">
-                                <select class="w-9 px-1 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 model-format-select focus:border-blue-300 focus:ring-1 focus:ring-blue-100 outline-none">
-                                    <option value="openai" selected title="OpenAI格式">O</option>
-                                    <option value="gemini" title="Gemini格式">G</option>
-                                </select>
-                                <input type="text" placeholder="模型名称" class="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-100 bg-gray-50 focus:border-blue-300 focus:ring-1 focus:ring-blue-100 outline-none">
-                                <button type="button" class="text-gray-300 hover:text-red-400 text-sm model-row-delete transition-colors">×</button>
-                            </div>
                         </div>
                         <button type="button" class="text-xs text-gray-500 hover:text-gray-600 add-model-btn" data-container="${providerId}VideoModels">+ 添加</button>
                     </div>
@@ -367,7 +344,7 @@ class ProviderManager {
         formatRadios.forEach(radio => {
             radio.addEventListener('change', (e) => {
                 updateProtocolState(e.target.value);
-                this.autoSave();
+                this.markDirty();
             });
         });
         
@@ -382,7 +359,7 @@ class ProviderManager {
             providerNameInput.addEventListener('blur', () => {
                 const newName = providerNameInput.value.trim() || providerName;
                 newTab.textContent = newName;
-                this.autoSave();
+                this.markDirty();
             });
         }
         
@@ -514,26 +491,34 @@ class ProviderManager {
         
         // 为所有输入框添加自动保存
         const inputs = newConfig.querySelectorAll('input[type="text"], input[type="checkbox"], select, input[type="radio"]');
+        const self = this;
         inputs.forEach(input => {
-            input.addEventListener('change', () => this.autoSave());
+            input.addEventListener('change', () => self.markDirty());
             if (input.type === 'text') {
-                input.addEventListener('input', () => this.autoSave());
+                input.addEventListener('input', () => self.markDirty());
             }
         });
         
-        // 为模型添加按钮添加自动保存
+        // 为模型添加按钮添加事件
         newConfig.querySelectorAll('.add-model-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                setTimeout(() => this.autoSave(), 100);
-            });
-        });
-        
-        // 为模型行删除按钮添加删除和自动保存功能
-        const self = this;
-        newConfig.querySelectorAll('.model-row-delete').forEach(btn => {
             btn.addEventListener('click', function() {
-                this.closest('.model-row').remove();
-                setTimeout(() => self.autoSave(), 100);
+                const containerId = this.dataset.container;
+                const container = document.getElementById(containerId);
+                if (container) {
+                    const protocolRadios = document.querySelectorAll(`input[name="settings${providerId}Format"]`);
+                    let currentProtocol = 'openai';
+                    protocolRadios.forEach(radio => {
+                        if (radio.checked) currentProtocol = radio.value;
+                    });
+                    const newRow = createModelRow(currentProtocol === 'mix' ? 'openai' : currentProtocol);
+                    container.appendChild(newRow);
+                    // 光标自动聚焦到输入框
+                    const input = newRow.querySelector('input[type="text"]');
+                    if (input) input.focus();
+                }
+                // 标记脏状态 + 刷新下拉框
+                self.markDirty();
+                self.refreshModelSelects();
             });
         });
         
@@ -564,36 +549,31 @@ class ProviderManager {
             
             div.querySelector('.model-row-delete').addEventListener('click', function() {
                 div.remove();
-                setTimeout(() => self.autoSave(), 100);
+                self.markDirty();
+                self.refreshModelSelects();
             });
             
-            div.querySelector('input[type="text"]').addEventListener('input', function() {
-                console.log('[模型输入] 检测到输入, providerId:', providerId);
-                setTimeout(() => self.autoSave(), 1000);
+            const modelInput = div.querySelector('input[type="text"]');
+            modelInput.addEventListener('input', function() {
+                self.markDirty();
+                self.refreshModelSelects();
+            });
+            
+            modelInput.addEventListener('blur', function() {
+                if (!this.value.trim()) {
+                    div.remove();
+                    self.markDirty();
+                    self.refreshModelSelects();
+                }
             });
             
             div.querySelector('select').addEventListener('change', function() {
-                console.log('[模型选择] 检测到变更, providerId:', providerId);
-                setTimeout(() => self.autoSave(), 100);
+                self.markDirty();
+                self.refreshModelSelects();
             });
             
             return div;
         };
-        
-        newConfig.querySelectorAll('.add-model-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const containerId = this.dataset.container;
-                const container = document.getElementById(containerId);
-                if (container) {
-                    const protocolRadios = document.querySelectorAll(`input[name="settings${providerId}Format"]`);
-                    let currentProtocol = 'openai';
-                    protocolRadios.forEach(radio => {
-                        if (radio.checked) currentProtocol = radio.value;
-                    });
-                    container.appendChild(createModelRow(currentProtocol === 'mix' ? 'openai' : currentProtocol));
-                }
-            });
-        });
     }
 
     addProvider() {
@@ -613,6 +593,11 @@ class ProviderManager {
         const newTab = document.getElementById(`settingsTab${providerId}`);
         if (newTab) {
             newTab.click();
+        }
+        
+        // 实时刷新默认模型下拉框
+        if (window.modelSelectManager) {
+            window.modelSelectManager.populateSettingsModelSelects();
         }
     }
 
@@ -638,7 +623,8 @@ class ProviderManager {
                 if (firstTab) {
                     firstTab.click();
                 }
-                this.autoSave();
+                this.markDirty();
+                this.refreshModelSelects();
                 
                 confirmModal.classList.add('hidden');
                 confirmModal.classList.remove('flex');
@@ -855,8 +841,8 @@ class ProviderManager {
             }
             
             // 保存后刷新上方默认模型下拉菜单
-            if (typeof populateSettingsModelSelects === 'function') {
-                populateSettingsModelSelects();
+            if (window.modelSelectManager) {
+                window.modelSelectManager.populateSettingsModelSelects();
             }
             
             // 刷新提示词面板的模型下拉菜单
@@ -989,17 +975,18 @@ class ProviderManager {
                 
                 row.querySelector('.model-row-delete').addEventListener('click', function() {
                     row.remove();
-                    setTimeout(() => self.autoSave(), 100);
+                    self.markDirty();
+                    self.refreshModelSelects();
                 });
                 
                 row.querySelector('input[type="text"]').addEventListener('input', function() {
-                    console.log('[模型输入] 检测到输入, 从restore');
-                    setTimeout(() => self.autoSave(), 1000);
+                    self.markDirty();
+                    self.refreshModelSelects();
                 });
                 
                 row.querySelector('select').addEventListener('change', function() {
-                    console.log('[模型选择] 检测到变更, 从restore');
-                    setTimeout(() => self.autoSave(), 100);
+                    self.markDirty();
+                    self.refreshModelSelects();
                 });
                 
                 container.appendChild(row);
@@ -1016,16 +1003,13 @@ class ProviderManager {
     // 更新保存按钮状态
     updateSaveButtonState() {
         const saveBtn = document.getElementById('saveSettingsBtn');
-        console.log('[保存按钮] updateSaveButtonState 被调用, hasUnsavedChanges:', this.hasUnsavedChanges, '按钮元素:', !!saveBtn);
         if (saveBtn) {
             if (this.hasUnsavedChanges) {
                 saveBtn.disabled = false;
                 saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                console.log('[保存按钮] 已启用');
             } else {
                 saveBtn.disabled = true;
                 saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                console.log('[保存按钮] 已禁用');
             }
         }
     }
@@ -1037,10 +1021,18 @@ class ProviderManager {
         this.saveProviders(true);
     }
 
-    // 自动保存配置（已弃用，改用手动保存）
-    autoSave() {
-        // 不再自动保存，只标记脏状态
-        this.markDirty();
+    // 标记脏状态（启用保存按钮）
+    markDirty() {
+        this.hasUnsavedChanges = true;
+        this.updateSaveButtonState();
+    }
+    
+    // 刷新模型下拉框
+    refreshModelSelects() {
+        if (window.modelSelectManager) {
+            window.modelSelectManager.populateSettingsModelSelects();
+            window.modelSelectManager.populateModelSelects();
+        }
     }
     
     // 检查是否有未保存的修改

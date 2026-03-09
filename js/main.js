@@ -12,7 +12,7 @@ import { SettingsPanel } from "./settings-panel.js";
 import { ModelSelectManager } from "./model-selects.js";
 import { EventHandler } from "./event-handlers.js";
 import { CanvasOperations } from "./canvas-operations.js";
-import { ApiOperations } from "./api-operations.js";
+import { handleAPICall } from "./api-operations.js";
 import { debugLog, updateAllNodeTimeVisibility, updateAllNodeModelTagVisibility } from "./utils.js";
 
 class Application {
@@ -69,7 +69,6 @@ class Application {
         this.modelSelectManager = new ModelSelectManager();
         window.modelSelectManager = this.modelSelectManager;
         this.eventHandler = new EventHandler();
-        this.apiOperations = new ApiOperations();
         
         this.canvasOperations = new CanvasOperations(
             this.panzoom,

@@ -1,6 +1,9 @@
 import { AppState } from './app-state.js';
+import { debugLog, adjustTooltipPosition } from './utils.js';
 
 let promptInputElement = null;
+let imageDataList = [];
+let pasteImageCounter = 0;
 
 export function setPromptInput(element) {
     promptInputElement = element;
@@ -48,40 +51,6 @@ function insertAtCursor(node) {
         promptInput.appendChild(spaceBefore);
         promptInput.appendChild(node);
         promptInput.appendChild(spaceAfter);
-    }
-}
-
-function adjustTooltipPosition(tooltip, targetElement) {
-    if (!tooltip || !targetElement) return;
-    
-    const targetRect = targetElement.getBoundingClientRect();
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-    
-    const tooltipRect = tooltip.getBoundingClientRect();
-    const tooltipWidth = tooltipRect.width || 300;
-    const tooltipHeight = tooltipRect.height || 300;
-    
-    let left = targetRect.left - tooltipWidth - 12;
-    let top = targetRect.top + (targetRect.height / 2) - (tooltipHeight / 2);
-    
-    if (left < 10) {
-        left = targetRect.right + 12;
-    }
-    if (top < 10) top = 10;
-    if (top + tooltipHeight > windowHeight - 10) {
-        top = windowHeight - tooltipHeight - 10;
-    }
-    
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${top}px`;
-}
-
-function debugLog(message, type = 'info') {
-    if (typeof window !== 'undefined' && window.debugLog) {
-        window.debugLog(message, type);
-    } else {
-        console.log(`[${type}] ${message}`);
     }
 }
 
@@ -375,5 +344,210 @@ export const PinManager = {
     updatePromptWithPins,
     createPinnedImageTag,
     findNodeByImageUrl,
-    setPromptInput
+    setPromptInput,
+    createImageTag,
+    insertImageToPrompt,
+    updateImageDataList,
+    addCanvasImageToPrompt,
+    drawPinsOnImage,
+    getImageDataList: () => imageDataList,
+    getPasteImageCounter: () => pasteImageCounter,
+    incrementPasteImageCounter: () => ++pasteImageCounter
 };
+
+export function createImageTag(imageData, index) {
+    const item = document.createElement('span');
+    item.className = 'pasted-image-item';
+    item.style.position = 'relative';
+    item.dataset.index = index;
+    item.dataset.imageUrl = imageData.data;
+    item.dataset.filename = imageData.name;
+    item.contentEditable = 'false';
+    
+    const img = document.createElement('img');
+    img.src = imageData.data;
+    img.alt = imageData.name;
+    
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = imageData.name.length > 20 ? imageData.name.substring(0, 20) + '...' : imageData.name;
+    nameSpan.title = imageData.name;
+    
+    const tooltip = document.createElement('div');
+    tooltip.className = 'image-preview-tooltip';
+    
+    const tooltipImg = document.createElement('img');
+    tooltipImg.src = imageData.data;
+    tooltipImg.alt = imageData.name;
+    
+    tooltipImg.onload = function() {
+        const naturalWidth = this.naturalWidth;
+        const naturalHeight = this.naturalHeight;
+        
+        const maxWidth = Math.min(window.innerWidth * 0.7, 500);
+        const maxHeight = Math.min(window.innerHeight * 0.7, 500);
+        
+        const widthRatio = maxWidth / naturalWidth;
+        const heightRatio = maxHeight / naturalHeight;
+        const scale = Math.min(widthRatio, heightRatio);
+        
+        const displayWidth = naturalWidth * scale;
+        const displayHeight = naturalHeight * scale;
+        
+        this.style.width = `${displayWidth}px`;
+        this.style.height = `${displayHeight}px`;
+    };
+    
+    tooltip.appendChild(tooltipImg);
+    
+    item.appendChild(img);
+    item.appendChild(nameSpan);
+    
+    document.body.appendChild(tooltip);
+    
+    item.addEventListener('mouseenter', () => {
+        tooltip.style.display = 'block';
+        setTimeout(() => adjustTooltipPosition(tooltip, item), 10);
+    });
+    item.addEventListener('mouseleave', () => {
+        tooltip.style.display = 'none';
+    });
+    
+    const deleteBtn = document.createElement('span');
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.textContent = '×';
+    deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        const filename = item.dataset.filename;
+        tooltip.remove();
+        item.remove();
+        updateImageDataList();
+        debugLog(`[删除图片] 文件名: ${filename}`, 'info');
+    };
+    
+    item.appendChild(deleteBtn);
+    
+    return item;
+}
+
+export function insertImageToPrompt(imageUrl, filename) {
+    const promptInput = getPromptInput();
+    if (!promptInput) return;
+    
+    const imageData = {
+        data: imageUrl,
+        name: filename
+    };
+    imageDataList.push(imageData);
+    const imageTag = createImageTag(imageData, pasteImageCounter++);
+    promptInput.appendChild(imageTag);
+    updateImageDataList();
+    debugLog(`[插入图片] 文件名: ${filename}`, 'info');
+}
+
+export function updateImageDataList() {
+    const promptInput = getPromptInput();
+    if (!promptInput) return imageDataList;
+    
+    imageDataList = [];
+    const imageTags = promptInput.querySelectorAll('.pasted-image-item');
+    imageTags.forEach((tag, index) => {
+        imageDataList.push({
+            data: tag.dataset.imageUrl,
+            name: tag.dataset.filename
+        });
+        tag.dataset.index = index;
+    });
+    return imageDataList;
+}
+
+export function addCanvasImageToPrompt(node) {
+    const promptInput = getPromptInput();
+    if (!promptInput) return;
+    
+    const imageUrl = node.dataset.imageUrl;
+    const filename = node.dataset.filename;
+    
+    if (!imageUrl || node.classList.contains('loading-placeholder') || filename === 'Loading...') {
+        alert('无法插入正在生成的图片，请等待图片生成完成后再试');
+        return;
+    }
+    
+    const existingTags = promptInput.querySelectorAll('.pasted-image-item');
+    for (let tag of existingTags) {
+        if (tag.dataset.imageUrl === imageUrl) {
+            return;
+        }
+    }
+    
+    const img = node.querySelector('img');
+    if (!img) {
+        alert('无法获取图片数据');
+        return;
+    }
+    
+    let imageDataUrl;
+    if (img.src.startsWith('data:')) {
+        imageDataUrl = img.src;
+    } else {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        imageDataUrl = canvas.toDataURL('image/png');
+    }
+    
+    const imageData = {
+        data: imageDataUrl,
+        name: filename
+    };
+    
+    const imageTag = createImageTag(imageData, imageDataList.length);
+    insertAtCursor(imageTag);
+    updateImageDataList();
+    
+    debugLog(`[插入图片] 文件名: ${filename}, 数据格式: ${imageDataUrl.startsWith('data:') ? 'Base64' : 'URL'}`, 'info');
+}
+
+export async function drawPinsOnImage(imageUrl, pins) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || img.width;
+            canvas.height = img.naturalHeight || img.height;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            pins.forEach(pin => {
+                const x = pin.x;
+                const y = pin.y;
+                const radius = Math.max(20, Math.min(canvas.width, canvas.height) / 30);
+                
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, 2 * Math.PI);
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                ctx.font = `bold ${radius}px Arial`;
+                ctx.fillStyle = 'white';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(pin.number.toString(), x, y);
+            });
+            
+            const annotatedImageUrl = canvas.toDataURL('image/png');
+            resolve(annotatedImageUrl);
+        };
+        img.onerror = () => {
+            resolve(imageUrl);
+        };
+        img.src = imageUrl;
+    });
+}

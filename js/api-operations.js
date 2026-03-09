@@ -1,363 +1,502 @@
-// API操作相关逻辑
+import { CONFIG, getModelDisplayName } from '../config.js';
+import { AppState, CanvasState } from './app-state.js';
+import { PinManager, drawPinsOnImage, updateImageDataList } from './pin-manager.js';
+import { apiClient } from './api-client.js';
+import { debugLog } from './utils.js';
+import { NodeFactory } from './node-factory.js';
 
-import { CONFIG } from "../config.js";
-import { AppState } from "./app-state.js";
-import { formatGenerationTime } from "./utils.js";
+export async function handleAPICall(params) {
+    const {
+        promptInput,
+        temperature,
+        topP,
+        aspectRatio,
+        imageSize,
+        videoRatioSelect,
+        videoResolutionSelect,
+        videoDurationSelect,
+        loader,
+        statusTag,
+        imageResponseContainer,
+        createLoadingPlaceholder,
+        createTextLoadingPlaceholder,
+        updateMinimapWithImage,
+        selectNode,
+        incrementNodeCounter
+    } = params;
 
-export class ApiOperations {
-    constructor() {
-        this.selectedNode = null;
-        this.clipboardNode = null;
-        this.showMouseLogs = false;
-        this.showGenerationTime = true;
-        this.showModelTag = true;
-        this.debugConsoleContent = document.getElementById('debugConsoleContent');
-        this.imageResponseContainer = document.getElementById('imageResponseContainer');
-        this.promptInput = document.getElementById('promptInput');
-    }
+    debugLog(`[开始调用] handleAPICall 函数`, 'info');
     
-    createImageNode(imageUrl, prompt = '', index = 0, filename = '', resolution = '', generationTime = null, modelName = '') {
-        console.log('Creating image node...');
-        console.log('Image URL:', imageUrl);
-        console.log('Prompt:', prompt);
-        console.log('Index:', index);
-        console.log('Filename:', filename);
-        console.log('Resolution:', resolution);
+    updateImageDataList();
+    
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = promptInput.innerHTML;
+    const imageTags = tempDiv.querySelectorAll('.pasted-image-item');
+    imageTags.forEach(tag => tag.remove());
+    
+    const pinnedImageTags = tempDiv.querySelectorAll('.pinned-image-tag');
+    let processedPrompt = tempDiv.textContent.trim();
+    
+    const pinInfo = [];
+    pinnedImageTags.forEach(tag => {
+        const imageUrl = tag.dataset.imageUrl;
+        const pinNumber = tag.dataset.pinNumber;
+        const filename = tag.querySelector('.pin-filename').textContent;
         
-        const node = document.createElement('div');
-        node.className = 'canvas-node';
-        node.dataset.index = index;
-        node.dataset.imageUrl = imageUrl;
-        node.dataset.filename = filename || `Image ${index + 1}`;
-        
-        const img = document.createElement('img');
-        img.src = imageUrl;
-        img.alt = `Generated image ${index + 1}`;
-        img.draggable = false;
-        
-        img.onload = function() {
-            const width = this.naturalWidth;
-            const height = this.naturalHeight;
-            const resolutionText = `${width}x${height}`;
-            const resolutionElement = node.querySelector('.node-resolution');
-            if (resolutionElement) {
-                resolutionElement.textContent = resolutionText;
+        const node = PinManager.findNodeByImageUrl(imageUrl);
+        if (node) {
+            const pins = JSON.parse(node.dataset.pins || '[]');
+            const pin = pins.find(p => p.number == pinNumber);
+            if (pin) {
+                pinInfo.push({
+                    imageUrl: imageUrl,
+                    pinNumber: pinNumber,
+                    filename: filename,
+                    x: pin.x,
+                    y: pin.y
+                });
             }
-            node.dataset.width = width;
-            node.dataset.height = height;
-        };
-        
-        const header = document.createElement('div');
-        header.className = 'node-header';
-        
-        const filenameElement = document.createElement('div');
-        filenameElement.className = 'node-filename';
-        filenameElement.textContent = filename || `Image ${index + 1}`;
-        
-        const resolutionElement = document.createElement('div');
-        resolutionElement.className = 'node-resolution';
-        resolutionElement.textContent = resolution || 'Loading...';
-        
-        header.appendChild(filenameElement);
-        header.appendChild(resolutionElement);
-        
-        const toolbar = this.createNodeToolbar(node, prompt, img);
-        
-        const centerCoords = document.createElement('div');
-        centerCoords.className = 'node-center-coords';
-        centerCoords.textContent = '(0, 0)';
-        
-        const resizeHandle = document.createElement('div');
-        resizeHandle.className = 'resize-handle';
-        
-        const info = document.createElement('div');
-        info.className = 'node-info';
-        info.textContent = prompt || `Image ${index + 1}`;
-        info.title = '点击复制提示词';
-        info.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const textToCopy = prompt || info.textContent;
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                info.classList.add('copied');
-                setTimeout(() => {
-                    info.classList.remove('copied');
-                }, 500);
-            }).catch(err => {
-                console.error('复制失败:', err);
-            });
-        });
-        
-        node.appendChild(header);
-        node.appendChild(toolbar);
-        node.appendChild(img);
-        node.appendChild(resizeHandle);
-        node.appendChild(info);
-        node.appendChild(centerCoords);
-        
-        const sidebar = this.createNodeSidebar(generationTime, modelName);
-        if (sidebar.children.length > 0) {
-            node.appendChild(sidebar);
         }
-        
-        node.dataset.pins = JSON.stringify([]);
-        
-        const width = parseInt(img.style.width) || 500;
-        const height = parseInt(img.style.height) || 500;
-        node.style.left = `${5000 - width / 2}px`;
-        node.style.top = `${5000 - height / 2}px`;
-        node.style.zIndex = '10';
-        
-        img.onload = function() {
-            const actualWidth = this.naturalWidth || parseInt(this.style.width) || 500;
-            const actualHeight = this.naturalHeight || parseInt(this.style.height) || 500;
-            node.style.left = `${5000 - actualWidth / 2}px`;
-            node.style.top = `${5000 - actualHeight / 2}px`;
-            
-            const resolutionText = `${actualWidth}x${actualHeight}`;
-            const resolutionElement = node.querySelector('.node-resolution');
-            if (resolutionElement) {
-                resolutionElement.textContent = resolutionText;
+    });
+    
+    if (pinInfo.length > 0) {
+        pinInfo.forEach(info => {
+            const pinTag = `[${info.pinNumber}]`;
+            if (processedPrompt.includes(pinTag)) {
+                processedPrompt = processedPrompt.replace(pinTag, `[图片中 PIN ${info.pinNumber} 标记的位置]`);
             }
-            
-            node.dataset.width = actualWidth;
-            node.dataset.height = actualHeight;
+        });
+    }
+    
+    const prompt = processedPrompt;
+    const currentMode = CanvasState.currentMode;
+    const isImageGenMode = currentMode === 'image';
+    const imageDataList = PinManager.getImageDataList();
+    
+    debugLog(`[参数检查] 模式: ${currentMode}, 提示词: "${prompt}", 图片数量: ${imageDataList.length}, PIN数量: ${pinInfo.length}`, 'info');
+    
+    let modelName;
+    let modelProvider;
+    
+    if (currentMode === 'image') {
+        modelName = CONFIG.IMAGE_MODEL_NAME;
+        modelProvider = CONFIG.IMAGE_MODEL_PROVIDER;
+    } else if (currentMode === 'text') {
+        modelName = CONFIG.MODEL_NAME;
+        modelProvider = CONFIG.MODEL_PROVIDER;
+    } else {
+        modelName = CONFIG.VIDEO_MODEL_NAME;
+        modelProvider = CONFIG.VIDEO_MODEL_PROVIDER;
+    }
+    
+    const modelDisplayName = getModelDisplayName(modelName, modelProvider);
+    
+    const generationConfig = {
+        temperature: parseFloat(temperature.value),
+        topP: parseFloat(topP.value),
+        topK: 40,
+        maxOutputTokens: 8192
+    };
+    
+    if (isImageGenMode) {
+        generationConfig.imageConfig = {
+            aspectRatio: aspectRatio.value,
+            imageSize: imageSize.value
         };
-        
-        this.bindNodeEvents(node, img);
-        
-        console.log('Node created:', node);
-        return node;
     }
     
-    createNodeToolbar(node, prompt, img) {
-        const toolbar = document.createElement('div');
-        toolbar.className = 'node-toolbar';
-        
-        const copyPromptBtn = document.createElement('button');
-        copyPromptBtn.className = 'toolbar-btn';
-        copyPromptBtn.innerHTML = '📝';
-        copyPromptBtn.title = '复制提示词';
-        copyPromptBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            navigator.clipboard.writeText(prompt || '').then(() => {
-                console.log('提示词已复制');
-            });
-        });
-        
-        const insertBtn = document.createElement('button');
-        insertBtn.className = 'toolbar-btn';
-        insertBtn.innerHTML = '✏️';
-        insertBtn.title = '插入到输入框';
-        insertBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (img) {
-                const imageUrl = img.src;
-                const filename = node.dataset.filename || 'Image';
-                this.insertImageToPrompt(imageUrl, filename);
-            }
-        });
-        
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'toolbar-btn';
-        copyBtn.innerHTML = '📋';
-        copyBtn.title = '复制图片';
-        copyBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.selectNode(node);
-            this.copySelectedNode();
-        });
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'toolbar-btn';
-        deleteBtn.innerHTML = '🗑️';
-        deleteBtn.title = '删除图片';
-        deleteBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.selectNode(node);
-            this.deleteSelectedNode();
-        });
-        
-        toolbar.appendChild(copyPromptBtn);
-        toolbar.appendChild(insertBtn);
-        toolbar.appendChild(copyBtn);
-        toolbar.appendChild(deleteBtn);
-        
-        return toolbar;
-    }
+    debugLog(`[模型配置] 模型: ${modelName}, 温度: ${generationConfig.temperature}, TopP: ${generationConfig.topP}`, 'info');
     
-    createNodeSidebar(generationTime, modelName) {
-        const sidebar = document.createElement('div');
-        sidebar.className = 'node-sidebar';
-        
-        if (generationTime !== null && generationTime !== undefined) {
-            const timeElement = document.createElement('div');
-            timeElement.className = 'node-generation-time';
-            timeElement.style.display = this.showGenerationTime ? 'flex' : 'none';
-            timeElement.textContent = formatGenerationTime(generationTime);
-            timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
-            sidebar.appendChild(timeElement);
-        }
-        
-        if (modelName) {
-            const modelTag = document.createElement('div');
-            modelTag.className = 'node-model-tag';
-            modelTag.style.display = this.showModelTag ? 'block' : 'none';
-            if (typeof modelName === 'object' && modelName.name) {
-                modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
-                modelTag.title = `${modelName.name} (${modelName.provider})`;
+    let allImageData = [...imageDataList];
+    
+    for (const info of pinInfo) {
+        const node = PinManager.findNodeByImageUrl(info.imageUrl);
+        if (node) {
+            const img = node.querySelector('img');
+            const pins = JSON.parse(node.dataset.pins || '[]');
+            
+            let base64Data;
+            if (img.src.startsWith('data:')) {
+                base64Data = img.src;
             } else {
-                modelTag.textContent = modelName;
-                modelTag.title = modelName;
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                base64Data = canvas.toDataURL('image/png');
             }
-            sidebar.appendChild(modelTag);
+            
+            if (pins.length > 0) {
+                debugLog(`[PIN标记] 在图片上绘制 ${pins.length} 个PIN标记`, 'info');
+                base64Data = await drawPinsOnImage(base64Data, pins);
+            }
+            
+            const existing = allImageData.find(data => data.data === base64Data);
+            if (!existing) {
+                allImageData.push({
+                    data: base64Data,
+                    name: info.filename
+                });
+            }
         }
-        
-        return sidebar;
     }
     
-    bindNodeEvents(node, img) {
-        img.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (e.ctrlKey || e.metaKey) {
-                if (node.classList.contains('selected')) {
-                    // PinManager.addPinToImage(node, e);
-                } else {
-                    this.selectNode(node);
+    CanvasState.activeRequests++;
+    const activeRequests = CanvasState.activeRequests;
+    
+    if (activeRequests === 1) {
+        loader.classList.remove('hidden');
+        if (statusTag) {
+            statusTag.innerText = "请求中";
+            statusTag.className = "text-xs px-2 py-1 rounded bg-blue-50 text-blue-600";
+        }
+    }
+    
+    debugLog(`[请求状态] 活跃请求数: ${activeRequests}`, 'info');
+    imageResponseContainer.classList.remove('hidden');
+    
+    let loadingPlaceholder = null;
+    if (isImageGenMode) {
+        const aspectRatioValue = aspectRatio.value;
+        const imageSizeValue = imageSize.value;
+        
+        let width, height;
+        const baseSize = imageSizeValue === '512px' ? 512 : imageSizeValue === '1K' ? 1024 : imageSizeValue === '2K' ? 2048 : 3840;
+        
+        switch (aspectRatioValue) {
+            case '1:1': width = baseSize; height = baseSize; break;
+            case '16:9': width = baseSize; height = Math.round(baseSize * 9 / 16); break;
+            case '9:16': width = Math.round(baseSize * 9 / 16); height = baseSize; break;
+            case '21:9': width = baseSize; height = Math.round(baseSize * 9 / 21); break;
+            case '4:3': width = baseSize; height = Math.round(baseSize * 3 / 4); break;
+            case '3:4': width = Math.round(baseSize * 3 / 4); height = baseSize; break;
+            case '3:2': width = baseSize; height = Math.round(baseSize * 2 / 3); break;
+            case '2:3': width = Math.round(baseSize * 2 / 3); height = baseSize; break;
+            case '5:4': width = baseSize; height = Math.round(baseSize * 4 / 5); break;
+            case '4:5': width = Math.round(baseSize * 4 / 5); height = baseSize; break;
+            default: width = baseSize; height = Math.round(baseSize * 9 / 16);
+        }
+        
+        const displayWidth = Math.min(width, 300);
+        const displayHeight = Math.round(displayWidth * height / width);
+        
+        const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
+        let x = 5000;
+        let y = 5000;
+        
+        if (existingNodes.length > 0) {
+            const lastNode = existingNodes[existingNodes.length - 1];
+            const lastNodeX = parseInt(lastNode.style.left) || 0;
+            const lastNodeY = parseInt(lastNode.style.top) || 0;
+            const lastNodeWidth = lastNode.offsetWidth;
+            const lastNodeHeight = lastNode.offsetHeight;
+            
+            x = lastNodeX + lastNodeWidth + 50;
+            y = lastNodeY;
+            
+            if (x > 6000) {
+                x = 5000;
+                y = lastNodeY + lastNodeHeight + 50;
+            }
+        }
+        
+        loadingPlaceholder = createLoadingPlaceholder(displayWidth, displayHeight, x, y, modelDisplayName);
+        imageResponseContainer.appendChild(loadingPlaceholder);
+        updateMinimapWithImage(loadingPlaceholder);
+        
+        const imgGenStartTime = Date.now();
+        const imgTimeElement = loadingPlaceholder.querySelector('.node-sidebar .node-generation-time');
+        if (imgTimeElement) {
+            imgTimeElement.textContent = '⏱️ 0.0s';
+            const imgTimer = setInterval(() => {
+                const elapsed = (Date.now() - imgGenStartTime) / 1000;
+                imgTimeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
+            }, 100);
+            loadingPlaceholder._timer = imgTimer;
+            loadingPlaceholder._startTime = imgGenStartTime;
+        }
+    } else if (currentMode !== 'video') {
+        const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
+        let x = 5000;
+        let y = 5000;
+        
+        if (existingNodes.length > 0) {
+            const lastNode = existingNodes[existingNodes.length - 1];
+            const lastNodeX = parseInt(lastNode.style.left) || 0;
+            const lastNodeY = parseInt(lastNode.style.top) || 0;
+            const lastNodeWidth = lastNode.offsetWidth;
+            const lastNodeHeight = lastNode.offsetHeight;
+            
+            x = lastNodeX + lastNodeWidth + 50;
+            y = lastNodeY;
+            
+            if (x > 6000) {
+                x = 5000;
+                y = lastNodeY + lastNodeHeight + 50;
+            }
+        }
+        
+        loadingPlaceholder = createTextLoadingPlaceholder(prompt, x, y, modelDisplayName);
+        imageResponseContainer.appendChild(loadingPlaceholder);
+        updateMinimapWithImage(loadingPlaceholder);
+        
+        const textGenStartTime = Date.now();
+        const textTimeElement = loadingPlaceholder.querySelector('.node-generation-time');
+        if (textTimeElement) {
+            textTimeElement.textContent = '⏱️ 0.0s';
+            const textTimer = setInterval(() => {
+                const elapsed = (Date.now() - textGenStartTime) / 1000;
+                textTimeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
+            }, 100);
+            loadingPlaceholder._timer = textTimer;
+            loadingPlaceholder._startTime = textGenStartTime;
+        }
+    }
+    
+    try {
+        const isVideoGenMode = currentMode === 'video';
+        
+        if (isVideoGenMode) {
+            const apiKey = localStorage.getItem('12AI_API_KEY') || '';
+            if (!apiKey) {
+                debugLog(`[12AI] 请输入 12AI API Key`, 'error');
+                alert('请输入 12AI API Key');
+                return;
+            }
+            
+            apiClient.update12AIKey(apiKey);
+            
+            const selectedNode = AppState.selectedNode;
+            let selectedImageUrl = null;
+            if (selectedNode && selectedNode.querySelector('img')) {
+                selectedImageUrl = selectedNode.querySelector('img').src;
+            }
+            
+            const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
+            let nodeX = 5000;
+            let nodeY = 5000;
+            
+            if (existingNodes.length > 0) {
+                const lastNode = existingNodes[existingNodes.length - 1];
+                const lastNodeX = parseInt(lastNode.style.left) || 0;
+                const lastNodeY = parseInt(lastNode.style.top) || 0;
+                const lastNodeWidth = lastNode.offsetWidth;
+                const lastNodeHeight = lastNode.offsetHeight;
+                
+                nodeX = lastNodeX + lastNodeWidth + 50;
+                nodeY = lastNodeY;
+                
+                if (nodeX > 6000) {
+                    nodeX = 5000;
+                    nodeY = lastNodeY + lastNodeHeight + 50;
                 }
-            } else {
-                this.selectNode(node);
             }
-        });
-        
-        node.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.node-info')) return;
-            if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
-                e.stopPropagation();
-                this.selectNode(node);
-                
-                AppState.isDraggingNode = true;
-                AppState.dragNode = node;
-                AppState.activeNode = node;
-                
-                AppState.dragStartX = e.clientX;
-                AppState.dragStartY = e.clientY;
-                AppState.dragNodeStartLeft = parseInt(node.style.left || '0');
-                AppState.dragNodeStartTop = parseInt(node.style.top || '0');
+            
+            const videoModel = CONFIG.VIDEO_MODEL_NAME;
+            const videoProvider = CONFIG.VIDEO_MODEL_PROVIDER;
+            const videoModelDisplayName = getModelDisplayName(videoModel, videoProvider);
+            const videoPlaceholder = NodeFactory.createVideoPlaceholder(nodeX, nodeY, prompt, videoModelDisplayName, videoRatioSelect.value);
+            imageResponseContainer.appendChild(videoPlaceholder);
+            updateMinimapWithImage(videoPlaceholder);
+            selectNode(videoPlaceholder);
+            
+            const videoGenStartTime = Date.now();
+            const videoTimeElement = videoPlaceholder.querySelector('.node-sidebar .node-generation-time');
+            if (videoTimeElement) {
+                videoTimeElement.textContent = '⏱️ 0.0s';
+                const videoTimer = setInterval(() => {
+                    const elapsed = (Date.now() - videoGenStartTime) / 1000;
+                    videoTimeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
+                }, 100);
+                videoPlaceholder._timer = videoTimer;
+                videoPlaceholder._startTime = videoGenStartTime;
             }
-        });
-        
-        node.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            this.showImageContextMenu(e, node, img);
-        });
-        
-        img.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            this.showImageContextMenu(e, node, img);
-        });
-        
-        const resizeHandle = node.querySelector('.resize-handle');
-        if (resizeHandle) {
-            resizeHandle.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                this.startResizeNode(e, node);
+            
+            await apiClient.request({
+                prompt,
+                isVideoGenMode: true,
+                videoModel: CONFIG.VIDEO_MODEL_NAME,
+                videoProvider: CONFIG.VIDEO_MODEL_PROVIDER,
+                videoRatio: videoRatioSelect.value,
+                videoResolution: videoResolutionSelect.value,
+                videoDuration: videoDurationSelect.value,
+                selectedImageUrl: selectedImageUrl,
+                onVideoProgress: (progress) => {
+                    debugLog(`[视频进度] ${progress}%`, 'info');
+                    if (videoPlaceholder && videoPlaceholder._updateProgress) {
+                        videoPlaceholder._updateProgress(progress);
+                    }
+                },
+                onVideoGenerated: async (videoUrl) => {
+                    debugLog(`[视频完成] ${videoUrl}`, 'info');
+                    
+                    if (videoPlaceholder && videoPlaceholder._timer) {
+                        clearInterval(videoPlaceholder._timer);
+                        videoPlaceholder._timer = null;
+                    }
+                    
+                    if (videoPlaceholder && videoPlaceholder._updateProgress) {
+                        videoPlaceholder._updateProgress(100);
+                    }
+                    
+                    const videoGenEndTime = Date.now();
+                    const genTime = videoPlaceholder._startTime ? (videoGenEndTime - videoPlaceholder._startTime) / 1000 : 0;
+                    
+                    const proxyUrl = `/api/video-proxy?url=${encodeURIComponent(videoUrl)}`;
+                    debugLog(`[视频代理] 使用代理URL: ${proxyUrl}`, 'info');
+                    
+                    try {
+                        debugLog(`[保存视频] 开始保存到服务器`, 'info');
+                        const saveResponse = await fetch('/api/save-video', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                videoUrl: videoUrl,
+                                prompt: prompt,
+                                aspectRatio: videoRatioSelect.value,
+                                duration: videoDurationSelect.value,
+                                modelName: videoModelDisplayName
+                            })
+                        });
+                        const saveResult = await saveResponse.json();
+                        if (saveResult.success) {
+                            debugLog(`[保存视频] 保存成功: ${saveResult.fileName}`, 'success');
+                        } else {
+                            debugLog(`[保存视频] 保存失败: ${saveResult.error}`, 'error');
+                        }
+                    } catch (saveError) {
+                        debugLog(`[保存视频] 保存异常: ${saveError.message}`, 'error');
+                    }
+                    
+                    NodeFactory.replaceWithVideo(videoPlaceholder, proxyUrl, prompt, videoModelDisplayName, genTime, videoRatioSelect.value);
+                },
+                onError: (error) => {
+                    debugLog(`[视频错误] ${error.message}`, 'error');
+                    if (videoPlaceholder) {
+                        if (videoPlaceholder._timer) {
+                            clearInterval(videoPlaceholder._timer);
+                        }
+                        videoPlaceholder.remove();
+                    }
+                }
             });
-        }
-    }
-    
-    selectNode(node) {
-        if (this.selectedNode) {
-            this.selectedNode.classList.remove('selected');
-            this.selectedNode.style.zIndex = '10';
-        }
-        this.selectedNode = node;
-        node.classList.add('selected');
-        node.style.zIndex = '100';
-    }
-    
-    deselectAllNodes() {
-        if (this.selectedNode) {
-            this.selectedNode.classList.remove('selected');
-            this.selectedNode = null;
-        }
-    }
-    
-    copySelectedNode() {
-        if (!this.selectedNode) return;
-        
-        const img = this.selectedNode.querySelector('img');
-        if (!img) return;
-        
-        this.clipboardNode = {
-            imageUrl: img.src,
-            prompt: this.selectedNode.dataset.prompt || '',
-            filename: this.selectedNode.dataset.filename || 'Image'
-        };
-        
-        console.log('Node copied to clipboard');
-    }
-    
-    deleteSelectedNode() {
-        if (!this.selectedNode) return;
-        
-        this.selectedNode.remove();
-        this.selectedNode = null;
-        
-        console.log('Node deleted');
-    }
-    
-    startResizeNode(e, node) {
-        AppState.isResizingNode = true;
-        AppState.resizeNode = node;
-        const img = node.querySelector('img');
-        AppState.resizeStart = {
-            x: e.clientX,
-            y: e.clientY,
-            width: img.width,
-            height: img.height
-        };
-        document.body.style.cursor = 'nwse-resize';
-    }
-    
-    insertImageToPrompt(imageUrl, filename) {
-        if (this.promptInput) {
-            const currentText = this.promptInput.value;
-            const imageTag = `![${filename}](${imageUrl})`;
-            this.promptInput.value = currentText + (currentText ? '\n' : '') + imageTag;
-        }
-    }
-    
-    showImageContextMenu(e, node, img) {
-        const existingMenu = document.querySelector('.context-menu');
-        if (existingMenu) {
-            existingMenu.remove();
+            
+            incrementNodeCounter();
+            return;
         }
         
-        const menu = document.createElement('div');
-        menu.className = 'context-menu';
-        menu.style.left = `${e.clientX}px`;
-        menu.style.top = `${e.clientY}px`;
-        
-        const deleteItem = document.createElement('div');
-        deleteItem.className = 'context-menu-item';
-        deleteItem.textContent = '删除图片';
-        deleteItem.addEventListener('click', () => {
-            this.selectNode(node);
-            this.deleteSelectedNode();
-            menu.remove();
+        await apiClient.request({
+            prompt,
+            images: allImageData,
+            pinInfo,
+            modelName,
+            modelProvider,
+            generationConfig,
+            isImageGenMode,
+            aspectRatio: aspectRatio.value,
+            imageSize: imageSize.value,
+            onImageGenerated: async (imageData) => {
+                debugLog(`[API响应] 收到响应, 候选数量: 1`, 'info');
+                
+                const byteCharacters = atob(imageData);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: 'image/png' });
+                const blobUrl = URL.createObjectURL(blob);
+                
+                let filename = '';
+                let resolution = '';
+                
+                try {
+                    debugLog(`[保存图片] 开始保存到服务器`, 'info');
+                    const saveResponse = await fetch('/save-image', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            imageData: imageData,
+                            prompt: prompt,
+                            aspectRatio: aspectRatio.value,
+                            imageSize: imageSize.value
+                        })
+                    });
+                    const saveResult = await saveResponse.json();
+                    if (saveResult.success) {
+                        filename = saveResult.filename;
+                        resolution = saveResult.resolution;
+                        debugLog(`[保存图片] 保存成功: ${filename}`, 'success');
+                    }
+                } catch (saveError) {
+                    debugLog(`[保存图片] 保存失败: ${saveError.message}`, 'error');
+                }
+                
+                if (loadingPlaceholder && loadingPlaceholder._timer) {
+                    clearInterval(loadingPlaceholder._timer);
+                    loadingPlaceholder._timer = null;
+                }
+                
+                const imgGenEndTime = Date.now();
+                const genTime = loadingPlaceholder._startTime ? (imgGenEndTime - loadingPlaceholder._startTime) / 1000 : 0;
+                
+                const newNode = createImageNode(blobUrl, prompt, 0, filename, resolution, genTime, modelDisplayName);
+                newNode.dataset.generationConfig = JSON.stringify(generationConfig);
+                
+                if (loadingPlaceholder) {
+                    loadingPlaceholder.replaceWith(newNode);
+                } else {
+                    imageResponseContainer.appendChild(newNode);
+                }
+                
+                updateMinimapWithImage(newNode);
+                selectNode(newNode);
+                incrementNodeCounter();
+            },
+            onTextGenerated: (text) => {
+                debugLog(`[API响应] 收到文本响应`, 'info');
+                
+                if (loadingPlaceholder && loadingPlaceholder._timer) {
+                    clearInterval(loadingPlaceholder._timer);
+                    loadingPlaceholder._timer = null;
+                }
+                
+                const textGenEndTime = Date.now();
+                const genTime = loadingPlaceholder._startTime ? (textGenEndTime - loadingPlaceholder._startTime) / 1000 : 0;
+                
+                const textNode = createTextNode(text, prompt, genTime, modelDisplayName);
+                
+                if (loadingPlaceholder) {
+                    loadingPlaceholder.replaceWith(textNode);
+                } else {
+                    imageResponseContainer.appendChild(textNode);
+                }
+                
+                updateMinimapWithImage(textNode);
+                selectNode(textNode);
+                incrementNodeCounter();
+            },
+            onError: (error) => {
+                debugLog(`[API错误] ${error.message}`, 'error');
+                
+                if (loadingPlaceholder) {
+                    if (loadingPlaceholder._timer) {
+                        clearInterval(loadingPlaceholder._timer);
+                    }
+                    loadingPlaceholder.remove();
+                }
+                
+                if (statusTag) {
+                    statusTag.innerText = "错误";
+                    statusTag.className = "text-xs px-2 py-1 rounded bg-red-50 text-red-600";
+                }
+            }
         });
-        
-        menu.appendChild(deleteItem);
-        document.body.appendChild(menu);
-        
-        const closeMenu = () => {
-            menu.remove();
-            document.removeEventListener('click', closeMenu);
-        };
-        
-        setTimeout(() => {
-            document.addEventListener('click', closeMenu);
-        }, 0);
+    } finally {
+        CanvasState.activeRequests--;
+        if (CanvasState.activeRequests === 0) {
+            loader.classList.add('hidden');
+        }
     }
 }

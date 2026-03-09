@@ -134,7 +134,16 @@ export function updateApiKeyDisplay(settingsApiKeyInput) {
 }
 
 export function updateVideoDurationOptions(modelValue, videoDurationSelect, videoResolutionSelect) {
-    const model = VIDEO_MODELS.find(m => m.value === modelValue);
+    let model = null;
+    if (window.providerManager) {
+        const allModels = window.providerManager.getAllModels();
+        const videoModels = allModels.video || [];
+        model = videoModels.find(m => m.value === modelValue);
+    }
+    if (!model) {
+        model = VIDEO_MODELS.find(m => m.value === modelValue);
+    }
+    
     if (model && model.params && model.params.durations) {
         videoDurationSelect.innerHTML = '';
         model.params.durations.forEach(duration => {
@@ -260,7 +269,16 @@ export function adjustTooltipPosition(tooltip, targetElement) {
 }
 
 export function updateVideoResolutionOptions(modelValue, durationValue, videoResolutionSelect) {
-    const model = VIDEO_MODELS.find(m => m.value === modelValue);
+    let model = null;
+    if (window.providerManager) {
+        const allModels = window.providerManager.getAllModels();
+        const videoModels = allModels.video || [];
+        model = videoModels.find(m => m.value === modelValue);
+    }
+    if (!model) {
+        model = VIDEO_MODELS.find(m => m.value === modelValue);
+    }
+    
     if (model && model.params && model.params.resolutions && model.params.resolutions[durationValue]) {
         const resolutions = model.params.resolutions[durationValue];
         videoResolutionSelect.innerHTML = '';

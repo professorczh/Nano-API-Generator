@@ -6,7 +6,7 @@ export let minimapPanStartY = 0;
 
 // 应用状态管理
 export const AppState = {
-    mode: 'VIEW', // VIEW, DRAGGING_NODE, SELECTING_AREA
+    mode: 'VIEW',
     activeNode: null,
     scale: 1,
     isDraggingNode: false,
@@ -38,4 +38,16 @@ export const AppState = {
         this.isResizingNode = false;
         this.resizeNode = null;
     }
+};
+
+// 画布状态管理
+export const CanvasState = {
+    panzoom: null,
+    nodeCounter: 0,
+    pinCounter: 0,
+    selectedNode: null,
+    imagePins: new Map(),
+    currentMode: 'image',
+    activeRequests: 0,
+    currentBlobUrl: null
 };

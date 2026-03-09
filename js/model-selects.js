@@ -65,7 +65,15 @@ export class ModelSelectManager {
     }
     
     updateVideoDurationOptions(modelValue) {
-        const model = VIDEO_MODELS.find(m => m.value === modelValue);
+        let model = null;
+        if (window.providerManager) {
+            const allModels = window.providerManager.getAllModels();
+            model = (allModels.video || []).find(m => m.value === modelValue);
+        }
+        if (!model) {
+            model = VIDEO_MODELS.find(m => m.value === modelValue);
+        }
+        
         if (model && model.params && model.params.durations) {
             this.videoDurationSelect.innerHTML = '';
             model.params.durations.forEach(duration => {
@@ -96,7 +104,15 @@ export class ModelSelectManager {
     }
     
     updateVideoResolutionOptions(modelValue, durationValue) {
-        const model = VIDEO_MODELS.find(m => m.value === modelValue);
+        let model = null;
+        if (window.providerManager) {
+            const allModels = window.providerManager.getAllModels();
+            model = (allModels.video || []).find(m => m.value === modelValue);
+        }
+        if (!model) {
+            model = VIDEO_MODELS.find(m => m.value === modelValue);
+        }
+        
         if (model && model.params && model.params.resolutions && model.params.resolutions[durationValue]) {
             const resolutions = model.params.resolutions[durationValue];
             this.videoResolutionSelect.innerHTML = '';
@@ -165,6 +181,11 @@ export class ModelSelectManager {
     }
     
     populateModelSelects() {
+        // 重新获取 wrapper 元素（每次都重新获取，确保获取最新的）
+        this.textModelNameWrapper = document.getElementById('textModelNameWrapper');
+        this.imageModelNameWrapper = document.getElementById('imageModelNameWrapper');
+        this.videoModelNameWrapper = document.getElementById('videoModelNameWrapper');
+        
         const allModels = window.providerManager ? window.providerManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
         
         this.populateMainCustomSelect(
@@ -235,6 +256,8 @@ export class ModelSelectManager {
         });
         
         Object.keys(groups).forEach(groupName => {
+            if (!groups[groupName] || groups[groupName].length === 0) return;
+            
             const groupLabel = document.createElement('div');
             groupLabel.className = 'custom-option-group';
             groupLabel.textContent = groupName;
@@ -318,9 +341,16 @@ export class ModelSelectManager {
     }
     
     populateSettingsModelSelects() {
-        this.populateCustomSelect(this.settingsDefaultTextModelWrapper, TEXT_MODELS, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, 'MODEL_NAME', 'MODEL_PROVIDER');
-        this.populateCustomSelect(this.settingsDefaultImageModelWrapper, IMAGE_MODELS, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, 'IMAGE_MODEL_NAME', 'IMAGE_MODEL_PROVIDER');
-        this.populateCustomSelect(this.settingsDefaultVideoModelWrapper, VIDEO_MODELS, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, 'VIDEO_MODEL_NAME', 'VIDEO_MODEL_PROVIDER');
+        // 重新获取 wrapper 元素（每次都重新获取，确保获取最新的）
+        this.settingsDefaultTextModelWrapper = document.getElementById('settingsDefaultTextModelWrapper');
+        this.settingsDefaultImageModelWrapper = document.getElementById('settingsDefaultImageModelWrapper');
+        this.settingsDefaultVideoModelWrapper = document.getElementById('settingsDefaultVideoModelWrapper');
+        
+        const allModels = window.providerManager ? window.providerManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
+        
+        this.populateCustomSelect(this.settingsDefaultTextModelWrapper, allModels.text, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, 'MODEL_NAME', 'MODEL_PROVIDER');
+        this.populateCustomSelect(this.settingsDefaultImageModelWrapper, allModels.image, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, 'IMAGE_MODEL_NAME', 'IMAGE_MODEL_PROVIDER');
+        this.populateCustomSelect(this.settingsDefaultVideoModelWrapper, allModels.video, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, 'VIDEO_MODEL_NAME', 'VIDEO_MODEL_PROVIDER');
         
         document.addEventListener('click', () => {
             document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
@@ -357,6 +387,8 @@ export class ModelSelectManager {
         });
         
         Object.keys(groups).forEach(groupName => {
+            if (!groups[groupName] || groups[groupName].length === 0) return;
+            
             const groupLabel = document.createElement('div');
             groupLabel.className = 'custom-option-group';
             groupLabel.textContent = groupName;
@@ -431,9 +463,11 @@ export class ModelSelectManager {
         if (this.isSyncingModels) return;
         this.isSyncingModels = true;
 
-        this.updateMainCustomSelectCurrent(this.textModelNameWrapper, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, TEXT_MODELS);
-        this.updateMainCustomSelectCurrent(this.imageModelNameWrapper, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, IMAGE_MODELS);
-        this.updateMainCustomSelectCurrent(this.videoModelNameWrapper, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, VIDEO_MODELS);
+        const allModels = window.providerManager ? window.providerManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
+        
+        this.updateMainCustomSelectCurrent(this.textModelNameWrapper, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, allModels.text);
+        this.updateMainCustomSelectCurrent(this.imageModelNameWrapper, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, allModels.image);
+        this.updateMainCustomSelectCurrent(this.videoModelNameWrapper, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, allModels.video);
 
         this.isSyncingModels = false;
     }
@@ -442,9 +476,11 @@ export class ModelSelectManager {
         if (this.isSyncingModels) return;
         this.isSyncingModels = true;
         
-        this.updateCustomSelect(this.settingsDefaultTextModelWrapper, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, TEXT_MODELS);
-        this.updateCustomSelect(this.settingsDefaultImageModelWrapper, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, IMAGE_MODELS);
-        this.updateCustomSelect(this.settingsDefaultVideoModelWrapper, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, VIDEO_MODELS);
+        const allModels = window.providerManager ? window.providerManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
+        
+        this.updateCustomSelect(this.settingsDefaultTextModelWrapper, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, allModels.text);
+        this.updateCustomSelect(this.settingsDefaultImageModelWrapper, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, allModels.image);
+        this.updateCustomSelect(this.settingsDefaultVideoModelWrapper, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, allModels.video);
 
         this.isSyncingModels = false;
     }
