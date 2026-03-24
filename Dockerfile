@@ -1,14 +1,12 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package.json /app/
+COPY package.json package-lock.json* /app/
 RUN npm install
 
-COPY server.js /app/
-COPY index.html /app/
-COPY config.js /app/
+COPY . /app/
 
 EXPOSE 8000
 
-CMD ["node", "server.js"]
+CMD ["npx", "nodemon", "--legacy-watch", "server.js"]

@@ -4,9 +4,12 @@
   "description": "A Google Gemini API testing tool",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon --legacy-watch server.js",
+    "build:css": "npx @tailwindcss/cli -i ./src/styles.css -o ./css/tailwind.css --minify"
   },
   "dependencies": {
+    "@google/genai": "^1.43.0",
     "dotenv": "^16.4.5"
   },
   "keywords": [
@@ -16,5 +19,12 @@
     "image-generation"
   ],
   "author": "professorczh",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.1",
+    "autoprefixer": "^10.4.27",
+    "nodemon": "^3.1.0",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.1"
+  }
 }
