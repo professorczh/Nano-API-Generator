@@ -95,7 +95,7 @@ export function updateResolutionOptions() {
     
     const isFirstGroup = selectedModel.includes('3.1-flash-image-preview');
     
-    const imageRatioSelect = document.getElementById('imageRatio');
+    const imageRatioSelect = document.getElementById('aspectRatio');
     if (imageRatioSelect) {
         imageRatioSelect.innerHTML = '';
         
@@ -135,8 +135,8 @@ export function updateApiKeyDisplay(settingsApiKeyInput) {
 
 export function updateVideoDurationOptions(modelValue, videoDurationSelect, videoResolutionSelect) {
     let model = null;
-    if (window.providerManager) {
-        const allModels = window.providerManager.getAllModels();
+    if (window.dynamicProviderManager) {
+        const allModels = window.dynamicProviderManager.getAllModels();
         const videoModels = allModels.video || [];
         model = videoModels.find(m => m.value === modelValue);
     }
@@ -270,8 +270,8 @@ export function adjustTooltipPosition(tooltip, targetElement) {
 
 export function updateVideoResolutionOptions(modelValue, durationValue, videoResolutionSelect) {
     let model = null;
-    if (window.providerManager) {
-        const allModels = window.providerManager.getAllModels();
+    if (window.dynamicProviderManager) {
+        const allModels = window.dynamicProviderManager.getAllModels();
         const videoModels = allModels.video || [];
         model = videoModels.find(m => m.value === modelValue);
     }

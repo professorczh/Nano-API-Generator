@@ -15,9 +15,37 @@ try {
 
 process.env.TZ = 'Asia/Shanghai';
 
+// 代理配置：支持 HTTP_PROXY/HTTPS_PROXY 环境变量
+const HTTP_PROXY = process.env.HTTP_PROXY || process.env.HTTPS_PROXY || process.env.http_proxy || process.env.https_proxy;
+const USE_PROXY = !!HTTP_PROXY;
+
+if (USE_PROXY) {
+    console.log(`[Proxy] 已启用代理: ${HTTP_PROXY}`);
+    process.env.HTTP_PROXY = HTTP_PROXY;
+    process.env.HTTPS_PROXY = HTTP_PROXY;
+    process.env.http_proxy = HTTP_PROXY;
+    process.env.https_proxy = HTTP_PROXY;
+}
+
 const PORT = 8000;
 const GENERATED_IMAGES_DIR = './DL';
 const GENERATED_VIDEOS_DIR = './DL/videos';
+
+// 磁盘权限自检
+let storageCapabilities = { canWrite: false };
+
+function checkDiskWritePermission() {
+    try {
+        const testFile = path.join(GENERATED_IMAGES_DIR, '.write-test');
+        fs.writeFileSync(testFile, 'test');
+        fs.unlinkSync(testFile);
+        storageCapabilities.canWrite = true;
+        console.log('🧪 [SYSTEM] 磁盘权限检查：可写');
+    } catch (e) {
+        storageCapabilities.canWrite = false;
+        console.log('🧪 [SYSTEM] 磁盘权限检查：不可写 -', e.message);
+    }
+}
 
 const envConfig = {
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
@@ -97,10 +125,11 @@ function saveImage(base64Data, prompt, aspectRatio, imageSize) {
     
     return {
         path: filePath,
-        fileName: fileName,
+        filename: fileName,
         txtFileName: txtFileName,
         dateFolder: dateFolder,
-        imageNumber: imageNumber
+        imageNumber: imageNumber,
+        resolution: imageSize
     };
 }
 
@@ -161,6 +190,18 @@ async function saveVideo(videoUrl, prompt, aspectRatio, duration, modelName) {
 }
 
 const server = http.createServer((req, res) => {
+    // API 路由
+    if (req.url.startsWith('/api/')) {
+        console.log(`[API] ${req.method} ${req.url}`);
+    }
+    
+    // 配置接口 - 返回服务器存储能力
+    if (req.url === '/api/config' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ storageCapabilities }));
+        return;
+    }
+
     if (req.url === '/clear-env' && req.method === 'POST') {
         try {
             const existingEnv = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf-8') : '';
@@ -365,10 +406,19 @@ const server = http.createServer((req, res) => {
                 const prompt = data.prompt || '';
                 const aspectRatio = data.aspectRatio || '16:9';
                 const imageSize = data.imageSize || '1K';
+                const saveToDisk = data.saveToDisk !== false;
+                
+                console.log(`🧪 [DEBUG] saveToDisk 为 ${saveToDisk}，${saveToDisk ? '执行存盘' : '跳过存盘'}`);
                 
                 if (!imageData) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'No image data provided' }));
+                    return;
+                }
+                
+                if (!saveToDisk) {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, skipped: true, message: '跳过存盘' }));
                     return;
                 }
                 
@@ -412,6 +462,8 @@ const server = http.createServer((req, res) => {
     
     // Google Veo 视频生成 API
     if (req.url === '/api/google/generate-video' && req.method === 'POST') {
+        console.log('>>> [SERVER] BACKEND RECEIVED REQUEST AT:', new Date().toISOString());
+        
         if (!GoogleGenAI) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Google GenAI SDK not installed. Run: npm install @google/genai' }));
@@ -427,22 +479,58 @@ const server = http.createServer((req, res) => {
         req.on('end', async () => {
             try {
                 const data = JSON.parse(body);
-                const { model, prompt, config } = data;
+                // 严禁使用 process.env.GOOGLE_API_KEY 兜底，必须且仅能使用前端传来的 apiKey
+                const apiKey = data.apiKey;
+                const model = data.model;
+                const prompt = data.prompt;
+                const config = data.config;
                 
-                if (!envConfig.GEMINI_API_KEY) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'GEMINI_API_KEY not configured' }));
+                // 安全审计：检查前端传来的 apiKey
+                if (!apiKey || apiKey === 'none' || apiKey.trim() === '') {
+                    res.writeHead(401, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: '前端未传递有效 API Key' }));
                     return;
                 }
                 
-                // 调用 Google GenAI API
-                const googleAI = new GoogleGenAI({ apiKey: envConfig.GEMINI_API_KEY });
+                console.log(`[Google Veo] 收到视频生成请求, 模型: ${model}, API Key: ${apiKey.substring(0, 10)}...`);
                 
-                const operation = await googleAI.models.generateVideos({
-                    model: model,
-                    prompt: prompt,
-                    config: config
+                const requestId = Math.random().toString(36).substring(2, 15);
+                const startTime = Date.now();
+                console.log(`[Google Veo] [${requestId}] 开始调用 Google SDK, 时间: ${startTime}`);
+                
+                const googleAI = new GoogleGenAI({ apiKey: apiKey });
+                
+                // 调试：检查 SDK 版本和配置
+                console.log(`[Google Veo] [${requestId}] SDK 初始化完成, 代理: ${USE_PROXY ? HTTP_PROXY : '无'}`);
+                
+                // 超时保护：30秒超时
+                const TIMEOUT_MS = 30000;
+                let timeoutHandle;
+                const timeoutPromise = new Promise((_, reject) => {
+                    timeoutHandle = setTimeout(() => {
+                        reject(new Error(`请求超时 (${TIMEOUT_MS/1000}秒): Google API 响应超时`));
+                    }, TIMEOUT_MS);
                 });
+                
+                let operation;
+                try {
+                    operation = await Promise.race([
+                        googleAI.models.generateVideos({
+                            model: model,
+                            prompt: prompt,
+                            config: config
+                        }),
+                        timeoutPromise
+                    ]);
+                    clearTimeout(timeoutHandle);
+                } catch (timeoutError) {
+                    clearTimeout(timeoutHandle);
+                    throw timeoutError;
+                }
+                
+                const endTime = Date.now();
+                const elapsed = endTime - startTime;
+                console.log(`[Google Veo] [${requestId}] Google SDK 调用完成, 耗时: ${elapsed}ms`);
                 
                 // 打印 operation 对象用于调试
                 console.log('[Google Veo] Operation created:', JSON.stringify(operation, null, 2));
@@ -458,7 +546,8 @@ const server = http.createServer((req, res) => {
                 operations[operationName] = {
                     createdAt: new Date().toISOString(),
                     model: model,
-                    prompt: prompt
+                    prompt: prompt,
+                    apiKey: apiKey
                 };
                 fs.writeFileSync(operationFile, JSON.stringify(operations, null, 2));
                 
@@ -469,8 +558,72 @@ const server = http.createServer((req, res) => {
                 }));
             } catch (error) {
                 console.error('Error generating video:', error);
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: error.message }));
+                // 打印完整错误对象用于调试
+                console.error('[Google Veo] 完整错误:', JSON.stringify(error, null, 2));
+                
+                // 穿透 Google 返回的真实状态码和完整响应
+                const statusCode = error.status || error.statusCode || 500;
+                
+                // 尝试多种方式获取 response 和 headers
+                let errorResponse = null;
+                let errorHeaders = null;
+                
+                if (error.response) {
+                    errorResponse = error.response;
+                    // 尝试多种方式获取 headers
+                    if (error.response.headers) {
+                        errorHeaders = {};
+                        error.response.headers.forEach((value, key) => {
+                            errorHeaders[key] = value;
+                        });
+                    } else if (error.response._headers) {
+                        errorHeaders = error.response._headers;
+                    }
+                } else if (error.error) {
+                    // 有时错误嵌套在 error 对象中
+                    errorResponse = error.error;
+                    if (error.error.response) {
+                        errorHeaders = error.error.response.headers || error.error.response._headers;
+                    }
+                }
+                
+                console.error('[Google Veo] 状态码:', statusCode);
+                console.error('[Google Veo] 响应头:', JSON.stringify(errorHeaders, null, 2));
+                
+                // 检查是否有 Google 特定的 header
+                let hasGoogleHeader = false;
+                if (errorHeaders) {
+                    const googHeaders = {};
+                    Object.keys(errorHeaders).forEach(key => {
+                        if (key.startsWith('x-goog') || key.includes('ratelimit')) {
+                            googHeaders[key] = errorHeaders[key];
+                            hasGoogleHeader = true;
+                        }
+                    });
+                    console.error('[Google Veo] Google 特定 Header:', JSON.stringify(googHeaders, null, 2));
+                }
+                
+                // 关键判断：是否有 Google 官方 Header
+                if (!hasGoogleHeader) {
+                    console.error('⚠️ 警告: 响应头中没有 Google 官方标志 (x-goog-*)，可能是本地拦截或缓存！');
+                    
+                    // 网络诊断
+                    const errorMsg = error.message || '';
+                    if (errorMsg.includes('ECONNREFUSED') || errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout') || errorMsg.includes('ENOTFOUND')) {
+                        console.error('🔍 网络诊断: 检测到网络错误，可能无法访问 Google API');
+                        console.error('🔍 建议: 请确保 HTTP_PROXY 环境变量已配置');
+                    }
+                } else {
+                    console.error('✅ 确认: 响应来自 Google 官方 API');
+                }
+                
+                res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ 
+                    error: error.message, 
+                    status: statusCode,
+                    response: errorResponse,
+                    headers: errorHeaders
+                }));
             }
         });
         
@@ -496,14 +649,23 @@ const server = http.createServer((req, res) => {
                     return;
                 }
                 
-                if (!envConfig.GEMINI_API_KEY) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'GEMINI_API_KEY not configured' }));
+                // 从保存的 operation 中获取 apiKey
+                const operationFile = path.join(GENERATED_IMAGES_DIR, 'video-operations.json');
+                let operations = {};
+                if (fs.existsSync(operationFile)) {
+                    operations = JSON.parse(fs.readFileSync(operationFile, 'utf-8'));
+                }
+                const operationInfo = operations[operationName];
+                const apiKey = operationInfo?.apiKey;
+                
+                if (!apiKey) {
+                    res.writeHead(401, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: '未找到该 Operation 的 API Key，请重新生成视频' }));
                     return;
                 }
                 
-                // 使用 REST API 查询状态（更可靠）
-                const statusUrl = `https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${envConfig.GEMINI_API_KEY}`;
+                // 使用保存的 apiKey 查询状态
+                const statusUrl = `https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${apiKey}`;
                 
                 console.log('[Google Veo] Querying status for:', operationName);
                 
@@ -512,8 +674,10 @@ const server = http.createServer((req, res) => {
                 if (!statusResponse.ok) {
                     const errorText = await statusResponse.text();
                     console.error('[Google Veo] Status query failed:', errorText);
-                    res.writeHead(500, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: `Status query failed: ${statusResponse.status}` }));
+                    // 穿透 Google 返回的真实状态码
+                    const googleStatus = statusResponse.status;
+                    res.writeHead(googleStatus, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: errorText, status: googleStatus }));
                     return;
                 }
                 
@@ -530,13 +694,41 @@ const server = http.createServer((req, res) => {
                     if (operation.error) {
                         response.error = operation.error;
                     } else if (operation.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri) {
-                        // REST API 返回格式 - 添加 API Key 用于下载
                         const videoUri = operation.response.generateVideoResponse.generatedSamples[0].video.uri;
-                        response.videoUrl = `${videoUri}&key=${envConfig.GEMINI_API_KEY}`;
+                        response.videoUrl = `${videoUri}&key=${apiKey}`;
                     } else if (operation.response?.generatedVideos?.[0]?.video?.uri) {
-                        // SDK 返回格式（备用）- 添加 API Key 用于下载
                         const videoUri = operation.response.generatedVideos[0].video.uri;
-                        response.videoUrl = `${videoUri}&key=${envConfig.GEMINI_API_KEY}`;
+                        response.videoUrl = `${videoUri}&key=${apiKey}`;
+                    }
+                }
+
+                // 处理保存到磁盘逻辑
+                const urlObj = new URL(req.url, `http://localhost:${PORT}`);
+                const saveToDisk = urlObj.searchParams.get('saveToDisk') === 'true';
+                
+                console.log(`🧪 [DEBUG] saveToDisk 为 ${saveToDisk}，${saveToDisk ? '执行存盘' : '跳过存盘'}`);
+                
+                if (saveToDisk && response.videoUrl) {
+                    try {
+                        const timestamp = Date.now();
+                        const videoFileName = `video_${timestamp}.mp4`;
+                        const videoFilePath = path.join(GENERATED_VIDEOS_DIR, videoFileName);
+                        
+                        // 确保目录存在
+                        if (!fs.existsSync(GENERATED_VIDEOS_DIR)) {
+                            fs.mkdirSync(GENERATED_VIDEOS_DIR, { recursive: true });
+                        }
+                        
+                        // 下载视频
+                        const videoResponse = await fetch(response.videoUrl);
+                        const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+                        fs.writeFileSync(videoFilePath, videoBuffer);
+                        
+                        response.savedPath = `/DL/videos/${videoFileName}`;
+                        console.log(`[Video] 视频已保存到: ${videoFilePath}`);
+                    } catch (writeError) {
+                        console.error('[Video] 保存失败:', writeError.message);
+                        response.warn = 'write_failed';
                     }
                 }
                 
@@ -544,8 +736,10 @@ const server = http.createServer((req, res) => {
                 res.end(JSON.stringify(response));
             } catch (error) {
                 console.error('Error checking video status:', error);
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: error.message }));
+                // 穿透真实错误状态码
+                const statusCode = error.status || error.statusCode || 500;
+                res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: error.message, status: statusCode }));
             }
         })();
         
@@ -688,6 +882,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
+    checkDiskWritePermission();
     console.log(`Server running at http://0.0.0.0:${PORT}/`);
     console.log(`Generated images will be saved to: ${path.resolve(GENERATED_IMAGES_DIR)}`);
     console.log(`Press Ctrl+C to stop the server`);

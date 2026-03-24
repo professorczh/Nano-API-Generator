@@ -120,8 +120,8 @@ export const IMAGE_SIZES = [
 export function getProviderByModelId(modelId) {
     if (!modelId) return 'google';
     
-    if (window.providerManager) {
-        const allModels = window.providerManager.getAllModels();
+    if (window.dynamicProviderManager) {
+        const allModels = window.dynamicProviderManager.getAllModels();
         const combined = [...(allModels.text || []), ...(allModels.image || []), ...(allModels.video || [])];
         const model = combined.find(m => m.value === modelId);
         if (model) return model.provider;
@@ -135,8 +135,8 @@ export function getProviderByModelId(modelId) {
 export function getModelDisplayName(modelId, provider) {
     if (!modelId) return { name: '', provider: '' };
     
-    if (window.providerManager) {
-        const allModels = window.providerManager.getAllModels();
+    if (window.dynamicProviderManager) {
+        const allModels = window.dynamicProviderManager.getAllModels();
         const combined = [...(allModels.text || []), ...(allModels.image || []), ...(allModels.video || [])];
         const model = combined.find(m => m.value === modelId && m.provider === provider);
         if (model) {

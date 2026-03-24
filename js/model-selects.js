@@ -33,7 +33,7 @@ export class ModelSelectManager {
         const selectedModel = CONFIG.IMAGE_MODEL_NAME;
         const isFirstGroup = selectedModel.includes('3.1-flash-image-preview');
         
-        const imageRatioSelect = document.getElementById('imageRatio');
+        const imageRatioSelect = document.getElementById('aspectRatio');
         if (imageRatioSelect) {
             imageRatioSelect.innerHTML = '';
             
@@ -66,8 +66,8 @@ export class ModelSelectManager {
     
     updateVideoDurationOptions(modelValue) {
         let model = null;
-        if (window.providerManager) {
-            const allModels = window.providerManager.getAllModels();
+        if (window.dynamicProviderManager) {
+            const allModels = window.dynamicProviderManager.getAllModels();
             model = (allModels.video || []).find(m => m.value === modelValue);
         }
         if (!model) {
@@ -105,8 +105,8 @@ export class ModelSelectManager {
     
     updateVideoResolutionOptions(modelValue, durationValue) {
         let model = null;
-        if (window.providerManager) {
-            const allModels = window.providerManager.getAllModels();
+        if (window.dynamicProviderManager) {
+            const allModels = window.dynamicProviderManager.getAllModels();
             model = (allModels.video || []).find(m => m.value === modelValue);
         }
         if (!model) {
@@ -186,7 +186,7 @@ export class ModelSelectManager {
         this.imageModelNameWrapper = document.getElementById('imageModelNameWrapper');
         this.videoModelNameWrapper = document.getElementById('videoModelNameWrapper');
         
-        const allModels = window.providerManager ? window.providerManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
+        const allModels = window.dynamicProviderManager ? window.dynamicProviderManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
         
         this.populateMainCustomSelect(
             this.textModelNameWrapper, 
@@ -341,12 +341,14 @@ export class ModelSelectManager {
     }
     
     populateSettingsModelSelects() {
-        // 重新获取 wrapper 元素（每次都重新获取，确保获取最新的）
+        if (this._settingsSelectInitialized) return;
+        this._settingsSelectInitialized = true;
+        
         this.settingsDefaultTextModelWrapper = document.getElementById('settingsDefaultTextModelWrapper');
         this.settingsDefaultImageModelWrapper = document.getElementById('settingsDefaultImageModelWrapper');
         this.settingsDefaultVideoModelWrapper = document.getElementById('settingsDefaultVideoModelWrapper');
         
-        const allModels = window.providerManager ? window.providerManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
+        const allModels = window.dynamicProviderManager ? window.dynamicProviderManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
         
         this.populateCustomSelect(this.settingsDefaultTextModelWrapper, allModels.text, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, 'MODEL_NAME', 'MODEL_PROVIDER');
         this.populateCustomSelect(this.settingsDefaultImageModelWrapper, allModels.image, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, 'IMAGE_MODEL_NAME', 'IMAGE_MODEL_PROVIDER');
@@ -439,6 +441,10 @@ export class ModelSelectManager {
                     localStorage.setItem('GEMINI_' + configKey, model.value);
                     localStorage.setItem('GEMINI_' + providerKey, model.provider);
                     
+                    if (window.dynamicProviderManager && typeof window.dynamicProviderManager.markDirty === 'function') {
+                        window.dynamicProviderManager.markDirty();
+                    }
+                    
                     this.syncFromSettingsToModeSelects();
                 });
                 
@@ -463,7 +469,7 @@ export class ModelSelectManager {
         if (this.isSyncingModels) return;
         this.isSyncingModels = true;
 
-        const allModels = window.providerManager ? window.providerManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
+        const allModels = window.dynamicProviderManager ? window.dynamicProviderManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
         
         this.updateMainCustomSelectCurrent(this.textModelNameWrapper, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, allModels.text);
         this.updateMainCustomSelectCurrent(this.imageModelNameWrapper, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, allModels.image);
@@ -476,7 +482,11 @@ export class ModelSelectManager {
         if (this.isSyncingModels) return;
         this.isSyncingModels = true;
         
-        const allModels = window.providerManager ? window.providerManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
+        this.settingsDefaultTextModelWrapper = document.getElementById('settingsDefaultTextModelWrapper');
+        this.settingsDefaultImageModelWrapper = document.getElementById('settingsDefaultImageModelWrapper');
+        this.settingsDefaultVideoModelWrapper = document.getElementById('settingsDefaultVideoModelWrapper');
+        
+        const allModels = window.dynamicProviderManager ? window.dynamicProviderManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
         
         this.updateCustomSelect(this.settingsDefaultTextModelWrapper, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, allModels.text);
         this.updateCustomSelect(this.settingsDefaultImageModelWrapper, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, allModels.image);

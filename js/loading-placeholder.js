@@ -411,12 +411,15 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '') {
     return node;
 }
 
-export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resolution, generationTime = null, modelName = '') {
+export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resolution, generationTime = null, modelName = '', revisedPrompt = null) {
     node.classList.remove('loading-placeholder');
     node.dataset.imageUrl = imageUrl;
     node.dataset.filename = filename || `Image ${node.dataset.index}`;
     if (modelName) {
         node.dataset.modelName = modelName;
+    }
+    if (revisedPrompt) {
+        node.dataset.revisedPrompt = revisedPrompt;
     }
     
     const loadingContainer = node.querySelector('.loading-container');
@@ -555,6 +558,69 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
         node.insertBefore(img, infoElement);
         node.insertBefore(resizeHandle, infoElement);
         node.insertBefore(centerCoords, infoElement);
+        
+        if (revisedPrompt) {
+            const existingPromptContainer = node.querySelector('.revised-prompt-container');
+            if (existingPromptContainer) {
+                existingPromptContainer.remove();
+            }
+            
+            const promptContainer = document.createElement('div');
+            promptContainer.className = 'revised-prompt-container';
+            promptContainer.style.marginTop = '4px';
+            promptContainer.style.borderTop = '1px solid #e5e7eb';
+            promptContainer.style.paddingTop = '4px';
+            
+            const promptHeader = document.createElement('div');
+            promptHeader.className = 'revised-prompt-header';
+            promptHeader.style.display = 'flex';
+            promptHeader.style.alignItems = 'center';
+            promptHeader.style.cursor = 'pointer';
+            promptHeader.style.fontSize = '11px';
+            promptHeader.style.color = '#6b7280';
+            promptHeader.style.userSelect = 'none';
+            
+            const promptIcon = document.createElement('span');
+            promptIcon.textContent = '📝';
+            promptIcon.style.marginRight = '4px';
+            
+            const promptTitle = document.createElement('span');
+            promptTitle.textContent = 'Revised Prompt';
+            promptTitle.style.fontWeight = '500';
+            
+            const promptArrow = document.createElement('span');
+            promptArrow.textContent = ' ▼';
+            promptArrow.style.marginLeft = 'auto';
+            promptArrow.style.fontSize = '8px';
+            
+            promptHeader.appendChild(promptIcon);
+            promptHeader.appendChild(promptTitle);
+            promptHeader.appendChild(promptArrow);
+            
+            const promptContent = document.createElement('div');
+            promptContent.className = 'revised-prompt-content';
+            promptContent.style.display = 'none';
+            promptContent.style.fontSize = '10px';
+            promptContent.style.color = '#4b5563';
+            promptContent.style.marginTop = '4px';
+            promptContent.style.lineHeight = '1.4';
+            promptContent.style.wordBreak = 'break-word';
+            promptContent.style.maxHeight = '80px';
+            promptContent.style.overflowY = 'auto';
+            promptContent.textContent = revisedPrompt;
+            
+            promptHeader.addEventListener('click', () => {
+                const isExpanded = promptContent.style.display !== 'none';
+                promptContent.style.display = isExpanded ? 'none' : 'block';
+                promptArrow.textContent = isExpanded ? ' ▼' : ' ▲';
+                const providerName = typeof modelName === 'object' ? (modelName?.name || modelName?.provider || 'unknown') : (modelName || 'unknown');
+                console.log(`%c[UI] User clicked: revisedPromptToggle | Provider: ${providerName} | Expanded: ${!isExpanded}`, 'color: #3b82f6; font-weight: bold');
+            });
+            
+            promptContainer.appendChild(promptHeader);
+            promptContainer.appendChild(promptContent);
+            node.insertBefore(promptContainer, infoElement);
+        }
     }
     
     if (sidebar) {
@@ -608,6 +674,207 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
                 PinManager.addPinToImage(node, e);
             }
         }
+    });
+    
+    node.dataset.pins = JSON.stringify([]);
+    
+    selectNode(node);
+    updateMinimapWithImage(node);
+    
+    return node;
+}
+
+export function createErrorNode(errorMessage, x, y, modelName = '') {
+    const node = document.createElement('div');
+    node.className = 'canvas-node error-node';
+    node.dataset.index = incrementNodeCounter();
+    node.dataset.filename = 'Error';
+    node.dataset.modelName = modelName;
+    node.dataset.errorMessage = errorMessage;
+    node.style.width = '320px';
+    node.style.height = '180px';
+    node.style.left = `${x}px`;
+    node.style.top = `${y}px`;
+    node.style.zIndex = '10';
+    node.style.backgroundColor = '#fef2f2';
+    node.style.border = '2px solid #fecaca';
+    node.style.borderRadius = '8px';
+    
+    const errorContainer = document.createElement('div');
+    errorContainer.className = 'error-container';
+    errorContainer.style.width = '100%';
+    errorContainer.style.height = '100%';
+    errorContainer.style.display = 'flex';
+    errorContainer.style.flexDirection = 'column';
+    errorContainer.style.justifyContent = 'center';
+    errorContainer.style.alignItems = 'center';
+    errorContainer.style.padding = '16px';
+    errorContainer.style.boxSizing = 'border-box';
+    errorContainer.style.cursor = 'pointer';
+    
+    const errorIcon = document.createElement('div');
+    errorIcon.innerHTML = '⚠️';
+    errorIcon.style.fontSize = '32px';
+    errorIcon.style.marginBottom = '8px';
+    
+    const errorTitle = document.createElement('div');
+    errorTitle.textContent = '生成失败';
+    errorTitle.style.fontSize = '14px';
+    errorTitle.style.fontWeight = '600';
+    errorTitle.style.color = '#dc2626';
+    errorTitle.style.marginBottom = '8px';
+    
+    const errorText = document.createElement('div');
+    errorText.textContent = errorMessage.length > 80 ? errorMessage.substring(0, 80) + '...' : errorMessage;
+    errorText.style.fontSize = '11px';
+    errorText.style.color = '#991b1b';
+    errorText.style.textAlign = 'center';
+    errorText.style.wordBreak = 'break-word';
+    errorText.style.maxHeight = '60px';
+    errorText.style.overflow = 'hidden';
+    errorText.title = errorMessage;
+    
+    errorContainer.appendChild(errorIcon);
+    errorContainer.appendChild(errorTitle);
+    errorContainer.appendChild(errorText);
+    
+    const header = document.createElement('div');
+    header.className = 'node-header';
+    
+    const filenameElement = document.createElement('div');
+    filenameElement.className = 'node-filename';
+    filenameElement.textContent = 'Error';
+    
+    const resolutionElement = document.createElement('div');
+    resolutionElement.className = 'node-resolution';
+    resolutionElement.textContent = 'Failed';
+    
+    header.appendChild(filenameElement);
+    header.appendChild(resolutionElement);
+    
+    const toolbar = document.createElement('div');
+    toolbar.className = 'node-toolbar';
+    
+    const copyErrorBtn = document.createElement('button');
+    copyErrorBtn.className = 'toolbar-btn';
+    copyErrorBtn.innerHTML = '📋';
+    copyErrorBtn.title = '复制错误信息';
+    copyErrorBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(errorMessage).then(() => {
+            const originalTitle = copyErrorBtn.title;
+            copyErrorBtn.title = '已复制!';
+            setTimeout(() => copyErrorBtn.title = originalTitle, 1500);
+        });
+    });
+    
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'toolbar-btn';
+    deleteBtn.innerHTML = '🗑️';
+    deleteBtn.title = '删除';
+    deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const confirmModal = document.getElementById('confirmModal');
+        const confirmModalMessage = document.getElementById('confirmModalMessage');
+        const confirmModalCheckbox = document.getElementById('confirmModalCheckbox');
+        const confirmModalCancel = document.getElementById('confirmModalCancel');
+        const confirmModalOk = document.getElementById('confirmModalOk');
+        
+        confirmModalMessage.textContent = '确定要删除这个错误节点吗？';
+        confirmModalCheckbox.parentElement.style.display = 'none';
+        confirmModal.classList.remove('hidden');
+        confirmModal.classList.add('flex');
+        
+        const handleConfirm = () => {
+            const minimapCanvas = document.getElementById('minimapCanvas');
+            if (minimapCanvas) {
+                const minimapImage = minimapCanvas.querySelector(`[data-node-id="${node.dataset.index}"]`);
+                if (minimapImage) minimapImage.remove();
+            }
+            node.remove();
+            closeConfirmModal();
+        };
+        
+        const handleCancel = () => {
+            closeConfirmModal();
+        };
+        
+        confirmModalOk.onclick = handleConfirm;
+        confirmModalCancel.onclick = handleCancel;
+    });
+    
+    toolbar.appendChild(copyErrorBtn);
+    toolbar.appendChild(deleteBtn);
+    
+    const infoElement = document.createElement('div');
+    infoElement.className = 'node-info';
+    infoElement.style.display = 'none';
+    
+    const sidebar = document.createElement('div');
+    sidebar.className = 'node-sidebar';
+    
+    const generationTimeElement = document.createElement('div');
+    generationTimeElement.className = 'node-generation-time';
+    generationTimeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
+    generationTimeElement.textContent = new Date().toLocaleTimeString();
+    generationTimeElement.title = `生成时间: ${generationTimeElement.textContent}`;
+    sidebar.appendChild(generationTimeElement);
+    
+    if (modelName) {
+        const modelTag = document.createElement('div');
+        modelTag.className = 'node-model-tag';
+        modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
+        modelTag.textContent = modelName;
+        modelTag.title = modelName;
+        sidebar.appendChild(modelTag);
+    }
+    
+    node.appendChild(errorContainer);
+    node.appendChild(header);
+    node.appendChild(toolbar);
+    node.appendChild(infoElement);
+    node.appendChild(sidebar);
+    
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'resize-handle';
+    
+    const centerCoords = document.createElement('div');
+    centerCoords.className = 'node-center-coords';
+    
+    node.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.node-toolbar')) return;
+        if (DebugConsole.showMouseLogs) {
+            debugLog(`[鼠标按下] 节点: button=${e.button}, ctrlKey=${e.ctrlKey}, metaKey=${e.metaKey}`, 'event');
+        }
+        if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
+            e.stopPropagation();
+            selectNode(node);
+            
+            AppState.isDraggingNode = true;
+            AppState.dragNode = node;
+            AppState.activeNode = node;
+            
+            AppState.dragStartX = e.clientX;
+            AppState.dragStartY = e.clientY;
+            AppState.dragNodeStartLeft = parseInt(node.style.left || '0');
+            AppState.dragNodeStartTop = parseInt(node.style.top || '0');
+            
+            if (DebugConsole.showMouseLogs) {
+                debugLog(`[开始拖动] 错误节点`, 'info');
+            }
+        }
+    });
+    
+    resizeHandle.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+    });
+    
+    errorContainer.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(errorMessage).then(() => {
+            debugLog(`[复制] 错误信息已复制`, 'info');
+        });
     });
     
     node.dataset.pins = JSON.stringify([]);

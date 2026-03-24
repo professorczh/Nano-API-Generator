@@ -748,6 +748,11 @@ input[type="range"]::-moz-range-thumb {
     color: #fef3c7;
 }
 
+.debug-log.warn {
+    background: #92400e;
+    color: #fef3c7;
+}
+
 .debug-log.error {
     background: #991b1b;
     color: #fecaca;
@@ -1530,4 +1535,29 @@ input[type="range"]::-moz-range-thumb {
 .custom-select-dropdown::-webkit-scrollbar-thumb:hover,
 .custom-select-dropdown-fixed::-webkit-scrollbar-thumb:hover {
     background: #9ca3af;
+}
+
+.logo-svg .logo-path {
+    stroke-dasharray: 220 220;
+    stroke-dashoffset: 0;
+    animation: logoGrowAndFade 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    filter: drop-shadow(0 0 5px rgba(124, 58, 237, 0.4));
+}
+
+@keyframes logoGrowAndFade {
+    0% {
+        stroke-dashoffset: 220;
+    }
+    30% {
+        stroke-dashoffset: 0;
+    }
+    70% {
+        stroke-dashoffset: 0;
+    }
+    95% {
+        stroke-dashoffset: -220;
+    }
+    100% {
+        stroke-dashoffset: -220;
+    }
 }

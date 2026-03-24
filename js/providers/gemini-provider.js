@@ -88,10 +88,32 @@ export class GeminiProvider {
             }));
 
             if (prompt) {
-                const note = pinNote || (config.pinInfo?.length > 0 ? '完全移除图片上的所有红色数字标记，不要在生成的图片中显示任何标记。' : '');
+                let note = '';
+                if (config.pinInfo && config.pinInfo.length > 0) {
+                    const pinDetails = config.pinInfo.map(pin => {
+                        if (pin.x !== undefined && pin.y !== undefined) {
+                            return `PIN ${pin.pinNumber} 在坐标(${Math.round(pin.x)}, ${Math.round(pin.y)})`;
+                        }
+                        return `PIN ${pin.pinNumber}`;
+                    }).join('，');
+                    note = `完全移除图片上的所有红色数字标记，不要在生成的图片中显示任何标记。图片中的标记位置信息：${pinDetails}。`;
+                } else if (pinNote) {
+                    note = pinNote;
+                }
                 imageContent.push(`${prompt}。${note}`);
             } else {
-                const note = pinNote || (config.pinInfo?.length > 0 ? '完全移除图片上的所有红色数字标记，不要在生成的图片中显示任何标记。' : '');
+                let note = '';
+                if (config.pinInfo && config.pinInfo.length > 0) {
+                    const pinDetails = config.pinInfo.map(pin => {
+                        if (pin.x !== undefined && pin.y !== undefined) {
+                            return `PIN ${pin.pinNumber} 在坐标(${Math.round(pin.x)}, ${Math.round(pin.y)})`;
+                        }
+                        return `PIN ${pin.pinNumber}`;
+                    }).join('，');
+                    note = `完全移除图片上的所有红色数字标记，不要在生成的图片中显示任何标记。图片中的标记位置信息：${pinDetails}。`;
+                } else if (pinNote) {
+                    note = pinNote;
+                }
                 imageContent.push(`请美化这张图片。${note}`);
             }
 

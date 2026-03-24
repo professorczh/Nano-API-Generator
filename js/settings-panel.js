@@ -59,27 +59,39 @@ export class SettingsPanel {
     }
     
     bindEvents() {
-        // 保存设置按钮
         if (this.saveSettingsBtn) {
             this.saveSettingsBtn.addEventListener('click', () => {
-                if (window.providerManager) {
-                    window.providerManager.saveProviders();
+                const activeTab = document.querySelector('#settingsTabs button.text-blue-600');
+                const activeProvider = activeTab?.dataset.providerId || 'unknown';
+                console.log(`[UI] User clicked: saveSettingsBtn | ActiveProvider: ${activeProvider}`);
+                if (window.dynamicProviderManager) {
+                    window.dynamicProviderManager.saveProviders();
                 }
             });
         }
         
-        // 点击遮罩层关闭
+        const settingsTabAdd = document.getElementById('settingsTabAdd');
+        if (settingsTabAdd) {
+            settingsTabAdd.addEventListener('click', () => {
+                console.log('[UI] User clicked: addProviderBtn | Action: createNewProvider');
+                if (window.dynamicProviderManager) {
+                    window.dynamicProviderManager.addNewProvider();
+                }
+            });
+        }
+        
         if (this.settingsPanel) {
             this.settingsPanel.addEventListener('click', (e) => {
                 if (e.target === this.settingsPanel) {
+                    console.log('[UI] User clicked: settingsPanel overlay | Action: close');
                     this.handleClose();
                 }
             });
         }
         
-        // ESC 键关闭
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.settingsPanel && this.settingsPanel.classList.contains('flex')) {
+                console.log('[UI] User pressed: ESC key | Action: closeSettings');
                 this.handleClose();
             }
         });
@@ -189,10 +201,12 @@ export class SettingsPanel {
     }
     
     async handleClose() {
-        if (window.providerManager && window.providerManager.checkUnsavedChanges()) {
-            const confirmed = await window.providerManager.showConfirmModal('有未保存的修改，是否保存？');
+        const hasUnsavedChanges = window.dynamicProviderManager && window.dynamicProviderManager.checkUnsavedChanges();
+        console.log(`[UI] User clicked: closeSettingsBtn | HasUnsavedChanges: ${hasUnsavedChanges}`);
+        if (hasUnsavedChanges) {
+            const confirmed = await window.dynamicProviderManager.showConfirmModal('有未保存的修改，是否保存？');
             if (confirmed) {
-                window.providerManager.saveProviders();
+                window.dynamicProviderManager.saveProviders();
             }
             this.close();
         } else {
@@ -201,6 +215,7 @@ export class SettingsPanel {
     }
     
     open() {
+        console.log('[State] Settings panel opened');
         if (this.settingsPanel) {
             this.settingsPanel.classList.remove('hidden');
             this.settingsPanel.classList.add('flex');
@@ -219,6 +234,7 @@ export class SettingsPanel {
     }
     
     close() {
+        console.log('[State] Settings panel closed');
         if (this.settingsPanel) {
             this.settingsPanel.classList.add('hidden');
             this.settingsPanel.classList.remove('flex');

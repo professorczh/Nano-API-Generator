@@ -409,11 +409,18 @@ export function updateCanvasScale(newScale) {
 export function updateToolbarPosition() {
     const canvasMinimap = document.getElementById('canvasMinimap');
     const miniToolbar = document.getElementById('miniToolbar');
+    const debugConsole = document.getElementById('debugConsole');
     
-    if (canvasMinimap && miniToolbar) {
-        const minimapRect = canvasMinimap.getBoundingClientRect();
-        const minimapBottom = window.innerHeight - minimapRect.top;
-        canvasMinimap.style.bottom = `${minimapBottom}px`;
+    if (!miniToolbar || !debugConsole) return;
+    
+    const isCollapsed = debugConsole.classList.contains('collapsed');
+    const debugConsoleHeight = isCollapsed ? 24 : 364;
+    const toolbarBottom = debugConsoleHeight + 16;
+    
+    miniToolbar.style.bottom = `${toolbarBottom}px`;
+    
+    if (canvasMinimap) {
+        canvasMinimap.style.bottom = `${debugConsoleHeight + 16}px`;
     }
 }
 

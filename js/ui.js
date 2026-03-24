@@ -1,4 +1,5 @@
 // UI相关的逻辑和事件处理
+import { CanvasState } from './app-state.js';
 
 class UIManager {
     constructor() {
@@ -65,15 +66,19 @@ class UIManager {
             currentPanel.classList.remove('hidden');
         }
 
-        // 重置所有标签样式
+        // 重置所有标签样式（隐藏删除按钮）
         document.querySelectorAll('#settingsTabs button:not(#settingsTabAdd)').forEach(tab => {
-            tab.className = 'py-1.5 px-4 text-sm font-medium text-gray-500 hover:text-gray-600 rounded-full transition-all';
+            tab.className = 'py-1.5 px-3 text-sm font-medium text-gray-500 hover:text-gray-600 rounded-full transition-all flex items-center gap-2';
+            const deleteSpan = tab.querySelector('.tab-delete');
+            if (deleteSpan) deleteSpan.classList.add('hidden');
         });
 
-        // 设置当前标签样式
+        // 设置当前标签样式（显示删除按钮）
         const currentTab = document.getElementById(`settingsTab${providerId}`);
         if (currentTab) {
-            currentTab.className = 'py-1.5 px-4 text-sm font-medium text-blue-600 bg-blue-50 rounded-full transition-all';
+            currentTab.className = 'py-1.5 px-3 text-sm font-medium text-blue-600 bg-blue-50 rounded-full transition-all flex items-center gap-2';
+            const deleteSpan = currentTab.querySelector('.tab-delete');
+            if (deleteSpan) deleteSpan.classList.remove('hidden');
         }
     }
 
@@ -89,15 +94,19 @@ class UIManager {
             currentPanel.classList.remove('hidden');
         }
 
-        // 重置所有标签样式
+        // 重置所有标签样式（隐藏删除按钮）
         document.querySelectorAll('#settingsTabs button:not(#settingsTabAdd)').forEach(tab => {
-            tab.className = 'py-1.5 px-4 text-sm font-medium text-gray-500 hover:text-gray-600 rounded-full transition-all';
+            tab.className = 'py-1.5 px-3 text-sm font-medium text-gray-500 hover:text-gray-600 rounded-full transition-all flex items-center gap-2';
+            const deleteSpan = tab.querySelector('.tab-delete');
+            if (deleteSpan) deleteSpan.classList.add('hidden');
         });
 
-        // 设置当前标签样式
+        // 设置当前标签样式（显示删除按钮）
         const currentTab = document.querySelector(`#settingsTabs button[data-provider-id="${providerId}"]`);
         if (currentTab) {
-            currentTab.className = 'py-1.5 px-4 text-sm font-medium text-blue-600 bg-blue-50 rounded-full transition-all';
+            currentTab.className = 'py-1.5 px-3 text-sm font-medium text-blue-600 bg-blue-50 rounded-full transition-all flex items-center gap-2';
+            const deleteSpan = currentTab.querySelector('.tab-delete');
+            if (deleteSpan) deleteSpan.classList.remove('hidden');
         }
     }
 
@@ -167,6 +176,7 @@ export function initModeSwitchers() {
 export function switchToTextMode() {
     currentMode = 'text';
     window.currentMode = 'text';
+    CanvasState.currentMode = 'text';
     if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white';
     if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
     if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50';
@@ -184,6 +194,7 @@ export function switchToTextMode() {
 export function switchToImageMode() {
     currentMode = 'image';
     window.currentMode = 'image';
+    CanvasState.currentMode = 'image';
     if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
     if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white';
     if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50';
@@ -201,6 +212,7 @@ export function switchToImageMode() {
 export function switchToVideoMode() {
     currentMode = 'video';
     window.currentMode = 'video';
+    CanvasState.currentMode = 'video';
     if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
     if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
     if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-purple-600 text-white';

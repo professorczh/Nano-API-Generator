@@ -1,7 +1,10 @@
 // 事件处理相关逻辑
 
 import { CONFIG } from "../config.js";
-import { maskApiKey } from "./utils.js";
+import { maskApiKey, debugLog } from "./utils.js";
+import { AppState, CanvasState } from './app-state.js';
+import { updateMinimapWithImage, getPanzoom, getImageResponseContainer } from './canvas-manager.js';
+import { selectNode, createImageNode } from './node-manager.js';
 
 export class EventHandler {
     constructor() {
@@ -48,6 +51,85 @@ export class EventHandler {
             if (this.isDraggingUIPanel) {
                 this.isDraggingUIPanel = false;
                 this.uiPanel.classList.remove('ui-panel-draggable');
+            }
+        });
+        
+        document.addEventListener('paste', async (e) => {
+            const promptInput = document.getElementById('promptInput');
+            if (document.activeElement === promptInput) return;
+            if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+            
+            const imageResponseContainer = getImageResponseContainer();
+            if (!imageResponseContainer) return;
+            
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    
+                    const blob = item.getAsFile();
+                    if (!blob) continue;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const imageDataUrl = event.target.result;
+                        const img = new Image();
+                        img.onload = () => {
+                            const width = img.width;
+                            const height = img.height;
+                            const aspectRatio = width / height;
+                            let displayWidth, displayHeight;
+                            
+                            if (width > height) {
+                                displayWidth = Math.min(width, 300);
+                                displayHeight = Math.round(displayWidth / aspectRatio);
+                            } else {
+                                displayHeight = Math.min(height, 300);
+                                displayWidth = Math.round(displayHeight * aspectRatio);
+                            }
+                            
+                            const nodeWidth = displayWidth;
+                            const nodeHeight = displayHeight;
+                            
+                            const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
+                            let x = 5000;
+                            let y = 5000;
+                            
+                            if (existingNodes.length > 0) {
+                                const lastNode = existingNodes[existingNodes.length - 1];
+                                const lastNodeX = parseInt(lastNode.style.left) || 0;
+                                const lastNodeY = parseInt(lastNode.style.top) || 0;
+                                const lastNodeWidth = lastNode.offsetWidth;
+                                const lastNodeHeight = lastNode.offsetHeight;
+                                
+                                x = lastNodeX + lastNodeWidth + 50;
+                                y = lastNodeY;
+                                
+                                if (x > 6000) {
+                                    x = 5000;
+                                    y = lastNodeY + lastNodeHeight + 50;
+                                }
+                            }
+                            
+                            const filename = `Clipboard_${Date.now()}`;
+                            const resolution = `${Math.round(nodeWidth)}x${Math.round(nodeHeight)}`;
+                            const newNode = createImageNode(imageDataUrl, '', CanvasState.nodeCounter++, filename, resolution, null, '', null, x, y);
+                            newNode.style.width = `${nodeWidth}px`;
+                            newNode.style.height = `${nodeHeight}px`;
+                            
+                            imageResponseContainer.appendChild(newNode);
+                            updateMinimapWithImage(newNode);
+                            selectNode(newNode);
+                            
+                            debugLog(`[粘贴] 从剪贴板粘贴图片: ${filename}`, 'info');
+                        };
+                        img.src = imageDataUrl;
+                    };
+                    reader.readAsDataURL(blob);
+                    break;
+                }
             }
         });
     }

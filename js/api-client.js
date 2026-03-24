@@ -1,8 +1,8 @@
 import { CONFIG, getProviderByModelId } from '../config.js';
 import { AppState } from './app-state.js';
 import { GeminiProvider } from './providers/gemini-provider.js';
-import { TwelveAIProvider } from './providers/12ai.js';
-import './providers/dynamic-provider.js';
+import { TwelveAIProvider } from './providers/12ai.js'; // 旧链路，保留向后兼容
+import './providers/provider-manager.js';
 
 let promptInputElement = null;
 let debugLogFunction = null;
@@ -90,16 +90,6 @@ export class APIClient {
     }
 
     validateAPIKeys(provider, isVideoMode) {
-        if (provider === '12ai') {
-            if (!CONFIG.TWELVE_AI_API_KEY || CONFIG.TWELVE_AI_API_KEY.trim() === '') {
-                return { valid: false, error: '请输入 12AI API Key', provider: '12ai' };
-            }
-        } else {
-            if (!CONFIG.API_KEY || CONFIG.API_KEY.trim() === '' || CONFIG.API_KEY === 'YOUR_API_KEY_HERE') {
-                return { valid: false, error: '请输入 Google API Key', provider: 'google' };
-            }
-        }
-        
         return { valid: true };
     }
 
@@ -124,7 +114,7 @@ export class APIClient {
         const validation = this.validateAPIKeys(provider, true);
         if (!validation.valid) {
             const errorMsg = validation.error;
-            debugLog(`[${provider === '12ai' ? '12AI' : 'Google'}错误] ${errorMsg}`, 'error');
+            debugLog(`[视频错误] ${errorMsg}`, 'error');
             if (onError) onError(new Error(errorMsg));
             return;
         }
@@ -147,36 +137,20 @@ export class APIClient {
         debugLog(`[视频请求] 提供商: ${provider}, 模型ID: ${realModelId}, 提示词: "${prompt}"`, 'info');
 
         try {
-            if (provider === '12ai') {
-                await this.providers.twelveAI.generateVideo({
-                    model: realModelId,
-                    prompt: prompt,
-                    images: selectedImageUrl ? [selectedImageUrl] : [],
-                    aspectRatio: videoRatio || "16:9",
-                    resolution: videoResolution || "720p",
-                    durationSeconds: videoDuration || "6",
-                    onProgressUpdate: (progress) => {
-                        debugLog(`[12AI进度] ${progress}%`, 'info');
-                        if (onVideoProgress) {
-                            onVideoProgress(progress);
-                        }
-                    },
-                    onVideoGenerated: (videoUrl) => {
-                        debugLog(`[12AI完成] 视频URL: ${videoUrl}`, 'info');
-                        if (onVideoGenerated) {
-                            onVideoGenerated(videoUrl);
-                        }
-                    },
-                    onError: (error) => {
-                        debugLog(`[12AI错误] ${error.message}`, 'error');
-                        updateStatus('失败', true);
-                        if (onError) onError(error);
-                    },
-                    debugLog
-                });
-            } else if (provider === 'google') {
-                // Google Veo 视频生成
+            if (!window.dynamicProviderManager) {
+                throw new Error('动态Provider系统未初始化');
+            }
+            
+            window.dynamicProviderManager.initializeFromStorage();
+            
+            const providerProtocol = window.dynamicProviderManager.getProviderProtocol(provider);
+            const providerConfig = window.dynamicProviderManager.getProviderConfig(provider);
+            const providerApiKey = providerConfig?.apiKey || '';
+            debugLog(`[视频请求] Provider: ${provider}, 协议: ${providerProtocol}, API Key: ${providerApiKey ? providerApiKey.substring(0, 10) + '...' : 'none'}`, 'info');
+            
+            if (providerProtocol === 'gemini') {
                 await this.generateGoogleVideo({
+                    apiKey: providerApiKey,
                     model: realModelId,
                     prompt: prompt,
                     aspectRatio: videoRatio || "16:9",
@@ -188,7 +162,37 @@ export class APIClient {
                     debugLog
                 });
             } else {
-                throw new Error('不支持的视频提供商: ' + provider);
+                const dynamicProvider = window.dynamicProviderManager.getProvider(provider);
+                if (!dynamicProvider) {
+                    throw new Error(`Provider "${provider}" 未找到，请检查设置面板配置`);
+                }
+                
+                await dynamicProvider.generateVideo({
+                    model: realModelId,
+                    prompt: prompt,
+                    images: selectedImageUrl ? [selectedImageUrl] : [],
+                    aspectRatio: videoRatio || "16:9",
+                    resolution: videoResolution || "720p",
+                    durationSeconds: videoDuration || "6",
+                    onProgressUpdate: (progress) => {
+                        debugLog(`[视频进度] ${progress}%`, 'info');
+                        if (onVideoProgress) {
+                            onVideoProgress(progress);
+                        }
+                    },
+                    onVideoGenerated: (videoUrl) => {
+                        debugLog(`[视频完成] 视频URL: ${videoUrl}`, 'info');
+                        if (onVideoGenerated) {
+                            onVideoGenerated(videoUrl);
+                        }
+                    },
+                    onError: (error) => {
+                        debugLog(`[视频错误] ${error.message}`, 'error');
+                        updateStatus('失败', true);
+                        if (onError) onError(error);
+                    },
+                    debugLog
+                });
             }
 
             const elapsedTime = (Date.now() - requestStartTime) / 1000;
@@ -222,12 +226,13 @@ export class APIClient {
         }
     }
 
-    async generateGoogleVideo({ model, prompt, aspectRatio, resolution, durationSeconds, onVideoProgress, onVideoGenerated, onError, debugLog }) {
+    async generateGoogleVideo({ apiKey, model, prompt, aspectRatio, resolution, durationSeconds, onVideoProgress, onVideoGenerated, onError, debugLog }) {
         try {
-            debugLog(`[Google Veo] 开始生成视频, 模型: ${model}, 提示词: "${prompt}"`, 'info');
+            debugLog(`开始生成视频, 模型: ${model}, 提示词: "${prompt}"`, 'info');
             
             // 构建请求参数
             const requestBody = {
+                apiKey: apiKey,
                 model: model,
                 prompt: prompt,
                 config: {
@@ -277,8 +282,10 @@ export class APIClient {
                     onVideoProgress(progress);
                 }
                 
-                // 检查状态
-                const statusResponse = await fetch(`/api/google/video-status?operation=${encodeURIComponent(operationName)}`);
+                // 检查状态 - 实时读取开关状态
+                const providerToggle = document.getElementById('providerToggle');
+                const saveToDisk = providerToggle ? providerToggle.checked : false;
+                const statusResponse = await fetch(`/api/google/video-status?operation=${encodeURIComponent(operationName)}&saveToDisk=${saveToDisk}`);
                 
                 if (!statusResponse.ok) {
                     continue; // 继续轮询
@@ -293,9 +300,14 @@ export class APIClient {
                         throw new Error(statusData.error.message || '视频生成失败');
                     }
                     
-                    // 获取视频 URL
                     const videoUrl = statusData.videoUrl;
                     debugLog(`[Google Veo] 视频生成完成: ${videoUrl}`, 'success');
+                    
+                    if (statusData.warn === 'write_failed') {
+                        debugLog(`⚠️ [STORAGE] 磁盘写入失败，文件未保存`, 'warn');
+                    } else if (statusData.savedPath) {
+                        debugLog(`💾 [STORAGE] 视频已保存到: ${statusData.savedPath}`, 'success');
+                    }
                     
                     if (onVideoGenerated) {
                         onVideoGenerated(videoUrl);
@@ -326,6 +338,8 @@ export class APIClient {
             pinInfo = [],
             modelName,
             modelProvider,
+            modelDisplayName,
+            modelProviderDisplay,
             generationConfig,
             isImageGenMode,
             isVideoGenMode,
@@ -377,81 +391,48 @@ export class APIClient {
 
         const requestStartTime = Date.now();
         
-        // 读取 Provider 切换状态
-        const useDynamicProvider = localStorage.getItem('useDynamicProvider') === 'true';
-        
-        debugLog(`[API请求] 提供商: ${provider}, 模型: ${realModelId}, 模式: ${isImageGenMode ? '生图' : '文本'}, 路径: ${useDynamicProvider ? '动态' : '当前链路'}`, 'info');
+        debugLog(`[API请求] 提供商: ${provider}, 模型: ${realModelId}, 模式: ${isImageGenMode ? '生图' : '文本'}`, 'info');
 
         try {
             let result;
             
-            // 分流逻辑：根据 Toggle 状态选择路径
-            if (useDynamicProvider) {
-                // 动态路径
-                debugLog(`[动态Provider] 开始调用动态Provider系统`, 'info');
-                
-                // 初始化动态Provider
-                window.dynamicProviderManager.initializeFromStorage();
-                
-                // 检查Provider是否可用
-                const availableProviders = window.dynamicProviderManager.getProviderList();
-                if (!window.dynamicProviderManager.isProviderAvailable(provider)) {
-                    const errorMsg = `动态Provider "${provider}" 未配置或未启用。可用的Provider: ${availableProviders.join(', ') || '无'}。请在设置中创建名为"${provider}"的Provider，或切换到"当前链路"模式。`;
-                    debugLog(`[动态Provider错误] ${errorMsg}`, 'error');
-                    updateStatus('失败', true);
-                    if (onError) onError(new Error(errorMsg));
-                    this.activeRequests = Math.max(0, this.activeRequests - 1);
-                    return;
-                }
-                
-                const dynamicProvider = window.dynamicProviderManager.getProvider(provider);
-                
-                try {
-                    result = await dynamicProvider.generateContent({
-                        modelName: realModelId,
-                        prompt,
-                        images,
-                        generationConfig,
-                        isImageGenMode,
-                        aspectRatio,
-                        imageSize,
-                        pinInfo,
-                        debugLog
-                    });
-                    debugLog(`[动态Provider] 请求成功`, 'success');
-                } catch (dynamicError) {
-                    debugLog(`[动态Provider错误] ${dynamicError.message}`, 'error');
-                    updateStatus('失败', true);
-                    if (onError) onError(dynamicError);
-                    this.activeRequests = Math.max(0, this.activeRequests - 1);
-                    return;
-                }
-            } else {
-                // 当前链路（原有硬编码逻辑）
-                if (provider === '12ai') {
-                    result = await this.providers.twelveAI.generateContent({
-                        modelName: realModelId,
-                        prompt,
-                        images,
-                        generationConfig,
-                        isImageGenMode,
-                        aspectRatio,
-                        imageSize,
-                        debugLog
-                    });
-                } else {
-                    result = await this.providers.gemini.generateContent({
-                        modelName: realModelId,
-                        prompt,
-                        images,
-                        generationConfig,
-                        isImageGenMode,
-                        aspectRatio,
-                        imageSize,
-                        pinInfo,
-                        debugLog
-                    });
-                }
+            if (!window.dynamicProviderManager) {
+                throw new Error('动态Provider系统未初始化');
+            }
+            
+            window.dynamicProviderManager.initializeFromStorage();
+            
+            const availableProviders = window.dynamicProviderManager.getProviderList();
+            if (!window.dynamicProviderManager.isProviderAvailable(provider)) {
+                const errorMsg = `Provider "${provider}" 未配置或未启用。可用的Provider: ${availableProviders.join(', ') || '无'}。请在设置面板中配置。`;
+                debugLog(`[Provider错误] ${errorMsg}`, 'error');
+                updateStatus('失败', true);
+                if (onError) onError(new Error(errorMsg));
+                this.activeRequests = Math.max(0, this.activeRequests - 1);
+                return;
+            }
+            
+            const dynamicProvider = window.dynamicProviderManager.getProvider(provider);
+            
+            try {
+                result = await dynamicProvider.generateContent({
+                    modelName: realModelId,
+                    prompt,
+                    images,
+                    generationConfig,
+                    isImageGenMode,
+                    aspectRatio,
+                    imageSize,
+                    pinInfo,
+                    debugLog
+                });
+                debugLog(`[Provider] 请求成功`, 'success');
+            } catch (dynamicError) {
+                debugLog(`[Provider错误] ${dynamicError.message}`, 'error');
+                updateStatus('失败', true);
+                if (onError) onError(dynamicError);
+                this.activeRequests = Math.max(0, this.activeRequests - 1);
+                return;
             }
 
             if (isImageGenMode) {
@@ -461,7 +442,7 @@ export class APIClient {
                     debugLog(`[图片数据] Base64长度: ${result.imageData.length}`, 'info');
                     
                     if (onImageGenerated) {
-                        await onImageGenerated(result.imageData);
+                        await onImageGenerated(result);
                     }
                     
                     debugLog(`[API响应] 模式: 生图, 状态: 成功`, 'success');
@@ -497,7 +478,8 @@ export class APIClient {
 
         } catch (error) {
             const elapsedTime = (Date.now() - requestStartTime) / 1000;
-            debugLog(`[API错误] 提供商: ${provider}, 耗时: ${elapsedTime.toFixed(2)}秒, 错误: ${error.message}`, 'error');
+            const providerDisplay = modelProviderDisplay || provider;
+            debugLog(`[API错误] 提供商: ${providerDisplay}, 耗时: ${elapsedTime.toFixed(2)}秒, 错误: ${error.message}`, 'error');
             updateStatus('失败', true);
             
             if (onError) {

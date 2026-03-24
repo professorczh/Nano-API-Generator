@@ -36,6 +36,7 @@ export const NodeFactory = {
         node.style.zIndex = '10';
         node.dataset.modelName = modelName;
         node.dataset.nodeType = 'video';
+        node.dataset.videoUrl = '';
         node.dataset.filename = 'Video';
         node.dataset.width = nodeWidth;
         node.dataset.height = nodeHeight;
@@ -75,8 +76,26 @@ export const NodeFactory = {
         copyBtn.className = 'toolbar-btn';
         copyBtn.innerHTML = '📋';
         copyBtn.title = '复制视频';
-        copyBtn.disabled = true;
-        copyBtn.style.opacity = '0.5';
+        copyBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const video = node.querySelector('video');
+            if (!video) return;
+            
+            video.play().then(() => {
+                video.pause();
+                fetch(video.src)
+                    .then(res => res.blob())
+                    .then(blob => {
+                        navigator.clipboard.write([
+                            new ClipboardItem({ 'video/webm': blob })
+                        ]).then(() => {
+                            console.log('视频已复制到剪贴板');
+                        }).catch(err => {
+                            console.error('复制失败:', err);
+                        });
+                    });
+            });
+        });
         
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'toolbar-btn';
@@ -178,13 +197,13 @@ export const NodeFactory = {
         
         const timeElement = document.createElement('div');
         timeElement.className = 'node-generation-time';
-        timeElement.style.display = typeof showGenerationTime !== 'undefined' && showGenerationTime ? 'flex' : 'none';
+        timeElement.style.display = typeof window.showGenerationTime !== 'undefined' && window.showGenerationTime ? 'flex' : 'none';
         sidebar.appendChild(timeElement);
         
         if (modelName) {
             const modelTag = document.createElement('div');
             modelTag.className = 'node-model-tag';
-            modelTag.style.display = typeof showModelTag !== 'undefined' && showModelTag ? 'block' : 'none';
+            modelTag.style.display = typeof window.showModelTag !== 'undefined' && window.showModelTag ? 'block' : 'none';
             if (typeof modelName === 'object' && modelName.name) {
                 modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
                 modelTag.title = `${modelName.name} (${modelName.provider})`;
@@ -275,6 +294,7 @@ export const NodeFactory = {
             node.dataset.modelName = savedModelName;
         }
         node.dataset.nodeType = 'video';
+        node.dataset.videoUrl = videoUrl;
         node.dataset.filename = 'Video';
         node.dataset.width = nodeWidth;
         node.dataset.height = nodeHeight;
@@ -322,11 +342,27 @@ export const NodeFactory = {
         copyBtn.title = '复制视频';
         copyBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (typeof window.selectNode === 'function') {
-                window.selectNode(node);
-            }
-            if (typeof window.copySelectedNode === 'function') {
-                window.copySelectedNode();
+            const video = node.querySelector('video');
+            if (!video) return;
+            
+            const videoUrl = node.dataset.videoUrl || video.src;
+            if (videoUrl) {
+                fetch(videoUrl)
+                    .then(res => res.blob())
+                    .then(blob => {
+                        navigator.clipboard.write([
+                            new ClipboardItem({ [blob.type]: blob })
+                        ]).then(() => {
+                            console.log('视频已复制到剪贴板');
+                            debugLog('[复制] 视频: 已复制到剪贴板', 'success');
+                        }).catch(err => {
+                            console.error('复制失败:', err);
+                            debugLog('[复制] 视频失败: ' + err.message, 'error');
+                        });
+                    })
+                    .catch(err => {
+                        console.error('获取视频失败:', err);
+                    });
             }
         });
         
@@ -581,7 +617,7 @@ export const NodeFactory = {
         
         const timeElement = document.createElement('div');
         timeElement.className = 'node-generation-time';
-        timeElement.style.display = typeof showGenerationTime !== 'undefined' && showGenerationTime ? 'flex' : 'none';
+        timeElement.style.display = typeof window.showGenerationTime !== 'undefined' && window.showGenerationTime ? 'flex' : 'none';
         if (generationTime !== null) {
             timeElement.textContent = formatGenerationTime(generationTime);
             timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
@@ -591,7 +627,7 @@ export const NodeFactory = {
         if (savedModelName) {
             const modelTag = document.createElement('div');
             modelTag.className = 'node-model-tag';
-            modelTag.style.display = typeof showModelTag !== 'undefined' && showModelTag ? 'block' : 'none';
+            modelTag.style.display = typeof window.showModelTag !== 'undefined' && window.showModelTag ? 'block' : 'none';
             if (typeof savedModelName === 'object' && savedModelName.name) {
                 modelTag.innerHTML = `<div class="model-name">${savedModelName.name}</div><div class="model-provider">${savedModelName.provider}</div>`;
                 modelTag.title = `${savedModelName.name} (${savedModelName.provider})`;
