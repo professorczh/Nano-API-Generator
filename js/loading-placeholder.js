@@ -1,7 +1,7 @@
 import { AppState } from './app-state.js';
 import { CanvasState } from './app-state.js';
 import { DebugConsole } from './debug-console.js';
-import { selectNode, deleteSelectedNode } from './node-manager.js';
+import { selectNode, deleteSelectedNode, copySelectedNode } from './node-manager.js';
 import { updateMinimapWithImage, updateImageCenterCoordinates } from './canvas-manager.js';
 import { formatGenerationTime, debugLog } from './utils.js';
 import { PinManager } from './pin-manager.js';
@@ -492,8 +492,7 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
                     }
                 } else if (index === 2) {
                     selectNode(node);
-                    const { copySelectedNode } = require('./node-manager.js');
-                    if (copySelectedNode) copySelectedNode();
+                    copySelectedNode();
                     debugLog(`[工具栏] 复制图片: node=${node.dataset.filename}`, 'info');
                 }
             });

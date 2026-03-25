@@ -90,42 +90,6 @@ export function debugLog(message, type = 'info') {
     }
 }
 
-export function updateResolutionOptions() {
-    const selectedModel = CONFIG.IMAGE_MODEL_NAME;
-    
-    const isFirstGroup = selectedModel.includes('3.1-flash-image-preview');
-    
-    const imageRatioSelect = document.getElementById('aspectRatio');
-    if (imageRatioSelect) {
-        imageRatioSelect.innerHTML = '';
-        
-        IMAGE_RATIOS.forEach(ratio => {
-            if (isFirstGroup || !['8:1', '4:1', '1:4', '1:8'].includes(ratio.value)) {
-                const option = document.createElement('option');
-                option.value = ratio.value;
-                option.textContent = ratio.name;
-                imageRatioSelect.appendChild(option);
-            }
-        });
-    }
-    
-    const imageSizeSelect = document.getElementById('imageSize');
-    if (imageSizeSelect) {
-        imageSizeSelect.innerHTML = '';
-        
-        IMAGE_SIZES.forEach(size => {
-            if (isFirstGroup || size.value !== '512px') {
-                const option = document.createElement('option');
-                option.value = size.value;
-                option.textContent = size.name;
-                imageSizeSelect.appendChild(option);
-            }
-        });
-        
-        imageSizeSelect.value = '1K';
-    }
-}
-
 export function updateApiKeyDisplay(settingsApiKeyInput) {
     const apiKey = CONFIG.API_KEY;
     if (apiKey && settingsApiKeyInput) {

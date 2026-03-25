@@ -7,7 +7,7 @@ import './node-factory.js';
 import { ModelSelectManager } from './model-selects.js';
 import { EventHandler, initCanvasEvents } from './event-handlers.js';
 import { handleAPICall } from './api-operations.js';
-import { debugLog, updateResolutionOptions, updateAddButtonVisibility, createModelItem, adjustBaseUrlInputWidth } from './utils.js';
+import { debugLog, updateAddButtonVisibility, createModelItem, adjustBaseUrlInputWidth } from './utils.js';
 import { initCanvasElements, initCanvas, resetCanvas, refreshUI, updateMinimapViewport, updateMinimapWithImage, updateCanvasScale, getPanzoom, getImageResponseContainer, updateToolbarPosition } from './canvas-manager.js';
 import { initNodeManager, selectNode, deselectAllNodes, createImageNode, createTextNode, incrementNodeCounter, getSelectedNode, copySelectedNode, cutSelectedNode, deleteSelectedNode } from './node-manager.js';
 import { createLoadingPlaceholder, createTextLoadingPlaceholder, updateLoadingPlaceholder, updateTextLoadingPlaceholder } from './loading-placeholder.js';
@@ -214,11 +214,11 @@ const App = {
             promptInput: document.getElementById('promptInput'),
             loader: document.getElementById('loader'),
             statusTag: document.getElementById('statusTag'),
-            videoRatioSelect: document.getElementById('videoRatioSelect'),
-            videoResolutionSelect: document.getElementById('videoResolutionSelect'),
-            videoDurationSelect: document.getElementById('videoDurationSelect'),
-            aspectRatio: document.getElementById('aspectRatio'),
-            imageSize: document.getElementById('imageSize'),
+            videoRatioWrapper: document.getElementById('videoRatioWrapper'),
+            videoResolutionWrapper: document.getElementById('videoResolutionWrapper'),
+            videoDurationWrapper: document.getElementById('videoDurationWrapper'),
+            aspectRatioWrapper: document.getElementById('aspectRatioWrapper'),
+            imageSize: document.getElementById('imageSizeWrapper'),
             temperature: document.getElementById('temperature'),
             topP: document.getElementById('topP'),
             imageResponseContainer: document.getElementById('imageResponseContainer'),
@@ -285,7 +285,6 @@ const App = {
         const { promptInput, statusTag, loader, debugConsole, debugConsoleContent, debugConsoleHeader, debugConsoleClear, canvasCenterMarker, debugGrid, imageResponseContainer, providerToggle } = this.elements;
 
         PinManager.setPromptInput(promptInput);
-        updateResolutionOptions();
         
         initializeAPIClient({
             promptInput,
@@ -420,14 +419,6 @@ const App = {
 
         if (toolbarSettingsBtn) {
             toolbarSettingsBtn.addEventListener('click', () => this.openSettingsPanel());
-        }
-
-        if (settingsPanel) {
-            settingsPanel.addEventListener('click', (e) => {
-                if (e.target === settingsPanel) {
-                    this.handleCloseSettingsPanel();
-                }
-            });
         }
 
         document.addEventListener('keydown', (e) => {
@@ -650,17 +641,17 @@ const App = {
     },
 
     initSendEvents() {
-        const { sendBtn, promptInput, temperature, topP, aspectRatio, imageSize, videoRatioSelect, videoResolutionSelect, videoDurationSelect, loader, statusTag, imageResponseContainer } = this.elements;
+        const { sendBtn, promptInput, temperature, topP, aspectRatioWrapper, imageSize, videoRatioWrapper, videoResolutionWrapper, videoDurationWrapper, loader, statusTag, imageResponseContainer } = this.elements;
 
         const callAPI = () => handleAPICall({
             promptInput,
             temperature,
             topP,
-            aspectRatio,
-            imageSize,
-            videoRatioSelect,
-            videoResolutionSelect,
-            videoDurationSelect,
+            aspectRatioWrapper,
+            imageSizeWrapper: imageSize,
+            videoRatioWrapper,
+            videoResolutionWrapper,
+            videoDurationWrapper,
             loader,
             statusTag,
             imageResponseContainer,
@@ -872,6 +863,11 @@ const App = {
                 }
             }
             
+            // 同步保存按钮状态
+            if (window.dynamicProviderManager && typeof window.dynamicProviderManager.updateSaveButtonState === 'function') {
+                window.dynamicProviderManager.updateSaveButtonState();
+            }
+            
             const firstTab = document.querySelector('#settingsTabs button:not(#settingsTabAdd)');
             if (firstTab) {
                 firstTab.click();
@@ -890,14 +886,17 @@ const App = {
                 cancelClass: 'px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors'
             });
             
-            if (confirmed) {
+            if (confirmed === true) {
                 window.dynamicProviderManager.saveProviders(false);
                 window.dynamicProviderManager.showSaveSuccessModal('设置已成功保存到本地');
                 this.closeSettingsPanel();
                 return;
-            } else {
+            } else if (confirmed === false) {
                 window.dynamicProviderManager.clearUnsavedChanges();
+                this.closeSettingsPanel();
+                return;
             }
+            return;
         }
         this.closeSettingsPanel();
     },

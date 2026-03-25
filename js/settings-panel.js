@@ -1,5 +1,7 @@
 // 设置面板相关逻辑
 
+import { App } from './app.js';
+
 export class SettingsPanel {
     constructor() {
         this.settingsPanel = document.getElementById('settingsPanel');
@@ -84,7 +86,7 @@ export class SettingsPanel {
             this.settingsPanel.addEventListener('click', (e) => {
                 if (e.target === this.settingsPanel) {
                     console.log('[UI] User clicked: settingsPanel overlay | Action: close');
-                    this.handleClose();
+                    App.handleCloseSettingsPanel();
                 }
             });
         }
@@ -92,7 +94,7 @@ export class SettingsPanel {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.settingsPanel && this.settingsPanel.classList.contains('flex')) {
                 console.log('[UI] User pressed: ESC key | Action: closeSettings');
-                this.handleClose();
+                App.handleCloseSettingsPanel();
             }
         });
     }
@@ -198,20 +200,6 @@ export class SettingsPanel {
                 this.updateModelSelectsState(config.containers, checkedRadio.value);
             }
         });
-    }
-    
-    async handleClose() {
-        const hasUnsavedChanges = window.dynamicProviderManager && window.dynamicProviderManager.checkUnsavedChanges();
-        console.log(`[UI] User clicked: closeSettingsBtn | HasUnsavedChanges: ${hasUnsavedChanges}`);
-        if (hasUnsavedChanges) {
-            const confirmed = await window.dynamicProviderManager.showConfirmModal('有未保存的修改，是否保存？');
-            if (confirmed) {
-                window.dynamicProviderManager.saveProviders();
-            }
-            this.close();
-        } else {
-            this.close();
-        }
     }
     
     open() {

@@ -12,11 +12,11 @@ export async function handleAPICall(params) {
         promptInput,
         temperature,
         topP,
-        aspectRatio,
-        imageSize,
-        videoRatioSelect,
-        videoResolutionSelect,
-        videoDurationSelect,
+        aspectRatioWrapper,
+        imageSizeWrapper,
+        videoRatioWrapper,
+        videoResolutionWrapper,
+        videoDurationWrapper,
         loader,
         statusTag,
         imageResponseContainer,
@@ -115,8 +115,8 @@ export async function handleAPICall(params) {
     
     if (isImageGenMode) {
         generationConfig.imageConfig = {
-            aspectRatio: aspectRatio.value,
-            imageSize: imageSize.value
+            aspectRatio: aspectRatioWrapper.dataset.value,
+            imageSize: imageSizeWrapper.dataset.value
         };
     }
     
@@ -202,8 +202,8 @@ export async function handleAPICall(params) {
     let displayHeight = 300;
     
     if (isImageGenMode) {
-        const aspectRatioValue = aspectRatio.value;
-        const imageSizeValue = imageSize.value;
+        const aspectRatioValue = aspectRatioWrapper.dataset.value;
+        const imageSizeValue = imageSizeWrapper.dataset.value;
         
         let width, height;
         const baseSize = imageSizeValue === '512px' ? 512 : imageSizeValue === '1K' ? 1024 : imageSizeValue === '2K' ? 2048 : 3840;
@@ -341,7 +341,7 @@ export async function handleAPICall(params) {
             const videoModelDisplayName = videoModelDisplayNameObj.name || videoModel;
             const videoModelProviderDisplay = videoModelDisplayNameObj.provider || videoProvider;
             console.log('[视频生成] prompt:', prompt.substring(0, 80), '...');
-            const videoPlaceholder = NodeFactory.createVideoPlaceholder(nodeX, nodeY, prompt, videoModelDisplayName, videoRatioSelect.value);
+            const videoPlaceholder = NodeFactory.createVideoPlaceholder(nodeX, nodeY, prompt, videoModelDisplayName, videoRatioWrapper.dataset.value);
             imageResponseContainer.appendChild(videoPlaceholder);
             updateMinimapWithImage(videoPlaceholder);
             selectNode(videoPlaceholder);
@@ -363,9 +363,9 @@ export async function handleAPICall(params) {
                 isVideoGenMode: true,
                 videoModel: CONFIG.VIDEO_MODEL_NAME,
                 videoProvider: CONFIG.VIDEO_MODEL_PROVIDER,
-                videoRatio: videoRatioSelect.value,
-                videoResolution: videoResolutionSelect.value,
-                videoDuration: videoDurationSelect.value,
+                videoRatio: videoRatioWrapper.dataset.value,
+                videoResolution: videoResolutionWrapper.dataset.value,
+                videoDuration: videoDurationWrapper.dataset.value,
                 selectedImageUrl: selectedImageUrl,
                 onVideoProgress: (progress) => {
                     debugLog(`[视频进度] ${progress}%`, 'info');
@@ -399,8 +399,8 @@ export async function handleAPICall(params) {
                             body: JSON.stringify({
                                 videoUrl: videoUrl,
                                 prompt: prompt,
-                                aspectRatio: videoRatioSelect.value,
-                                duration: videoDurationSelect.value,
+                                aspectRatio: videoRatioWrapper.dataset.value,
+                                duration: videoDurationWrapper.dataset.value,
                                 modelName: videoModelDisplayName
                             })
                         });
@@ -415,7 +415,7 @@ export async function handleAPICall(params) {
                     }
                     
                     console.log('[视频完成] prompt:', prompt.substring(0, 80), '... videoUrl:', proxyUrl);
-                    NodeFactory.replaceWithVideo(videoPlaceholder, proxyUrl, prompt, videoModelDisplayName, genTime, videoRatioSelect.value);
+                    NodeFactory.replaceWithVideo(videoPlaceholder, proxyUrl, prompt, videoModelDisplayName, genTime, videoRatioWrapper.dataset.value);
                 },
                 onError: (error) => {
                     debugLog(`[视频错误] ${error.message}`, 'error');
@@ -455,8 +455,8 @@ export async function handleAPICall(params) {
             modelProviderDisplay,
             generationConfig,
             isImageGenMode,
-            aspectRatio: aspectRatio.value,
-            imageSize: imageSize.value,
+            aspectRatio: aspectRatioWrapper.dataset.value,
+            imageSize: imageSizeWrapper.dataset.value,
             onImageGenerated: async (result) => {
                 debugLog(`[API响应] 收到响应, 候选数量: 1`, 'info');
                 
@@ -533,8 +533,8 @@ export async function handleAPICall(params) {
                             body: JSON.stringify({ 
                                 imageData: imageData,
                                 prompt: prompt,
-                                aspectRatio: aspectRatio.value,
-                                imageSize: imageSize.value,
+                                aspectRatio: aspectRatioWrapper.dataset.value,
+                                imageSize: imageSizeWrapper.dataset.value,
                                 saveToDisk: saveToDisk
                             })
                         });

@@ -7,11 +7,11 @@ export class ModelSelectManager {
         this.textModelNameWrapper = document.getElementById('textModelNameWrapper');
         this.imageModelNameWrapper = document.getElementById('imageModelNameWrapper');
         this.videoModelNameWrapper = document.getElementById('videoModelNameWrapper');
-        this.aspectRatio = document.getElementById('aspectRatio');
-        this.imageSize = document.getElementById('imageSize');
-        this.videoDurationSelect = document.getElementById('videoDurationSelect');
-        this.videoResolutionSelect = document.getElementById('videoResolutionSelect');
-        this.videoRatioSelect = document.getElementById('videoRatioSelect');
+        this.aspectRatioWrapper = document.getElementById('aspectRatioWrapper');
+        this.imageSizeWrapper = document.getElementById('imageSizeWrapper');
+        this.videoDurationWrapper = document.getElementById('videoDurationWrapper');
+        this.videoResolutionWrapper = document.getElementById('videoResolutionWrapper');
+        this.videoRatioWrapper = document.getElementById('videoRatioWrapper');
         this.settingsDefaultTextModelWrapper = document.getElementById('settingsDefaultTextModelWrapper');
         this.settingsDefaultImageModelWrapper = document.getElementById('settingsDefaultImageModelWrapper');
         this.settingsDefaultVideoModelWrapper = document.getElementById('settingsDefaultVideoModelWrapper');
@@ -29,39 +29,96 @@ export class ModelSelectManager {
         this.initVideoRatios();
     }
     
+    initSimpleDropdown(wrapper, options, defaultKey, onSelect) {
+        if (!wrapper) return;
+        
+        const trigger = wrapper.querySelector('.custom-select-trigger');
+        const selectedText = trigger.querySelector('.selected-text');
+        
+        let dropdown = wrapper._fixedDropdown;
+        if (!dropdown) {
+            dropdown = document.createElement('div');
+            dropdown.className = 'custom-select-dropdown-fixed';
+            document.body.appendChild(dropdown);
+            wrapper._fixedDropdown = dropdown;
+        }
+        
+        dropdown.innerHTML = '';
+        
+        let defaultValue = null;
+        options.forEach((opt, index) => {
+            const value = typeof opt === 'string' ? opt : opt.value;
+            const name = typeof opt === 'string' ? opt : opt.name;
+            
+            const option = document.createElement('div');
+            option.className = 'custom-option';
+            option.dataset.value = value;
+            option.textContent = name;
+            option.addEventListener('click', () => {
+                selectedText.textContent = name;
+                wrapper.dataset.value = value;
+                dropdown.classList.remove('open');
+                wrapper.classList.remove('open');
+                console.log(`[UI] User selected: ${wrapper.id} | Value: ${value}`);
+                if (onSelect) onSelect(value);
+            });
+            dropdown.appendChild(option);
+            
+            if (index === 0 || value === defaultKey) {
+                defaultValue = { value, name };
+            }
+        });
+        
+        if (defaultValue) {
+            wrapper.dataset.value = defaultValue.value;
+            selectedText.textContent = defaultValue.name;
+        }
+        
+        if (wrapper.dataset.listening) return;
+        wrapper.dataset.listening = 'true';
+        
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
+                if (w !== wrapper) w.classList.remove('open');
+            });
+            document.querySelectorAll('.custom-select-dropdown-fixed.open').forEach(d => {
+                if (d !== dropdown) d.classList.remove('open');
+            });
+            
+            const isOpen = dropdown.classList.contains('open');
+            if (isOpen) {
+                dropdown.classList.remove('open');
+                wrapper.classList.remove('open');
+            } else {
+                const rect = trigger.getBoundingClientRect();
+                dropdown.style.top = (rect.bottom + 4) + 'px';
+                dropdown.style.left = rect.left + 'px';
+                dropdown.style.width = rect.width + 'px';
+                dropdown.classList.add('open');
+                wrapper.classList.add('open');
+            }
+        });
+    }
+    
     updateResolutionOptions() {
         const selectedModel = CONFIG.IMAGE_MODEL_NAME;
         const isFirstGroup = selectedModel.includes('3.1-flash-image-preview');
         
-        const imageRatioSelect = document.getElementById('aspectRatio');
-        if (imageRatioSelect) {
-            imageRatioSelect.innerHTML = '';
-            
-            IMAGE_RATIOS.forEach(ratio => {
-                if (isFirstGroup || !['8:1', '4:1', '1:4', '1:8'].includes(ratio.value)) {
-                    const option = document.createElement('option');
-                    option.value = ratio.value;
-                    option.textContent = ratio.name;
-                    imageRatioSelect.appendChild(option);
-                }
-            });
-        }
+        const filteredRatios = IMAGE_RATIOS.filter(ratio => 
+            isFirstGroup || !['8:1', '4:1', '1:4', '1:8'].includes(ratio.value)
+        );
+        this.initSimpleDropdown(this.aspectRatioWrapper, filteredRatios, '1:1', (value) => {
+            CONFIG.ASPECT_RATIO = value;
+        });
         
-        const imageSizeSelect = document.getElementById('imageSize');
-        if (imageSizeSelect) {
-            imageSizeSelect.innerHTML = '';
-            
-            IMAGE_SIZES.forEach(size => {
-                if (isFirstGroup || size.value !== '512px') {
-                    const option = document.createElement('option');
-                    option.value = size.value;
-                    option.textContent = size.name;
-                    imageSizeSelect.appendChild(option);
-                }
-            });
-            
-            imageSizeSelect.value = '1K';
-        }
+        const filteredSizes = IMAGE_SIZES.filter(size => 
+            isFirstGroup || size.value !== '512px'
+        );
+        this.initSimpleDropdown(this.imageSizeWrapper, filteredSizes, '1K', (value) => {
+            CONFIG.IMAGE_SIZE = value;
+        });
     }
     
     updateVideoDurationOptions(modelValue) {
@@ -74,33 +131,17 @@ export class ModelSelectManager {
             model = VIDEO_MODELS.find(m => m.value === modelValue);
         }
         
+        let durations = ['4', '6', '8'];
         if (model && model.params && model.params.durations) {
-            this.videoDurationSelect.innerHTML = '';
-            model.params.durations.forEach(duration => {
-                const option = document.createElement('option');
-                option.value = duration;
-                option.textContent = duration + ' 秒';
-                this.videoDurationSelect.appendChild(option);
-            });
-            this.videoDurationSelect.value = model.params.durations[0];
-            this.updateVideoResolutionOptions(modelValue, model.params.durations[0]);
-        } else {
-            this.videoDurationSelect.innerHTML = '';
-            ['4', '6', '8'].forEach(duration => {
-                const option = document.createElement('option');
-                option.value = duration;
-                option.textContent = duration + ' 秒';
-                if (duration === '6') option.selected = true;
-                this.videoDurationSelect.appendChild(option);
-            });
-            this.videoResolutionSelect.innerHTML = '';
-            ['720p', '1080p', '4k'].forEach(res => {
-                const option = document.createElement('option');
-                option.value = res;
-                option.textContent = res;
-                this.videoResolutionSelect.appendChild(option);
-            });
+            durations = model.params.durations;
         }
+        
+        const durationOptions = durations.map(d => ({ value: d, name: d + ' 秒' }));
+        this.initSimpleDropdown(this.videoDurationWrapper, durationOptions, durations[0], (value) => {
+            this.updateVideoResolutionOptions(modelValue, value);
+        });
+        
+        this.updateVideoResolutionOptions(modelValue, durations[0]);
     }
     
     updateVideoResolutionOptions(modelValue, durationValue) {
@@ -113,71 +154,29 @@ export class ModelSelectManager {
             model = VIDEO_MODELS.find(m => m.value === modelValue);
         }
         
+        let resolutions = ['720p', '1080p', '4k'];
         if (model && model.params && model.params.resolutions && model.params.resolutions[durationValue]) {
-            const resolutions = model.params.resolutions[durationValue];
-            this.videoResolutionSelect.innerHTML = '';
-            resolutions.forEach(res => {
-                const option = document.createElement('option');
-                option.value = res;
-                option.textContent = res;
-                this.videoResolutionSelect.appendChild(option);
-            });
-            this.videoResolutionSelect.value = resolutions[0];
-        } else if (model && model.params && Object.keys(model.params.resolutions).length === 0) {
-            this.videoResolutionSelect.innerHTML = '';
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = '不支持指定';
-            option.disabled = true;
-            this.videoResolutionSelect.appendChild(option);
-        } else {
-            this.videoResolutionSelect.innerHTML = '';
-            ['720p', '1080p', '4k'].forEach(res => {
-                const option = document.createElement('option');
-                option.value = res;
-                option.textContent = res;
-                this.videoResolutionSelect.appendChild(option);
-            });
+            resolutions = model.params.resolutions[durationValue];
         }
+        
+        const resolutionOptions = resolutions.map(r => ({ value: r, name: r }));
+        this.initSimpleDropdown(this.videoResolutionWrapper, resolutionOptions, resolutions[0]);
     }
     
     initVideoOptions() {
         this.updateVideoDurationOptions(CONFIG.VIDEO_MODEL_NAME);
-        
-        if (this.videoDurationSelect) {
-            this.videoDurationSelect.addEventListener('change', () => {
-                this.updateVideoResolutionOptions(CONFIG.VIDEO_MODEL_NAME, this.videoDurationSelect.value);
-            });
-        }
     }
     
     initImageRatios() {
-        if (this.aspectRatio) {
-            IMAGE_RATIOS.forEach(ratio => {
-                const option = document.createElement('option');
-                option.value = ratio.value;
-                option.textContent = ratio.name;
-                if (ratio.value === '1:1') {
-                    option.selected = true;
-                }
-                this.aspectRatio.appendChild(option);
-            });
-        }
+        this.initSimpleDropdown(this.aspectRatioWrapper, IMAGE_RATIOS, '1:1', (value) => {
+            CONFIG.ASPECT_RATIO = value;
+        });
     }
     
     initVideoRatios() {
-        if (this.videoRatioSelect) {
-            this.videoRatioSelect.innerHTML = '';
-            VIDEO_RATIOS.forEach(ratio => {
-                const option = document.createElement('option');
-                option.value = ratio.value;
-                option.textContent = ratio.name;
-                if (ratio.value === '16:9') {
-                    option.selected = true;
-                }
-                this.videoRatioSelect.appendChild(option);
-            });
-        }
+        this.initSimpleDropdown(this.videoRatioWrapper, VIDEO_RATIOS, '16:9', (value) => {
+            CONFIG.VIDEO_RATIO = value;
+        });
     }
     
     populateModelSelects() {
@@ -296,7 +295,7 @@ export class ModelSelectManager {
                     
                     option.classList.add('current');
                     selectedText.textContent = model.name;
-                    dropdown.style.display = 'none';
+                    dropdown.classList.remove('open');
                     wrapper.classList.remove('open');
                     
                     if (onModelChange) {
@@ -318,23 +317,23 @@ export class ModelSelectManager {
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
             
-            document.querySelectorAll('.custom-select-dropdown-fixed').forEach(d => {
-                if (d !== dropdown) d.style.display = 'none';
+            document.querySelectorAll('.custom-select-dropdown-fixed.open').forEach(d => {
+                if (d !== dropdown) d.classList.remove('open');
             });
             document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
                 if (w !== wrapper) w.classList.remove('open');
             });
             
-            const isOpen = dropdown.style.display === 'block';
+            const isOpen = dropdown.classList.contains('open');
             if (isOpen) {
-                dropdown.style.display = 'none';
+                dropdown.classList.remove('open');
                 wrapper.classList.remove('open');
             } else {
                 const rect = trigger.getBoundingClientRect();
                 dropdown.style.top = (rect.bottom + 4) + 'px';
                 dropdown.style.left = rect.left + 'px';
                 dropdown.style.width = rect.width + 'px';
-                dropdown.style.display = 'block';
+                dropdown.classList.add('open');
                 wrapper.classList.add('open');
             }
         });
@@ -358,8 +357,8 @@ export class ModelSelectManager {
             document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
                 w.classList.remove('open');
             });
-            document.querySelectorAll('.custom-select-dropdown-fixed').forEach(d => {
-                d.style.display = 'none';
+            document.querySelectorAll('.custom-select-dropdown-fixed.open').forEach(d => {
+                d.classList.remove('open');
             });
         });
     }

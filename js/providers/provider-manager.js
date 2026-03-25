@@ -239,7 +239,7 @@ class DynamicProviderManager {
             <div>
                 <label class="block text-xs text-gray-500 mb-1.5">名称:</label>
                 <input type="text" id="settings${provider.id}NameInput" value="${provider.name || ''}" 
-                    class="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                    class="w-36 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
                     placeholder="Provider名称">
             </div>
             
@@ -248,8 +248,9 @@ class DynamicProviderManager {
                 <div class="flex items-center gap-2">
                     <input type="text" id="settings${provider.id}BaseUrlInput" value="${provider.baseUrl || ''}" 
                         autocomplete="off"
-                        class="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                        placeholder="API Base URL">
+                        class="auto-width-input px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[200px]" 
+                        placeholder="API Base URL"
+                        data-min-width="200">
                     <div id="settings${provider.id}ProtocolIndicator" 
                         class="w-6 h-6 flex items-center justify-center text-xs font-bold rounded border border-gray-300 bg-gray-50"
                         title="当前协议: ${provider.protocol || 'openai'}">
@@ -372,7 +373,9 @@ class DynamicProviderManager {
         if (baseUrlInput) {
             baseUrlInput.addEventListener('input', () => {
                 this.markDirty();
+                this.adjustInputWidth(baseUrlInput);
             });
+            this.adjustInputWidth(baseUrlInput);
         }
         
         if (apiKeyInput) {
@@ -695,7 +698,36 @@ class DynamicProviderManager {
         return this.providers.has(name);
     }
 
-    // 标记需要更新保存按钮状态
+    adjustInputWidth(input) {
+        if (!input) return;
+        const minWidth = parseInt(input.dataset.minWidth) || 200;
+        const value = input.value || input.placeholder || '';
+        
+        const tempSpan = document.createElement('span');
+        tempSpan.style.visibility = 'hidden';
+        tempSpan.style.position = 'absolute';
+        tempSpan.style.whiteSpace = 'pre';
+        
+        const computedStyle = window.getComputedStyle(input);
+        tempSpan.style.font = computedStyle.font;
+        tempSpan.style.fontSize = computedStyle.fontSize;
+        tempSpan.style.fontFamily = computedStyle.fontFamily;
+        tempSpan.style.fontWeight = computedStyle.fontWeight;
+        tempSpan.style.letterSpacing = computedStyle.letterSpacing;
+        
+        tempSpan.textContent = value;
+        document.body.appendChild(tempSpan);
+        
+        const textWidth = tempSpan.offsetWidth;
+        document.body.removeChild(tempSpan);
+        
+        const padding = 32;
+        const newWidth = Math.max(minWidth, textWidth + padding);
+        input.style.width = newWidth + 'px';
+        
+        console.log(`%c[UI] adjustInputWidth: value="${value.substring(0, 30)}..." textWidth=${textWidth} newWidth=${newWidth}`, 'color: #a855f7');
+    }
+
     markDirty() {
         this.hasUnsavedChanges = true;
         this.updateSaveButtonState();
@@ -738,6 +770,15 @@ class DynamicProviderManager {
     // 清除未保存修改状态
     clearUnsavedChanges() {
         this.hasUnsavedChanges = false;
+        
+        // 重新从localStorage加载配置并重置UI
+        const settingsAPIConfig = document.getElementById('settingsAPIConfig');
+        if (settingsAPIConfig) {
+            this.renderProvidersToSettings();
+        }
+        
+        // 重新渲染后更新保存按钮状态
+        this.updateSaveButtonState();
     }
 
     // 保存Provider配置到localStorage
@@ -846,32 +887,59 @@ class DynamicProviderManager {
         return null;
     }
 
-    // 显示保存成功弹窗
+    // 显示保存成功Toast
     showSaveSuccessModal(message = '设置已成功保存') {
-        console.log('[State] Modal opened: saveSuccess | z-index: 10010');
-        const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 flex items-center justify-center';
-        modal.style.zIndex = '10010';
-        modal.innerHTML = `
-            <div class="absolute inset-0 bg-black/50"></div>
-            <div class="relative bg-white rounded-xl p-6 shadow-2xl max-w-sm mx-4 transform transition-all">
-                <div class="text-center">
-                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">保存成功</h3>
-                    <p class="text-gray-500">${message}</p>
-                </div>
+        console.log('[State] Toast opened: saveSuccess | z-index: 10010');
+        const toast = document.createElement('div');
+        toast.style.position = 'fixed';
+        toast.style.top = '2rem';
+        toast.style.left = '50%';
+        toast.style.transform = 'translate(-50%, -20px)';
+        toast.style.opacity = '0';
+        toast.style.zIndex = '10010';
+        toast.style.display = 'flex';
+        toast.style.alignItems = 'center';
+        toast.style.gap = '12px';
+        toast.style.padding = '12px 16px';
+        toast.style.backgroundColor = 'white';
+        toast.style.borderRadius = '8px';
+        toast.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+        toast.style.border = '1px solid #dcfce7';
+        toast.style.maxWidth = '280px';
+        toast.style.margin = '0 16px';
+        toast.style.pointerEvents = 'none';
+        toast.style.transition = 'all 0.3s ease';
+        
+        toast.innerHTML = `
+            <div style="width: 32px; height: 32px; background-color: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                <svg style="width: 20px; height: 20px; color: #16a34a;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <div>
+                <h3 style="font-size: 14px; font-weight: 500; color: #1f2937; margin: 0 0 4px 0;">保存成功</h3>
+                <p style="font-size: 12px; color: #6b7280; margin: 0;">${message}</p>
             </div>
         `;
-        document.body.appendChild(modal);
         
+        document.body.appendChild(toast);
+        
+        // 淡入动画
         setTimeout(() => {
-            modal.remove();
-            console.log('[State] Modal closed: saveSuccess');
-        }, 2000);
+            toast.style.opacity = '1';
+            toast.style.transform = 'translate(-50%, 0)';
+        }, 100);
+        
+        // 淡出动画
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translate(-50%, -20px)';
+            
+            setTimeout(() => {
+                toast.remove();
+                console.log('[State] Toast closed: saveSuccess');
+            }, 300);
+        }, 3000);
     }
 
     // 显示确认弹窗
@@ -879,42 +947,56 @@ class DynamicProviderManager {
         console.log('[State] Modal opened: confirm | z-index: 10010');
         return new Promise((resolve) => {
             const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 flex items-center justify-center';
-            modal.style.zIndex = '10010';
+            modal.style.cssText = 'position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10010;';
             modal.innerHTML = `
-                <div class="absolute inset-0 bg-black/50"></div>
-                <div class="relative bg-white rounded-xl p-6 shadow-2xl max-w-sm mx-4 transform transition-all">
-                    <div class="text-center">
-                        <h3 class="text-lg font-medium text-gray-900 mb-2">${options.title || '确认'}</h3>
-                        <p class="text-gray-500 mb-6">${message}</p>
-                        <div class="flex gap-3 justify-center">
-                            <button class="cancel-btn ${options.cancelClass || 'px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors'}">${options.cancelText || '取消'}</button>
-                            <button class="ok-btn ${options.okClass || 'px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors'}">${options.okText || '确认'}</button>
-                        </div>
+                <div style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.4);"></div>
+                <div style="position: relative; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); width: 360px; max-width: calc(100vw - 32px);">
+                    <button class="close-btn" style="position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 6px; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #9ca3af; transition: all 0.15s;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                    <h3 style="font-size: 16px; font-weight: 600; color: #1f2937; margin: 0 0 12px 0; padding-right: 24px;">${options.title || '确认'}</h3>
+                    <p style="font-size: 14px; color: #6b7280; margin: 0 0 20px 0; line-height: 1.5;">${message}</p>
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button class="cancel-btn" style="padding: 8px 16px; border-radius: 6px; background: #f3f4f6; color: #374151; border: none; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s;">${options.cancelText || '取消'}</button>
+                        <button class="ok-btn" style="padding: 8px 16px; border-radius: 6px; background: #3b82f6; color: white; border: none; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s;">${options.okText || '确认'}</button>
                     </div>
                 </div>
             `;
             document.body.appendChild(modal);
             
-            modal.querySelector('.ok-btn').addEventListener('click', () => {
+            const okBtn = modal.querySelector('.ok-btn');
+            const cancelBtn = modal.querySelector('.cancel-btn');
+            const closeBtn = modal.querySelector('.close-btn');
+            
+            okBtn.addEventListener('mouseenter', () => okBtn.style.background = '#2563eb');
+            okBtn.addEventListener('mouseleave', () => okBtn.style.background = '#3b82f6');
+            cancelBtn.addEventListener('mouseenter', () => cancelBtn.style.background = '#e5e7eb');
+            cancelBtn.addEventListener('mouseleave', () => cancelBtn.style.background = '#f3f4f6');
+            closeBtn.addEventListener('mouseenter', () => { closeBtn.style.background = '#f3f4f6'; closeBtn.style.color = '#374151'; });
+            closeBtn.addEventListener('mouseleave', () => { closeBtn.style.background = 'transparent'; closeBtn.style.color = '#9ca3af'; });
+            
+            const closeModal = (result) => {
+                modal.remove();
+                console.log('[State] Modal closed: confirm');
+                resolve(result);
+            };
+            
+            okBtn.addEventListener('click', () => {
                 console.log('[UI] User clicked: confirmModalOk');
-                modal.remove();
-                console.log('[State] Modal closed: confirm');
-                resolve(true);
+                closeModal(true);
             });
             
-            modal.querySelector('.cancel-btn').addEventListener('click', () => {
+            cancelBtn.addEventListener('click', () => {
                 console.log('[UI] User clicked: confirmModalCancel');
-                modal.remove();
-                console.log('[State] Modal closed: confirm');
-                resolve(false);
+                closeModal(false);
             });
             
-            modal.querySelector('.absolute').addEventListener('click', () => {
-                console.log('[UI] User clicked: confirmModalOverlay (cancel)');
-                modal.remove();
-                console.log('[State] Modal closed: confirm');
-                resolve(false);
+            closeBtn.addEventListener('click', () => {
+                console.log('[UI] User clicked: confirmModalClose');
+                closeModal(null);
             });
         });
     }
@@ -981,11 +1063,15 @@ class DynamicProviderManager {
         
         tabBtn.click();
         
-        const providers = this.getStoredProviders();
-        providers.push(newProvider);
-        localStorage.setItem('nano_api_providers', JSON.stringify(providers));
+        // 不再立即保存到localStorage，只在显式保存时才写入
+        // const providers = this.getStoredProviders();
+        // providers.push(newProvider);
+        // localStorage.setItem('nano_api_providers', JSON.stringify(providers));
         
-        this.createProviderFromConfig(newProvider);
+        // 只在内存中注册provider，不保存到localStorage
+        // this.createProviderFromConfig(newProvider);
+        
+        this.markDirty();
     }
     
     switchToProviderPanel(providerId) {
@@ -1015,12 +1101,14 @@ class DynamicProviderManager {
     
     deleteProvider(providerId) {
         console.log(`[UI] User clicked: deleteProviderBtn | Target: ${providerId}`);
-        const providers = this.getStoredProviders();
-        const index = providers.findIndex(p => p.id === providerId);
-        if (index > -1) {
-            providers.splice(index, 1);
-            localStorage.setItem('nano_api_providers', JSON.stringify(providers));
-        }
+        
+        // 不再立即从localStorage删除，只从UI中移除
+        // const providers = this.getStoredProviders();
+        // const index = providers.findIndex(p => p.id === providerId);
+        // if (index > -1) {
+        //     providers.splice(index, 1);
+        //     localStorage.setItem('nano_api_providers', JSON.stringify(providers));
+        // }
         
         this.providers.delete(providerId);
         
@@ -1032,6 +1120,8 @@ class DynamicProviderManager {
         
         const firstTab = document.querySelector('#settingsTabs button:not(#settingsTabAdd)');
         if (firstTab) firstTab.click();
+        
+        this.markDirty();
     }
 }
 
