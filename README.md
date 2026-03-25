@@ -1,162 +1,113 @@
-# 🍌 Nano Generator
+🍌 Nano Generator
 
-**版本：v0.2.0**
+版本：v0.2.1-stable
 
-一个基于 Google Gemini API 的 AI 图像生成测试工具。
+Nano Generator 是一个面向未来的 多模态 AI 无限画布创作终端。它不再局限于传统的对话界面，而是提供了一个 10000x10000 的自由创作空间，支持多模型接入、视觉对齐（PIN）以及节点化内容管理。
 
-## 🌐 在线版本
+🌐 快速开始 (零配置)
 
-无需安装，直接访问在线版本：https://nano-api-generator.vercel.app/
+本工具采用 纯前端配置架构，您的 API Key 和所有设置仅存储在浏览器本地（LocalStorage），不经过任何第三方服务器，确保隐私安全。
 
-## 🚀 功能特性
+访问在线版本：https://nano-api-generator.vercel.app/
 
-- ✅ 文本生成和图片识别
-- ✅ AI 图像生成
-- ✅ 多模型支持
-- ✅ 图片预览和下载
-- ✅ 自动保存到本地
-- ✅ API Key 掩码显示
-- ✅ 面板折叠/展开
+配置 API Key：点击页面左下角的 设置(Settings) 按钮。
 
-### 🖼️ 画布功能
+填入 Key：从您的 API 供应商（如 Google AI Studio, OpenAI, Anthropic 等）获取 Key 并填入对应面板。
 
-- ✅ 画布导航（缩略图实时显示）
-- ✅ 画布缩放控制（50%-250%，支持 25% 步长）
-- ✅ Ctrl+鼠标滚轮 缩放画布
-- ✅ 画布拖动（支持中键拖动）
-- ✅ 画布焦点管理
+开始创作：在画布中心输入提示词，即可生成图像、文本或视频节点。
 
-### 📌 图片节点功能
+🚀 核心特性
 
-- ✅ 图片拖动和调整大小（保持宽高比）
-- ✅ PIN 标记功能（Ctrl+点击添加位置标记）
-- ✅ 图片插入到输入框（与其他图片一起发送）
-- ✅ 节点工具栏（复制提示词、插入输入框、复制图片、删除）
-- ✅ 中心坐标和分辨率显示
-- ✅ 提示词显示（图片下方显示）
+🖼️ 无限画布创作系统
 
-### 🛠️ 调试功能
+空间管理：提供 10000x10000 的超大画布，所有内容以“节点”形式存在，自由排列。
 
-- ✅ 调试控制台面板（Ctrl+` 快捷键）
-- ✅ 鼠标事件日志记录
-- ✅ 坐标和网格显示
-- ✅ 实时日志输出
+视觉对齐 (PIN)：独创 PIN 功能，在图片上点击即可标记空间坐标，模型将根据标记点进行精准创作。
 
-## 📦 安装步骤
+智能导航：右下角小地图实时追踪视口位置，支持点击小地图快速跳转。
 
-### 1. 克隆项目
+丝滑缩放：支持以鼠标指针为中心的精准缩放（50%-250%），消除布局偏移干扰。
 
-```bash
-git clone https://github.com/your-username/nano-generator.git
-cd nano-generator
-```
+🤖 多模型供应商支持
 
-### 2. 配置环境变量
+模型无关性：支持 Google Gemini 全系列、OpenAI 格式兼容接口以及 Claude 等主流模型。
 
-```bash
-# 复制环境变量模板
-cp .env.example .env
+动态切换：支持为不同的创作任务（生图、识图、对话、视频）指定不同的供应商和模型。
 
-# 编辑 .env 文件，填入你的 Google AI Studio API Key
-# 将 YOUR_API_KEY_HERE 替换为你的真实 API Key
-```
+异步并行：支持多个请求同时生成，每个节点独立计时，互不干扰。
 
-环境变量配置项：
-- `GEMINI_API_KEY`: Google AI Studio API Key
-- `GEMINI_MODEL_NAME`: 文本/识图模型（默认：gemini-3-flash-preview）
-- `GEMINI_IMAGE_MODEL_NAME`: 生图模型（默认：gemini-3-pro-image-preview）
+📌 节点化交互
 
-### 3. 启动项目
+多功能工具栏：每个节点自带工具栏，支持复制提示词、反向插入输入框、下载或删除。
 
-```bash
+智能占位：生成过程中提供实时进度与耗时显示，位置自动对齐当前视窗中心。
+
+多模态组合：支持将多个图片节点及其 PIN 坐标组合，作为上下文发送给模型。
+
+📦 本地部署
+
+如果您希望在本地运行或开启“本地存盘”模式：
+
+1. 克隆项目
+
+git clone [https://github.com/professorczh/Nano-API-Generator.git](https://github.com/professorczh/Nano-API-Generator.git)
+cd Nano-API-Generator
+
+
+2. 启动服务
+
 # 使用 Node.js 启动
 node server.js
 
 # 或使用 Docker 启动
 docker build -t nano-generator .
 docker run -d -p 8000:8000 -v "$(pwd)/DL:/app/DL" --name nano-generator nano-generator
-```
 
-### 4. 访问应用
 
-打开浏览器访问：http://localhost:8000/
+注意：本地启动时，系统会检测磁盘写入权限。若权限开启，生成的图片/视频将自动备份至 /DL 文件夹。
 
-## 🔑 获取 API Key
+📖 交互说明
 
-1. 访问 [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. 创建新的 API Key
-3. 将 API Key 填入 `.env` 文件或 Vercel 环境变量中
+操作
 
-## 🌐 部署到 Vercel
+快捷键 / 动作
 
-### 1. 连接 GitHub 仓库
+缩放画布
 
-在 Vercel 中导入你的 GitHub 仓库。
+Ctrl + 鼠标滚轮 或 Ctrl + +/-
 
-### 2. 配置环境变量
+平移画布
 
-在 Vercel 项目设置中添加以下环境变量：
+鼠标中键拖拽 或 空格 + 左键拖拽
 
-- `GEMINI_API_KEY`: 你的 Google AI Studio API Key
-- `GEMINI_MODEL_NAME`: gemini-3-flash-preview
-- `GEMINI_IMAGE_MODEL_NAME`: gemini-3-pro-image-preview
+添加 PIN
 
-### 3. 部署配置
+选中图片节点后，Ctrl + 点击 图片任意位置
 
-确保以下设置正确：
-- **Build Command**: 留空（不需要构建）
-- **Output Directory**: 留空（根目录）
-- **Node.js Version**: 18 或更高
+调试控制台
 
-### 4. 部署
+Ctrl + ~ (反引号) 快速切换
 
-点击 "Deploy" 按钮开始部署。
+快速发送
 
-## 📖 使用说明
+Ctrl + Enter
 
-### 基本操作
+🔑 获取 API Key
 
-1. 在 API Key 输入框中输入你的 API Key
-2. 选择模型（文本模型、识图模型、生图模型）
-3. 输入提示词
-4. 勾选"生图模式"生成图片
-5. 点击"发送"按钮
+您可以从以下官方渠道获取 API Key 并直接填入本工具的设置面板：
 
-### 画布操作
+Google Gemini: [Google AI Studio](https://aistudio.google.com/app/apikey)
 
-- **画布拖动**：鼠标中键拖动或直接拖动
-- **画布缩放**：
-  - 使用缩放滑块（50%-250%）
-  - Ctrl + 鼠标滚轮
-  - 缩放按钮 (+/-)
-  - 点击百分比重置为 100%
-- **画布导航**：右下角缩略图实时显示当前视口
+其他供应商: 请访问您对应的 API 供应商后台获取
 
-### 图片节点操作
+📄 隐私声明
 
-- **选择图片**：点击图片节点
-- **添加 PIN 标记**：选中图片后，Ctrl + 点击图片位置
-- **调整图片大小**：拖动右下角调整手柄（保持宽高比）
-- **拖动图片**：直接拖动图片节点
-- **工具栏操作**：
-  - 📝 复制提示词
-  - ✏️ 插入到输入框
-  - 📋 复制图片
-  - 🗑️ 删除图片
+Nano Generator 坚守隐私第一原则：
 
-### 快捷键
+不存储：我们不提供后端数据库，您的 API Key 永远不会上传到我们的服务器。
 
-| 快捷键 | 功能 |
-|--------|------|
-| Ctrl + ` | 切换调试控制台 |
-| Ctrl + +/- | 缩放画布 |
-| Ctrl + 鼠标滚轮 | 缩放画布 |
-| Ctrl + 点击图片 | 添加 PIN 标记 |
+本地化：所有配置均保存在您自己的浏览器 LocalStorage 中。
 
-## 📄 许可证
+透明化：本项目开源，您可以随时审计坐标计算与请求分发逻辑。
 
-MIT License
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
+Banana Team | 赋能每一位多模态创作者
