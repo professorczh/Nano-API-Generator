@@ -7,6 +7,9 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <script src="panzoom.min.js"></script>
     <link rel="stylesheet" href="css/tailwind.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/canvas.css">
+    <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800 overflow-hidden">
@@ -46,9 +49,19 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     fill="none"
-                    stroke-dasharray="20 200"
-                    stroke-dashoffset="0"
-                />
+                    stroke-dasharray="220"
+                    stroke-dashoffset="220"
+                >
+                    <animate 
+                      attributeName="stroke-dashoffset" 
+                      values="220; 0; 0; -220; -220" 
+                      keyTimes="0; 0.2; 0.79; 0.99; 1" 
+                      dur="6s" 
+                      repeatCount="indefinite"
+                      calcMode="spline"
+                      keySplines="0.4 0 0.2 1; 0 0 1 1; 0.4 0 0.2 1; 0 0 1 1"
+                    />
+                </path>
             </svg>
             <h1 class="text-2xl font-bold text-gray-900">Nano Generator</h1>
         </header>
@@ -56,7 +69,7 @@
         <!-- 可拖动的UI面板 -->
         <div id="uiPanel" class="pointer-events-auto absolute top-1/2 -translate-y-1/2 right-4 w-[400px] max-w-[90vw] max-h-[calc(100vh-80px)] overflow-y-auto">
 <!-- 提示词面板 -->
-            <div class="glass-card rounded-2xl p-4 shadow-sm pointer-events-auto">
+            <div class="minimal-panel p-4 shadow-sm pointer-events-auto">
                 <div class="flex items-center justify-between mb-2">
                     <label class="block text-sm font-medium text-gray-700">提示词面板</label>
                     <button id="togglePromptPanel" class="text-sm text-blue-600 hover:text-blue-700">折叠</button>
@@ -70,9 +83,15 @@
                     
                     <!-- 任务类型 Tab -->
                     <div class="mt-4 flex border border-gray-200 rounded-lg overflow-hidden">
-                        <button id="tabText" class="flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50 border-r border-gray-200">📝 文本</button>
-                        <button id="tabImage" class="flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white">🖼️ 图片</button>
-                        <button id="tabVideo" class="flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50">🎬 视频</button>
+                        <button id="tabText" class="flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50 border-r border-gray-200 flex items-center justify-center gap-2">
+                            <i data-lucide="file-text" class="w-4 h-4"></i> 文本
+                        </button>
+                        <button id="tabImage" class="flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white flex items-center justify-center gap-2">
+                            <i data-lucide="image" class="w-4 h-4"></i> 图片
+                        </button>
+                        <button id="tabVideo" class="flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50 flex items-center justify-center gap-2">
+                            <i data-lucide="video" class="w-4 h-4"></i> 视频
+                        </button>
                     </div>
                     
                     <!-- 模型参数 -->

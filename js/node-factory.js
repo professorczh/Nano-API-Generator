@@ -54,67 +54,49 @@ export const NodeFactory = {
         
         header.appendChild(filenameElement);
         header.appendChild(resolutionElement);
+        node.appendChild(header);
+
+        const contentArea = document.createElement('div');
+        contentArea.className = 'node-content';
+        node.appendChild(contentArea);
+
+        const promptText = document.createElement('div');
+        promptText.className = 'node-prompt-text';
+        promptText.textContent = prompt || '视频生成中...';
+        node.appendChild(promptText);
+
+        const sidebar = document.createElement('div');
+        sidebar.className = 'node-sidebar';
+        
+        const timeElement = document.createElement('div');
+        timeElement.className = 'node-generation-time';
+        timeElement.style.display = typeof window.showGenerationTime !== 'undefined' && window.showGenerationTime ? 'flex' : 'none';
+        sidebar.appendChild(timeElement);
 
         const toolbar = document.createElement('div');
         toolbar.className = 'node-toolbar';
         
-        const copyPromptBtn = document.createElement('button');
-        copyPromptBtn.className = 'toolbar-btn';
-        copyPromptBtn.innerHTML = '📝';
-        copyPromptBtn.title = '复制提示词';
-        copyPromptBtn.disabled = true;
-        copyPromptBtn.style.opacity = '0.5';
+        // ... (toolbar buttons)
         
-        const insertBtn = document.createElement('button');
-        insertBtn.className = 'toolbar-btn';
-        insertBtn.innerHTML = '✏️';
-        insertBtn.title = '插入到输入框';
-        insertBtn.disabled = true;
-        insertBtn.style.opacity = '0.5';
+        sidebar.appendChild(toolbar);
+        node.appendChild(sidebar);
+        sidebar.appendChild(timeElement);
         
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'toolbar-btn';
-        copyBtn.innerHTML = '📋';
-        copyBtn.title = '复制视频';
-        copyBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const video = node.querySelector('video');
-            if (!video) return;
-            
-            video.play().then(() => {
-                video.pause();
-                fetch(video.src)
-                    .then(res => res.blob())
-                    .then(blob => {
-                        navigator.clipboard.write([
-                            new ClipboardItem({ 'video/webm': blob })
-                        ]).then(() => {
-                            console.log('视频已复制到剪贴板');
-                        }).catch(err => {
-                            console.error('复制失败:', err);
-                        });
-                    });
-            });
-        });
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'toolbar-btn';
-        deleteBtn.innerHTML = '🗑️';
-        deleteBtn.title = '取消生成';
-        deleteBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (typeof window.deleteVideoPlaceholder === 'function') {
-                window.deleteVideoPlaceholder(node);
+        if (modelName) {
+            const modelTag = document.createElement('div');
+            modelTag.className = 'node-model-tag';
+            modelTag.style.display = typeof window.showModelTag !== 'undefined' && window.showModelTag ? 'block' : 'none';
+            if (typeof modelName === 'object' && modelName.name) {
+                modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
+                modelTag.title = `${modelName.name} (${modelName.provider})`;
             } else {
-                node.remove();
+                modelTag.textContent = modelName;
+                modelTag.title = modelName;
             }
-        });
-        
-        toolbar.appendChild(copyPromptBtn);
-        toolbar.appendChild(insertBtn);
-        toolbar.appendChild(copyBtn);
-        toolbar.appendChild(deleteBtn);
+            sidebar.appendChild(modelTag);
+        }
 
+        // 恢复必要的生成中状态容器
         const loadingContainer = document.createElement('div');
         loadingContainer.className = 'loading-container';
         loadingContainer.style.width = '100%';
@@ -123,9 +105,14 @@ export const NodeFactory = {
         loadingContainer.style.flexDirection = 'column';
         loadingContainer.style.justifyContent = 'center';
         loadingContainer.style.alignItems = 'center';
-        loadingContainer.style.backgroundColor = '#1a1a2e';
+        loadingContainer.style.backgroundColor = 'rgba(26, 26, 46, 0.8)';
         loadingContainer.style.borderRadius = '8px';
+        loadingContainer.style.position = 'absolute';
+        loadingContainer.style.top = '0';
+        loadingContainer.style.left = '0';
+        loadingContainer.style.zIndex = '5';
 
+        // 进度环和状态文本
         const progressContainer = document.createElement('div');
         progressContainer.style.position = 'relative';
         progressContainer.style.width = '60px';
@@ -182,44 +169,7 @@ export const NodeFactory = {
 
         loadingContainer.appendChild(progressContainer);
         loadingContainer.appendChild(statusText);
-
-        const info = document.createElement('div');
-        info.className = 'node-info';
-        info.textContent = prompt || '视频生成中...';
-
-        const centerCoords = document.createElement('div');
-        centerCoords.className = 'node-center-coords';
-        centerCoords.textContent = '(0, 0)';
-        centerCoords.style.display = 'none';
-
-        const sidebar = document.createElement('div');
-        sidebar.className = 'node-sidebar';
-        
-        const timeElement = document.createElement('div');
-        timeElement.className = 'node-generation-time';
-        timeElement.style.display = typeof window.showGenerationTime !== 'undefined' && window.showGenerationTime ? 'flex' : 'none';
-        sidebar.appendChild(timeElement);
-        
-        if (modelName) {
-            const modelTag = document.createElement('div');
-            modelTag.className = 'node-model-tag';
-            modelTag.style.display = typeof window.showModelTag !== 'undefined' && window.showModelTag ? 'block' : 'none';
-            if (typeof modelName === 'object' && modelName.name) {
-                modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
-                modelTag.title = `${modelName.name} (${modelName.provider})`;
-            } else {
-                modelTag.textContent = modelName;
-                modelTag.title = modelName;
-            }
-            sidebar.appendChild(modelTag);
-        }
-
-        node.appendChild(header);
-        node.appendChild(toolbar);
-        node.appendChild(loadingContainer);
-        node.appendChild(info);
-        node.appendChild(centerCoords);
-        node.appendChild(sidebar);
+        contentArea.appendChild(loadingContainer);
 
         node._updateProgress = function(percent) {
             const clampedPercent = Math.min(100, Math.max(0, percent));

@@ -5,6 +5,7 @@ import { selectNode, deleteSelectedNode, copySelectedNode } from './node-manager
 import { updateMinimapWithImage, updateImageCenterCoordinates } from './canvas-manager.js';
 import { formatGenerationTime, debugLog } from './utils.js';
 import { PinManager } from './pin-manager.js';
+import { getIcon } from './icons.js';
 
 function incrementNodeCounter() {
     return CanvasState.nodeCounter++;
@@ -222,7 +223,7 @@ export function updateTextLoadingPlaceholder(node, text, prompt, generationTime 
     });
 }
 
-export function createLoadingPlaceholder(width, height, x, y, modelName = '') {
+export function createLoadingPlaceholder(width, height, x, y, modelName = '', type = 'image') {
     const node = document.createElement('div');
     node.className = 'canvas-node loading-placeholder';
     node.dataset.index = incrementNodeCounter();
@@ -236,41 +237,17 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '') {
     
     const loadingContainer = document.createElement('div');
     loadingContainer.className = 'loading-container';
-    loadingContainer.style.width = '100%';
-    loadingContainer.style.height = '100%';
-    loadingContainer.style.display = 'flex';
-    loadingContainer.style.flexDirection = 'column';
-    loadingContainer.style.justifyContent = 'center';
-    loadingContainer.style.alignItems = 'center';
-    loadingContainer.style.backgroundColor = '#f3f4f6';
-    loadingContainer.style.borderRadius = '8px';
-    loadingContainer.style.border = '1px solid #e5e7eb';
     
-    const loadingBar = document.createElement('div');
-    loadingBar.className = 'loading-bar';
-    loadingBar.style.width = '60%';
-    loadingBar.style.height = '4px';
-    loadingBar.style.backgroundColor = '#e5e7eb';
-    loadingBar.style.borderRadius = '2px';
-    loadingBar.style.overflow = 'hidden';
-    
-    const loadingProgress = document.createElement('div');
-    loadingProgress.className = 'loading-progress';
-    loadingProgress.style.width = '100%';
-    loadingProgress.style.height = '100%';
-    loadingProgress.style.backgroundColor = '#3b82f6';
-    loadingProgress.style.borderRadius = '2px';
-    loadingProgress.style.animation = 'loading 1.5s ease-in-out infinite';
-    
+    const iconMap = {
+        'image': getIcon('image', 32),
+        'text': getIcon('message', 32),
+        'video': getIcon('video', 32)
+    };
+
     const loadingText = document.createElement('div');
     loadingText.className = 'loading-text';
-    loadingText.textContent = '正在生成图片...';
-    loadingText.style.marginTop = '12px';
-    loadingText.style.fontSize = '14px';
-    loadingText.style.color = '#6b7280';
+    loadingText.innerHTML = `${iconMap[type] || ''}<br>正在生成${type === 'image' ? '图片' : type === 'text' ? '回复' : '视频'}...`;
     
-    loadingBar.appendChild(loadingProgress);
-    loadingContainer.appendChild(loadingBar);
     loadingContainer.appendChild(loadingText);
     
     const header = document.createElement('div');
@@ -292,29 +269,29 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '') {
     
     const copyPromptBtn = document.createElement('button');
     copyPromptBtn.className = 'toolbar-btn';
-    copyPromptBtn.innerHTML = '📝';
+    copyPromptBtn.innerHTML = getIcon('file-text', 16);
     copyPromptBtn.title = '复制提示词';
     copyPromptBtn.disabled = true;
     copyPromptBtn.style.opacity = '0.5';
     
     const insertBtn = document.createElement('button');
     insertBtn.className = 'toolbar-btn';
-    insertBtn.innerHTML = '✏️';
+    insertBtn.innerHTML = getIcon('edit', 16);
     insertBtn.title = '插入到输入框';
     insertBtn.disabled = true;
     insertBtn.style.opacity = '0.5';
     
     const copyBtn = document.createElement('button');
     copyBtn.className = 'toolbar-btn';
-    copyBtn.innerHTML = '📋';
-    copyBtn.title = '复制图片';
+    copyBtn.innerHTML = getIcon('clipboard', 16);
+    copyBtn.title = '复制内容';
     copyBtn.disabled = true;
     copyBtn.style.opacity = '0.5';
     
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'toolbar-btn';
-    deleteBtn.innerHTML = '🗑️';
-    deleteBtn.title = '删除图片';
+    deleteBtn.innerHTML = getIcon('trash', 16);
+    deleteBtn.title = '删除节点';
     deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const confirmModal = document.getElementById('confirmModal');
@@ -566,9 +543,6 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
             
             const promptContainer = document.createElement('div');
             promptContainer.className = 'revised-prompt-container';
-            promptContainer.style.marginTop = '4px';
-            promptContainer.style.borderTop = '1px solid #e5e7eb';
-            promptContainer.style.paddingTop = '4px';
             
             const promptHeader = document.createElement('div');
             promptHeader.className = 'revised-prompt-header';
@@ -576,7 +550,7 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
             promptHeader.style.alignItems = 'center';
             promptHeader.style.cursor = 'pointer';
             promptHeader.style.fontSize = '11px';
-            promptHeader.style.color = '#6b7280';
+            promptHeader.style.color = 'var(--text-muted)';
             promptHeader.style.userSelect = 'none';
             
             const promptIcon = document.createElement('span');
@@ -600,12 +574,9 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
             promptContent.className = 'revised-prompt-content';
             promptContent.style.display = 'none';
             promptContent.style.fontSize = '10px';
-            promptContent.style.color = '#4b5563';
             promptContent.style.marginTop = '4px';
             promptContent.style.lineHeight = '1.4';
             promptContent.style.wordBreak = 'break-word';
-            promptContent.style.maxHeight = '80px';
-            promptContent.style.overflowY = 'auto';
             promptContent.textContent = revisedPrompt;
             
             promptHeader.addEventListener('click', () => {
@@ -618,7 +589,7 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
             
             promptContainer.appendChild(promptHeader);
             promptContainer.appendChild(promptContent);
-            node.insertBefore(promptContainer, infoElement);
+            node.appendChild(promptContainer);
         }
     }
     
@@ -690,47 +661,24 @@ export function createErrorNode(errorMessage, x, y, modelName = '') {
     node.dataset.filename = 'Error';
     node.dataset.modelName = modelName;
     node.dataset.errorMessage = errorMessage;
-    node.style.width = '320px';
-    node.style.height = '180px';
     node.style.left = `${x}px`;
     node.style.top = `${y}px`;
     node.style.zIndex = '10';
-    node.style.backgroundColor = '#fef2f2';
-    node.style.border = '2px solid #fecaca';
-    node.style.borderRadius = '8px';
     
     const errorContainer = document.createElement('div');
     errorContainer.className = 'error-container';
-    errorContainer.style.width = '100%';
-    errorContainer.style.height = '100%';
-    errorContainer.style.display = 'flex';
-    errorContainer.style.flexDirection = 'column';
-    errorContainer.style.justifyContent = 'center';
-    errorContainer.style.alignItems = 'center';
-    errorContainer.style.padding = '16px';
-    errorContainer.style.boxSizing = 'border-box';
-    errorContainer.style.cursor = 'pointer';
     
     const errorIcon = document.createElement('div');
+    errorIcon.className = 'error-icon';
     errorIcon.innerHTML = '⚠️';
-    errorIcon.style.fontSize = '32px';
-    errorIcon.style.marginBottom = '8px';
     
     const errorTitle = document.createElement('div');
+    errorTitle.className = 'error-title';
     errorTitle.textContent = '生成失败';
-    errorTitle.style.fontSize = '14px';
-    errorTitle.style.fontWeight = '600';
-    errorTitle.style.color = '#dc2626';
-    errorTitle.style.marginBottom = '8px';
     
     const errorText = document.createElement('div');
-    errorText.textContent = errorMessage.length > 80 ? errorMessage.substring(0, 80) + '...' : errorMessage;
-    errorText.style.fontSize = '11px';
-    errorText.style.color = '#991b1b';
-    errorText.style.textAlign = 'center';
-    errorText.style.wordBreak = 'break-word';
-    errorText.style.maxHeight = '60px';
-    errorText.style.overflow = 'hidden';
+    errorText.className = 'error-text';
+    errorText.textContent = errorMessage;
     errorText.title = errorMessage;
     
     errorContainer.appendChild(errorIcon);

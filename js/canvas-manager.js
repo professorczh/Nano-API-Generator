@@ -295,7 +295,10 @@ export function updateMinimapWithImage(node) {
         nodeHeight = parseInt(node.style.height) || 200;
         bgColor = '#10b981';
     } else {
-        return;
+        // 默认处理：为所有未识别的节点提供一个默认的缩略图尺寸和颜色
+        nodeWidth = parseInt(node.style.width) || 200;
+        nodeHeight = parseInt(node.style.height) || 200;
+        bgColor = '#94a3b8'; // 默认灰色
     }
     
     const nodeLeft = parseInt(node.style.left) || 0;

@@ -38,7 +38,7 @@ export class ModelSelectManager {
         let dropdown = wrapper._fixedDropdown;
         if (!dropdown) {
             dropdown = document.createElement('div');
-            dropdown.className = 'custom-select-dropdown-fixed';
+            dropdown.className = 'custom-select-dropdown';
             document.body.appendChild(dropdown);
             wrapper._fixedDropdown = dropdown;
         }
@@ -83,7 +83,7 @@ export class ModelSelectManager {
             document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
                 if (w !== wrapper) w.classList.remove('open');
             });
-            document.querySelectorAll('.custom-select-dropdown-fixed.open').forEach(d => {
+            document.querySelectorAll('.custom-select-dropdown.open').forEach(d => {
                 if (d !== dropdown) d.classList.remove('open');
             });
             
@@ -230,7 +230,7 @@ export class ModelSelectManager {
         let dropdown = wrapper._fixedDropdown;
         if (!dropdown) {
             dropdown = document.createElement('div');
-            dropdown.className = 'custom-select-dropdown-fixed';
+            dropdown.className = 'custom-select-dropdown';
             document.body.appendChild(dropdown);
             wrapper._fixedDropdown = dropdown;
         }
@@ -317,7 +317,7 @@ export class ModelSelectManager {
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
             
-            document.querySelectorAll('.custom-select-dropdown-fixed.open').forEach(d => {
+            document.querySelectorAll('.custom-select-dropdown.open').forEach(d => {
                 if (d !== dropdown) d.classList.remove('open');
             });
             document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
@@ -357,7 +357,7 @@ export class ModelSelectManager {
             document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
                 w.classList.remove('open');
             });
-            document.querySelectorAll('.custom-select-dropdown-fixed.open').forEach(d => {
+            document.querySelectorAll('.custom-select-dropdown.open').forEach(d => {
                 d.classList.remove('open');
             });
         });
@@ -366,7 +366,13 @@ export class ModelSelectManager {
     populateCustomSelect(wrapper, models, defaultModelId, defaultProvider, configKey, providerKey) {
         if (!wrapper) return;
         
-        const dropdown = wrapper.querySelector('.custom-select-dropdown');
+        let dropdown = wrapper._fixedDropdown;
+        if (!dropdown) {
+            dropdown = document.createElement('div');
+            dropdown.className = 'custom-select-dropdown';
+            document.body.appendChild(dropdown);
+            wrapper._fixedDropdown = dropdown;
+        }
         const trigger = wrapper.querySelector('.custom-select-trigger');
         const selectedText = trigger.querySelector('.selected-text');
         
@@ -433,6 +439,7 @@ export class ModelSelectManager {
                     option.appendChild(newDot);
                     
                     selectedText.textContent = model.name;
+                    dropdown.classList.remove('open');
                     wrapper.classList.remove('open');
                     
                     CONFIG[configKey] = model.value;
@@ -457,10 +464,26 @@ export class ModelSelectManager {
         
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
+            
+            document.querySelectorAll('.custom-select-dropdown.open').forEach(d => {
+                if (d !== dropdown) d.classList.remove('open');
+            });
             document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
                 if (w !== wrapper) w.classList.remove('open');
             });
-            wrapper.classList.toggle('open');
+            
+            const isOpen = dropdown.classList.contains('open');
+            if (isOpen) {
+                dropdown.classList.remove('open');
+                wrapper.classList.remove('open');
+            } else {
+                const rect = trigger.getBoundingClientRect();
+                dropdown.style.top = (rect.bottom + 4) + 'px';
+                dropdown.style.left = rect.left + 'px';
+                dropdown.style.width = rect.width + 'px';
+                dropdown.classList.add('open');
+                wrapper.classList.add('open');
+            }
         });
     }
     
@@ -514,7 +537,9 @@ export class ModelSelectManager {
         if (!wrapper) return;
         const trigger = wrapper.querySelector('.custom-select-trigger');
         const selectedText = trigger.querySelector('.selected-text');
-        const dropdown = wrapper.querySelector('.custom-select-dropdown');
+        const dropdown = wrapper._fixedDropdown;
+        
+        if (!dropdown) return;
         
         const model = models.find(m => m.value === value && m.provider === provider);
         if (model) {

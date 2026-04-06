@@ -5,6 +5,7 @@
       <stop offset="100%" stop-color="#7C3AED" />
     </linearGradient>
   </defs>
+  
   <path
     class="logo-path"
     d="M 30 70 V 30 L 70 70 V 30"
@@ -13,7 +14,17 @@
     stroke-linecap="round"
     stroke-linejoin="round"
     fill="none"
-    stroke-dasharray="20 200"
-    stroke-dashoffset="0"
-  />
+    stroke-dasharray="220"
+    stroke-dashoffset="220"
+  >
+    <animate 
+      attributeName="stroke-dashoffset" 
+      values="220; 0; 0; -220; -220" 
+      keyTimes="0; 0.2; 0.79; 0.99; 1" 
+      dur="6s" 
+      repeatCount="indefinite"
+      calcMode="spline"
+      keySplines="0.4 0 0.2 1; 0 0 1 1; 0.4 0 0.2 1; 0 0 1 1"
+    />
+  </path>
 </svg>

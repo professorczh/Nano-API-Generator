@@ -1,4 +1,5 @@
 import { AppState } from './app-state.js';
+import { getIcon } from './icons.js';
 import { debugLog, adjustTooltipPosition } from './utils.js';
 
 let promptInputElement = null;
@@ -107,7 +108,7 @@ export function createPinMarker(node, pin) {
     
     const deleteBtn = document.createElement('div');
     deleteBtn.className = 'pin-delete';
-    deleteBtn.textContent = '×';
+    deleteBtn.innerHTML = getIcon('trash', 12);
     deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         removePinFromImage(node, pin.id);
@@ -295,7 +296,7 @@ export function createPinnedImageTag(imageUrl, filename, pinNumber, pinX, pinY) 
     
     const deleteBtn = document.createElement('span');
     deleteBtn.className = 'tag-delete';
-    deleteBtn.textContent = '×';
+    deleteBtn.innerHTML = getIcon('trash', 12);
     deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const node = findNodeByImageUrl(imageUrl);

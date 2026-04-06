@@ -3,6 +3,7 @@ import { PinManager } from './pin-manager.js';
 import { DebugConsole } from './debug-console.js';
 import { debugLog, formatGenerationTime } from './utils.js';
 import { updateMinimapWithImage, updateImageCenterCoordinates, getPanzoom, getImageResponseContainer } from './canvas-manager.js';
+import { getIcon } from './icons.js';
 
 let clipboardNode = null;
 let minimapCanvas;
@@ -250,8 +251,8 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
         errorContainer.style.borderRadius = '8px';
         
         const errorIcon = document.createElement('div');
-        errorIcon.innerHTML = '⚠️';
-        errorIcon.style.fontSize = '24px';
+        errorIcon.innerHTML = getIcon('trash', 32);
+        errorIcon.style.color = '#dc2626';
         errorIcon.style.marginBottom = '8px';
         
         const errorText = document.createElement('div');
@@ -305,8 +306,10 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
             promptHeader.style.userSelect = 'none';
             
             const promptIcon = document.createElement('span');
-            promptIcon.textContent = '📝';
+            promptIcon.innerHTML = getIcon('file-text', 12);
             promptIcon.style.marginRight = '4px';
+            promptIcon.style.display = 'flex';
+            promptIcon.style.alignItems = 'center';
             
             const promptTitle = document.createElement('span');
             promptTitle.textContent = 'Revised Prompt';
@@ -365,7 +368,7 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
     
     const copyPromptBtn = document.createElement('button');
     copyPromptBtn.className = 'toolbar-btn';
-    copyPromptBtn.innerHTML = '📝';
+    copyPromptBtn.innerHTML = getIcon('file-text', 16);
     copyPromptBtn.title = '复制提示词';
     copyPromptBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -378,7 +381,7 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
     
     const insertBtn = document.createElement('button');
     insertBtn.className = 'toolbar-btn';
-    insertBtn.innerHTML = '✏️';
+    insertBtn.innerHTML = getIcon('edit', 16);
     insertBtn.title = '插入到输入框';
     insertBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -400,7 +403,7 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
     
     const copyBtn = document.createElement('button');
     copyBtn.className = 'toolbar-btn';
-    copyBtn.innerHTML = '📋';
+    copyBtn.innerHTML = getIcon('clipboard', 16);
     copyBtn.title = '复制图片';
     copyBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -415,7 +418,7 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
     
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'toolbar-btn';
-    deleteBtn.innerHTML = '🗑️';
+    deleteBtn.innerHTML = getIcon('trash', 16);
     deleteBtn.title = '删除图片';
     deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -670,7 +673,7 @@ export function createTextNode(text, prompt = '', index = 0, filename = '', reso
     
     const copyPromptBtn = document.createElement('button');
     copyPromptBtn.className = 'toolbar-btn';
-    copyPromptBtn.innerHTML = '📝';
+    copyPromptBtn.innerHTML = getIcon('file-text', 16);
     copyPromptBtn.title = '复制提示词';
     copyPromptBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -683,7 +686,7 @@ export function createTextNode(text, prompt = '', index = 0, filename = '', reso
     
     const copyBtn = document.createElement('button');
     copyBtn.className = 'toolbar-btn';
-    copyBtn.innerHTML = '📋';
+    copyBtn.innerHTML = getIcon('clipboard', 16);
     copyBtn.title = '复制文本';
     copyBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -696,7 +699,7 @@ export function createTextNode(text, prompt = '', index = 0, filename = '', reso
     
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'toolbar-btn';
-    deleteBtn.innerHTML = '🗑️';
+    deleteBtn.innerHTML = getIcon('trash', 16);
     deleteBtn.title = '删除节点';
     deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();

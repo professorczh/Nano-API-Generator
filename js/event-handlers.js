@@ -170,6 +170,22 @@ export class EventHandler {
                 this.togglePromptPanel.textContent = '展开';
             }
         });
+
+        const promptContainer = document.getElementById('promptContainer');
+        const promptInput = document.getElementById('promptInput');
+        if (promptContainer && promptInput) {
+            promptContainer.addEventListener('click', (e) => {
+                if (e.target !== promptInput) {
+                    promptInput.focus();
+                    const range = document.createRange();
+                    const sel = window.getSelection();
+                    range.selectNodeContents(promptInput);
+                    range.collapse(false);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
+            });
+        }
     }
     
     bindApiKeyEvents() {

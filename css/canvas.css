@@ -1,0 +1,643 @@
+/* 
+ * 项目名称: Nano_API_Test_Viewer
+ * 版本: 1.1.1 (Figma 2026 Refined)
+ * 核心功能: 画布与节点样式定义
+ * 依赖关系: base.css
+ * 运行逻辑: 定义画布背景、各类节点(图片/文本/视频/加载中)样式及交互
+ */
+
+#canvasViewport {
+    cursor: default;
+}
+
+#canvas {
+    background-color: var(--bg-surface);
+    background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+    background-size: 24px 24px;
+    cursor: default;
+    width: 10000px;
+    height: 10000px;
+    left: 0px;
+    top: 0px;
+}
+
+/* --- 1. 基础节点样式 (Base Node) --- */
+.canvas-node {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    gap: 8px;
+    min-width: 300px;
+    animation: node-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes node-entrance {
+    0% { opacity: 0; transform: scale(0.95); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.canvas-node:hover {
+    background: var(--bg-card-hover);
+    box-shadow: var(--shadow-xl);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: translateY(-2px);
+}
+
+.canvas-node.selected {
+    outline: 2px solid var(--accent-primary);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+    z-index: 100 !important;
+    border-radius: var(--radius-lg);
+}
+
+/* --- 2. 图片节点 (Image Node) --- */
+.canvas-node img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: calc(var(--radius-lg) - 1px);
+    cursor: grab;
+}
+
+.canvas-node img:active {
+    cursor: grabbing;
+}
+
+/* 修正：Revised Prompt 容器，防止溢出 */
+.revised-prompt-container {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: var(--space-2);
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    padding: var(--space-2);
+    font-size: 11px;
+    color: var(--text-muted);
+    box-shadow: var(--shadow-md);
+    opacity: 0;
+    pointer-events: none;
+    transition: var(--transition-smooth);
+    z-index: 15;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.canvas-node:hover .revised-prompt-container {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* --- 3. 文本节点 (Text Node) --- */
+.canvas-node.text-node {
+    width: 400px;
+    min-height: 100px;
+    justify-content: flex-start;
+}
+
+.canvas-node.text-node .text-content {
+    width: 100%;
+    padding: var(--space-4);
+    font-size: var(--font-base);
+    line-height: 1.6;
+    color: var(--text-main);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 400px;
+    overflow-y: auto;
+    cursor: text;
+    user-select: text;
+    border-radius: var(--radius-lg);
+}
+
+.canvas-node.text-node .text-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.canvas-node.text-node .text-content::-webkit-scrollbar-track {
+    background: transparent;
+    margin: var(--space-2) 0;
+}
+
+.canvas-node.text-node .text-content::-webkit-scrollbar-thumb {
+    background: var(--border-glass);
+    border-radius: 3px;
+}
+
+.canvas-node.text-node .text-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* --- 4. 视频节点 (Video Node) --- */
+.canvas-node.video-node {
+    background: #000;
+    overflow: hidden;
+}
+
+.canvas-node.video-node video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-controls-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(transparent 60%, rgba(0,0,0,0.8));
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: var(--space-2);
+    opacity: 0;
+    transition: var(--transition-smooth);
+    pointer-events: none;
+}
+
+.canvas-node.video-node:hover .video-controls-overlay {
+    opacity: 1;
+}
+
+.video-controls-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    pointer-events: auto;
+}
+
+.video-ctrl-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    opacity: 0.8;
+    transition: var(--transition-smooth);
+}
+
+.video-ctrl-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.video-progress-bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+}
+
+.video-progress-fill {
+    height: 100%;
+    background: var(--accent-primary);
+    border-radius: 2px;
+    width: 0%;
+}
+
+.video-time-display {
+    color: #fff;
+    font-size: 10px;
+    min-width: 60px;
+    text-align: center;
+    font-family: monospace;
+}
+
+/* --- 5. 加载状态 (Loading States) --- */
+.canvas-node.loading-placeholder,
+.canvas-node.text-loading-placeholder {
+    min-width: 240px;
+    min-height: 120px;
+    background: rgba(59, 130, 246, 0.08);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
+    position: relative;
+}
+
+.canvas-node.loading-placeholder::before,
+.canvas-node.text-loading-placeholder::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.3) 50%,
+        transparent 100%
+    );
+    animation: node-shimmer 2.5s infinite ease-in-out;
+}
+
+@keyframes node-shimmer {
+    0% { transform: translateX(-50%); }
+    100% { transform: translateX(50%); }
+}
+
+.loading-text {
+    font-size: var(--font-sm);
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    z-index: 1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    animation: text-pulse 2s infinite ease-in-out;
+}
+
+@keyframes text-pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+
+.loading-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: auto;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    z-index: 1;
+}
+
+.loading-bar {
+    width: 60%;
+    height: 4px;
+    background: var(--border-subtle);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.loading-progress {
+    width: 100%;
+    height: 100%;
+    background: var(--accent-primary);
+    animation: loading-shimmer 1.5s infinite ease-in-out;
+}
+
+@keyframes loading-shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* --- 6. 错误状态 (Error State) --- */
+.canvas-node.error-node {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    min-width: 280px;
+    min-height: 160px;
+}
+
+.error-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+    text-align: center;
+}
+
+.error-icon {
+    font-size: 32px;
+    margin-bottom: var(--space-2);
+}
+
+.error-title {
+    font-size: var(--font-base);
+    font-weight: 600;
+    color: #dc2626;
+    margin-bottom: var(--space-1);
+}
+
+.error-text {
+    font-size: 11px;
+    color: #991b1b;
+    line-height: 1.4;
+    max-height: 60px;
+    overflow-y: auto;
+}
+
+/* --- 7. 节点附属 UI (Header, Toolbar, Info) --- */
+.canvas-node .node-header {
+    position: absolute;
+    top: -36px;
+    left: 0;
+    right: 0;
+    display: none;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-2);
+    pointer-events: none;
+}
+
+.canvas-node.selected .node-header,
+.canvas-node.loading-placeholder .node-header,
+.canvas-node.text-loading-placeholder .node-header {
+    display: flex;
+}
+
+.canvas-node .node-filename,
+.canvas-node .node-resolution {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-main);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-glass);
+    white-space: nowrap;
+}
+
+.canvas-node .node-filename {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.canvas-node .node-toolbar {
+    position: absolute;
+    bottom: 0;
+    right: -64px;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-glass);
+    border-radius: 8px;
+    padding: 4px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+}
+
+.canvas-node.selected .node-toolbar,
+.canvas-node.loading-placeholder .node-toolbar,
+.canvas-node.text-loading-placeholder .node-toolbar {
+    display: flex;
+}
+
+.canvas-node .toolbar-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    color: var(--text-secondary);
+}
+
+.canvas-node .toolbar-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-primary);
+    transform: none;
+}
+
+.canvas-node .node-info {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 320px;
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-glass);
+    font-size: var(--font-xs);
+    color: var(--text-muted);
+    box-shadow: var(--shadow-md);
+    opacity: 0;
+    pointer-events: none;
+    transition: var(--transition-smooth);
+    z-index: 20;
+    white-space: normal;
+    word-wrap: break-word;
+    max-height: 80px;
+    overflow-y: auto;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.canvas-node.selected .node-info,
+.canvas-node.loading-placeholder .node-info,
+.canvas-node.text-loading-placeholder .node-info {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.canvas-node .node-info.copied::after {
+    content: '已复制';
+    position: absolute;
+    inset: 0;
+    background: rgba(16, 185, 129, 0.9);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: inherit;
+    font-weight: 600;
+}
+
+.canvas-node .node-center-coords {
+    position: absolute;
+    bottom: -28px;
+    right: 0;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    color: white;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    z-index: 99;
+    display: none;
+}
+
+.canvas-node .resize-handle {
+    position: absolute;
+    bottom: -6px;
+    right: -6px;
+    width: 12px;
+    height: 12px;
+    background: var(--accent-primary);
+    border: 2px solid white;
+    border-radius: 50%;
+    cursor: nwse-resize;
+    opacity: 0;
+    transition: var(--transition-smooth);
+    z-index: 10;
+    box-shadow: var(--shadow-sm);
+}
+
+.canvas-node.selected .resize-handle {
+    opacity: 1;
+}
+
+/* --- 8. 侧边栏标签 (Sidebar Tags) --- */
+.canvas-node .node-sidebar {
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    z-index: 10;
+}
+
+.canvas-node .node-generation-time {
+    background: var(--accent-primary);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: var(--shadow-sm);
+    white-space: nowrap;
+}
+
+.canvas-node .node-model-tag {
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 500;
+    box-shadow: var(--shadow-md);
+    text-align: center;
+    max-width: 80px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.minimap-viewport {
+    position: absolute;
+    border: 2px solid var(--accent-primary);
+    background-color: var(--accent-glow);
+    pointer-events: auto;
+    cursor: move;
+    z-index: 2;
+    border-radius: 2px;
+}
+
+.pin-marker {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: var(--shadow-lg);
+    transition: var(--transition-smooth);
+    z-index: 30;
+}
+
+.pin-marker:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+}
+
+.pin-marker .pin-delete {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 16px;
+    height: 16px;
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    opacity: 0;
+    transition: var(--transition-smooth);
+    box-shadow: var(--shadow-sm);
+}
+
+.pin-marker:hover .pin-delete {
+    opacity: 1;
+}
+
+.minimap-container {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    overflow: hidden;
+    border: 1px solid var(--border-glass);
+}
+
+.minimap-header {
+    background: rgba(0, 0, 0, 0.03);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.minimap-title {
+    font-size: var(--font-xs);
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.minimap-canvas {
+    width: 200px;
+    height: 200px;
+    background-color: var(--bg-surface);
+    background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+    background-size: 8px 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    position: relative;
+    overflow: hidden;
+}
+
+.minimap-image {
+    position: absolute;
+    border-radius: 2px;
+    opacity: 0.8;
+    transition: var(--transition-smooth);
+}
+
+.minimap-image:hover {
+    opacity: 1;
+    transform: scale(1.2);
+}

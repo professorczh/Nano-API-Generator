@@ -1,0 +1,363 @@
+/* 
+ * 项目名称: Nano_API_Test_Viewer
+ * 版本: 1.1.0 (Figma 2026 Refined)
+ * 核心功能: 基础样式与全局变量定义
+ * 依赖关系: 无
+ * 运行逻辑: 定义全局 CSS 变量、重置样式及通用组件基础
+ */
+
+:root {
+    /* --- 1. 颜色系统 (Color System) --- */
+    --bg-surface: #f1f5f9;
+    --bg-card: rgba(255, 255, 255, 0.75);
+    --bg-card-hover: rgba(255, 255, 255, 0.85);
+    --accent-primary: #3b82f6;
+    --accent-glow: rgba(59, 130, 246, 0.15);
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border-subtle: rgba(0, 0, 0, 0.06);
+    --border-glass: rgba(255, 255, 255, 0.4);
+
+    /* --- 极简主义主题变量 (Minimalist Theme) --- */
+    --bg-minimal: #ffffff;
+    --bg-minimal-hover: #f9fafb;
+    --border-minimal: #e5e7eb;
+    --text-minimal: #374151;
+    --shadow-minimal: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+
+    /* --- 2. 阴影系统 (Layered Shadows) --- */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-glow: 0 0 20px var(--accent-glow);
+
+    /* --- 3. 间距系统 (8px Grid) --- */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+
+    /* --- 4. 排版系统 (Typography Scale) --- */
+    --font-xs: 11px;
+    --font-sm: 12px;
+    --font-base: 14px;
+    --font-md: 16px;
+    --font-lg: 20px;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    /* --- 5. 其它约束 --- */
+    --canvas-node-max-width: 320px;
+    --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#promptContainer, #promptInput, #queryInput {
+    cursor: text;
+}
+
+#promptInput {
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+/* --- 极简主义面板样式 --- */
+.minimal-panel {
+    background: var(--bg-minimal);
+    border: 1px solid var(--border-minimal);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-minimal);
+    padding: var(--space-4);
+}
+
+.minimal-input {
+    background: var(--bg-minimal);
+    border: 1px solid var(--border-minimal);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-base);
+    color: var(--text-minimal);
+    transition: var(--transition-smooth);
+}
+
+.minimal-input:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg-surface);
+    color: var(--text-main);
+    overflow: hidden;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+}
+
+input[type="text"],
+input[type="number"],
+textarea {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-base);
+    transition: var(--transition-smooth);
+    background: white;
+}
+
+input:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+button {
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    font-family: inherit;
+}
+
+button:active {
+    transform: scale(0.96);
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                 通用组件基础                               */
+/* -------------------------------------------------------------------------- */
+
+.glass-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-glass);
+    box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-lg);
+}
+
+/* --- 6. 标记图片标签 (Pinned Image Tag) --- */
+.pinned-image-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    background: var(--bg-card);
+    border: 1px solid var(--border-glass);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-xs);
+    color: var(--text-main);
+    margin: 2px;
+    cursor: default;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-smooth);
+}
+
+.pinned-image-tag:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent-primary);
+}
+
+.pinned-image-tag .pin-number {
+    background: var(--accent-primary);
+    color: white;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.pinned-image-tag .pin-filename {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pinned-image-tag .tag-delete {
+    display: none;
+    width: 16px;
+    height: 16px;
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    font-size: 10px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-left: 4px;
+    transition: var(--transition-smooth);
+}
+
+.pinned-image-tag .tag-delete svg {
+    width: 10px;
+    height: 10px;
+}
+
+.pinned-image-tag:hover .tag-delete {
+    display: flex;
+}
+
+.pinned-image-tag .tag-delete:hover {
+    background: #dc2626;
+    transform: scale(1.1);
+}
+
+.image-preview-tooltip {
+    position: absolute;
+    display: none;
+    background: var(--bg-card);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--border-glass);
+    padding: var(--space-1);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xl);
+    z-index: 10000;
+    pointer-events: none;
+}
+
+.image-preview-tooltip img {
+    display: block;
+    border-radius: var(--radius-sm);
+}
+
+.pin-indicator {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    box-shadow: var(--shadow-lg);
+    transform: translate(-50%, -50%);
+}
+
+.custom-select-wrapper {
+    position: relative;
+    user-select: none;
+    width: 100%;
+}
+
+.custom-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    font-size: var(--font-sm);
+    color: var(--text-main);
+    min-height: 36px;
+    box-shadow: var(--shadow-sm);
+    width: 100%;
+}
+
+.custom-select-trigger .selected-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: var(--space-1);
+}
+
+.custom-select-trigger:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent-primary);
+    box-shadow: var(--shadow-md);
+}
+
+.custom-select-wrapper.open .custom-select-trigger {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.custom-select-dropdown {
+    position: fixed;
+    background: var(--bg-card);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xl);
+    z-index: 999999;
+    display: none;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: var(--space-1);
+    margin-top: var(--space-1);
+    animation: dropdownFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.custom-select-dropdown.open {
+    display: block;
+}
+
+@keyframes dropdownFadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.custom-option-group {
+    padding: var(--space-2) var(--space-3) var(--space-1);
+    font-size: var(--font-xs);
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.custom-option {
+    padding: var(--space-2) var(--space-3);
+    cursor: pointer;
+    font-size: var(--font-sm);
+    color: var(--text-main);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-smooth);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.custom-option:hover {
+    background: var(--accent-glow);
+    color: var(--accent-primary);
+}
+
+.custom-option.current,
+.custom-option.selected {
+    background: var(--accent-primary);
+    color: white;
+    font-weight: 500;
+}
+
+.custom-option .default-dot {
+    margin-left: var(--space-2);
+    font-size: var(--font-md);
+    line-height: 1;
+}
+
+#canvasMinimap {
+    bottom: 40px;
+}
+
+#miniToolbar {
+    bottom: 40px;
+}
