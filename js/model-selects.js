@@ -12,29 +12,53 @@ export class ModelSelectManager {
         this.videoDurationWrapper = document.getElementById('videoDurationWrapper');
         this.videoResolutionWrapper = document.getElementById('videoResolutionWrapper');
         this.videoRatioWrapper = document.getElementById('videoRatioWrapper');
+        this.audioModelNameWrapper = document.getElementById('audioModelNameWrapper');
+        this.audioDurationWrapper = document.getElementById('audioDurationWrapper');
+        this.audioFormatWrapper = document.getElementById('audioFormatWrapper');
         this.settingsDefaultTextModelWrapper = document.getElementById('settingsDefaultTextModelWrapper');
         this.settingsDefaultImageModelWrapper = document.getElementById('settingsDefaultImageModelWrapper');
         this.settingsDefaultVideoModelWrapper = document.getElementById('settingsDefaultVideoModelWrapper');
-        
+        this.settingsDefaultAudioModelWrapper = document.getElementById('settingsDefaultAudioModelWrapper');
+
         this.isSyncingModels = false;
-        
+
         this.init();
+        this._bindGlobalClick();
     }
-    
+
+    _bindGlobalClick() {
+        if (window._modelSelectGlobalClickBound) return;
+        window._modelSelectGlobalClickBound = true;
+
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
+                w.classList.remove('open');
+            });
+            document.querySelectorAll('.custom-select-dropdown.open').forEach(d => {
+                d.classList.remove('open');
+            });
+        });
+    }
+
+    refreshModelSelects() {
+        this.populateModelSelects();
+    }
+
     init() {
         this.populateModelSelects();
         this.updateResolutionOptions();
         this.initVideoOptions();
+        this.initAudioOptions();
         this.initImageRatios();
         this.initVideoRatios();
     }
-    
+
     initSimpleDropdown(wrapper, options, defaultKey, onSelect) {
         if (!wrapper) return;
-        
+
         const trigger = wrapper.querySelector('.custom-select-trigger');
         const selectedText = trigger.querySelector('.selected-text');
-        
+
         let dropdown = wrapper._fixedDropdown;
         if (!dropdown) {
             dropdown = document.createElement('div');
@@ -42,14 +66,14 @@ export class ModelSelectManager {
             document.body.appendChild(dropdown);
             wrapper._fixedDropdown = dropdown;
         }
-        
+
         dropdown.innerHTML = '';
-        
+
         let defaultValue = null;
         options.forEach((opt, index) => {
             const value = typeof opt === 'string' ? opt : opt.value;
             const name = typeof opt === 'string' ? opt : opt.name;
-            
+
             const option = document.createElement('div');
             option.className = 'custom-option';
             option.dataset.value = value;
@@ -63,30 +87,30 @@ export class ModelSelectManager {
                 if (onSelect) onSelect(value);
             });
             dropdown.appendChild(option);
-            
+
             if (index === 0 || value === defaultKey) {
                 defaultValue = { value, name };
             }
         });
-        
+
         if (defaultValue) {
             wrapper.dataset.value = defaultValue.value;
             selectedText.textContent = defaultValue.name;
         }
-        
+
         if (wrapper.dataset.listening) return;
         wrapper.dataset.listening = 'true';
-        
+
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            
+
             document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
                 if (w !== wrapper) w.classList.remove('open');
             });
             document.querySelectorAll('.custom-select-dropdown.open').forEach(d => {
                 if (d !== dropdown) d.classList.remove('open');
             });
-            
+
             const isOpen = dropdown.classList.contains('open');
             if (isOpen) {
                 dropdown.classList.remove('open');
@@ -101,26 +125,26 @@ export class ModelSelectManager {
             }
         });
     }
-    
+
     updateResolutionOptions() {
         const selectedModel = CONFIG.IMAGE_MODEL_NAME;
         const isFirstGroup = selectedModel.includes('3.1-flash-image-preview');
-        
-        const filteredRatios = IMAGE_RATIOS.filter(ratio => 
+
+        const filteredRatios = IMAGE_RATIOS.filter(ratio =>
             isFirstGroup || !['8:1', '4:1', '1:4', '1:8'].includes(ratio.value)
         );
         this.initSimpleDropdown(this.aspectRatioWrapper, filteredRatios, '1:1', (value) => {
             CONFIG.ASPECT_RATIO = value;
         });
-        
-        const filteredSizes = IMAGE_SIZES.filter(size => 
+
+        const filteredSizes = IMAGE_SIZES.filter(size =>
             isFirstGroup || size.value !== '512px'
         );
         this.initSimpleDropdown(this.imageSizeWrapper, filteredSizes, '1K', (value) => {
             CONFIG.IMAGE_SIZE = value;
         });
     }
-    
+
     updateVideoDurationOptions(modelValue) {
         let model = null;
         if (window.dynamicProviderManager) {
@@ -130,20 +154,22 @@ export class ModelSelectManager {
         if (!model) {
             model = VIDEO_MODELS.find(m => m.value === modelValue);
         }
-        
+
         let durations = ['4', '6', '8'];
         if (model && model.params && model.params.durations) {
             durations = model.params.durations;
         }
-        
+
         const durationOptions = durations.map(d => ({ value: d, name: d + ' 秒' }));
         this.initSimpleDropdown(this.videoDurationWrapper, durationOptions, durations[0], (value) => {
+            CONFIG.VIDEO_DURATION = value;
             this.updateVideoResolutionOptions(modelValue, value);
         });
-        
+
+        CONFIG.VIDEO_DURATION = durations[0];
         this.updateVideoResolutionOptions(modelValue, durations[0]);
     }
-    
+
     updateVideoResolutionOptions(modelValue, durationValue) {
         let model = null;
         if (window.dynamicProviderManager) {
@@ -153,43 +179,58 @@ export class ModelSelectManager {
         if (!model) {
             model = VIDEO_MODELS.find(m => m.value === modelValue);
         }
-        
-        let resolutions = ['720p', '1080p', '4k'];
+
+        let resolutions = ['480p', '720p', '1080p', '4k'];
         if (model && model.params && model.params.resolutions && model.params.resolutions[durationValue]) {
             resolutions = model.params.resolutions[durationValue];
         }
-        
+
         const resolutionOptions = resolutions.map(r => ({ value: r, name: r }));
-        this.initSimpleDropdown(this.videoResolutionWrapper, resolutionOptions, resolutions[0]);
+        this.initSimpleDropdown(this.videoResolutionWrapper, resolutionOptions, resolutions[0], (value) => {
+            CONFIG.VIDEO_RESOLUTION = value;
+        });
+        CONFIG.VIDEO_RESOLUTION = resolutions[0];
     }
-    
+
     initVideoOptions() {
         this.updateVideoDurationOptions(CONFIG.VIDEO_MODEL_NAME);
     }
-    
+
     initImageRatios() {
         this.initSimpleDropdown(this.aspectRatioWrapper, IMAGE_RATIOS, '1:1', (value) => {
             CONFIG.ASPECT_RATIO = value;
         });
     }
-    
+
     initVideoRatios() {
         this.initSimpleDropdown(this.videoRatioWrapper, VIDEO_RATIOS, '16:9', (value) => {
             CONFIG.VIDEO_RATIO = value;
         });
     }
-    
+
+    initAudioOptions() {
+        // Use globals or constants from config.js directly
+        // Actually, looking at the top: TEXT_MODELS, IMAGE_MODELS, VIDEO_MODELS etc are imported. I should import AUDIO ones too.
+
+        this.initSimpleDropdown(this.audioDurationWrapper, window.AUDIO_DURATIONS || [], '15', (value) => {
+            CONFIG.AUDIO_DURATION = value;
+        });
+        this.initSimpleDropdown(this.audioFormatWrapper, window.AUDIO_FORMATS || [], 'mp3', (value) => {
+            CONFIG.AUDIO_FORMAT = value;
+        });
+    }
+
     populateModelSelects() {
-        // 重新获取 wrapper 元素（每次都重新获取，确保获取最新的）
         this.textModelNameWrapper = document.getElementById('textModelNameWrapper');
         this.imageModelNameWrapper = document.getElementById('imageModelNameWrapper');
         this.videoModelNameWrapper = document.getElementById('videoModelNameWrapper');
-        
-        const allModels = window.dynamicProviderManager ? window.dynamicProviderManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
-        
+        this.audioModelNameWrapper = document.getElementById('audioModelNameWrapper');
+
+        const allModels = window.dynamicProviderManager ? window.dynamicProviderManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS, audio: AUDIO_MODELS };
+
         this.populateMainCustomSelect(
-            this.textModelNameWrapper, 
-            allModels.text, 
+            this.textModelNameWrapper,
+            allModels.text,
             CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER,
             CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER,
             (value, provider) => {
@@ -197,10 +238,10 @@ export class ModelSelectManager {
                 CONFIG.MODEL_PROVIDER = provider;
             }
         );
-        
+
         this.populateMainCustomSelect(
-            this.imageModelNameWrapper, 
-            allModels.image, 
+            this.imageModelNameWrapper,
+            allModels.image,
             CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER,
             CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER,
             (value, provider) => {
@@ -209,24 +250,58 @@ export class ModelSelectManager {
                 this.updateResolutionOptions();
             }
         );
-        
+
         this.populateMainCustomSelect(
-            this.videoModelNameWrapper, 
-            allModels.video, 
+            this.videoModelNameWrapper,
+            allModels.video,
             CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER,
             CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER,
             (value, provider) => {
                 CONFIG.VIDEO_MODEL_NAME = value;
                 CONFIG.VIDEO_MODEL_PROVIDER = provider;
+                this.updateReferenceMode(value, provider);
+                this.updateVideoDurationOptions(value);
             }
         );
-        
+
+        this.populateMainCustomSelect(
+            this.audioModelNameWrapper,
+            allModels.audio,
+            CONFIG.AUDIO_MODEL_NAME, CONFIG.AUDIO_MODEL_PROVIDER,
+            CONFIG.AUDIO_MODEL_NAME, CONFIG.AUDIO_MODEL_PROVIDER,
+            (value, provider) => {
+                CONFIG.AUDIO_MODEL_NAME = value;
+                CONFIG.AUDIO_MODEL_PROVIDER = provider;
+            }
+        );
         this.populateSettingsModelSelects();
     }
-    
+
+    updateReferenceMode(modelValue, providerId) {
+        if (window.currentMode !== 'video') return;
+
+        let model = null;
+        if (window.dynamicProviderManager) {
+            const allModels = window.dynamicProviderManager.getAllModels();
+            model = (allModels.video || []).find(m => m.value === modelValue && m.provider === providerId);
+        }
+        if (!model) {
+            model = VIDEO_MODELS.find(m => m.value === modelValue && m.provider === providerId);
+        }
+
+        if (model && model.params && model.params.referenceModes) {
+            const modes = model.params.referenceModes;
+            if (!modes.includes(window.referenceManager?.currentMode)) {
+                window.referenceManager?.setMode(modes[0]);
+            }
+        } else {
+            window.referenceManager?.setMode('omni');
+        }
+    }
+
     populateMainCustomSelect(wrapper, models, defaultModelId, defaultProvider, currentModelId, currentProvider, onModelChange) {
-        if (!wrapper) return;
-        
+        if (!wrapper || !models) return;
+
         let dropdown = wrapper._fixedDropdown;
         if (!dropdown) {
             dropdown = document.createElement('div');
@@ -236,94 +311,94 @@ export class ModelSelectManager {
         }
         const trigger = wrapper.querySelector('.custom-select-trigger');
         const selectedText = trigger.querySelector('.selected-text');
-        
+
         dropdown.innerHTML = '';
-        
+
         const groups = {};
         let currentModel = null;
-        
+
         models.forEach(model => {
             const groupName = model.group || 'Other';
             if (!groups[groupName]) {
                 groups[groupName] = [];
             }
             groups[groupName].push(model);
-            
+
             if (model.value === currentModelId && model.provider === currentProvider) {
                 currentModel = model;
             }
         });
-        
+
         Object.keys(groups).forEach(groupName => {
             if (!groups[groupName] || groups[groupName].length === 0) return;
-            
+
             const groupLabel = document.createElement('div');
             groupLabel.className = 'custom-option-group';
             groupLabel.textContent = groupName;
             dropdown.appendChild(groupLabel);
-            
+
             groups[groupName].forEach(model => {
                 const option = document.createElement('div');
                 option.className = 'custom-option';
                 option.dataset.value = model.value;
                 option.dataset.provider = model.provider;
-                
+
                 const isDefault = model.value === defaultModelId && model.provider === defaultProvider;
                 const isCurrent = model.value === currentModelId && model.provider === currentProvider;
-                
+
                 if (isCurrent) {
                     option.classList.add('current');
                 }
-                
+
                 const textSpan = document.createElement('span');
                 textSpan.textContent = model.name;
                 option.appendChild(textSpan);
-                
+
                 if (isDefault) {
                     const dot = document.createElement('span');
                     dot.className = 'default-dot';
                     dot.textContent = ' •';
                     option.appendChild(dot);
                 }
-                
+
                 option.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    
+
                     dropdown.querySelectorAll('.custom-option').forEach(opt => {
                         opt.classList.remove('current');
                     });
-                    
+
                     option.classList.add('current');
                     selectedText.textContent = model.name;
                     dropdown.classList.remove('open');
                     wrapper.classList.remove('open');
-                    
+
                     if (onModelChange) {
                         onModelChange(model.value, model.provider);
                     }
                 });
-                
+
                 dropdown.appendChild(option);
             });
         });
-        
+
         if (currentModel) {
             selectedText.textContent = currentModel.name;
         }
-        
+
         if (wrapper.dataset.listening) return;
         wrapper.dataset.listening = 'true';
-        
+
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            
+
             document.querySelectorAll('.custom-select-dropdown.open').forEach(d => {
                 if (d !== dropdown) d.classList.remove('open');
             });
             document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
                 if (w !== wrapper) w.classList.remove('open');
             });
-            
+
             const isOpen = dropdown.classList.contains('open');
             if (isOpen) {
                 dropdown.classList.remove('open');
@@ -338,34 +413,24 @@ export class ModelSelectManager {
             }
         });
     }
-    
+
     populateSettingsModelSelects() {
-        if (this._settingsSelectInitialized) return;
-        this._settingsSelectInitialized = true;
-        
         this.settingsDefaultTextModelWrapper = document.getElementById('settingsDefaultTextModelWrapper');
         this.settingsDefaultImageModelWrapper = document.getElementById('settingsDefaultImageModelWrapper');
         this.settingsDefaultVideoModelWrapper = document.getElementById('settingsDefaultVideoModelWrapper');
-        
-        const allModels = window.dynamicProviderManager ? window.dynamicProviderManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
-        
+        this.settingsDefaultAudioModelWrapper = document.getElementById('settingsDefaultAudioModelWrapper');
+
+        const allModels = window.dynamicProviderManager ? window.dynamicProviderManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS, audio: AUDIO_MODELS };
+
         this.populateCustomSelect(this.settingsDefaultTextModelWrapper, allModels.text, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, 'MODEL_NAME', 'MODEL_PROVIDER');
         this.populateCustomSelect(this.settingsDefaultImageModelWrapper, allModels.image, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, 'IMAGE_MODEL_NAME', 'IMAGE_MODEL_PROVIDER');
         this.populateCustomSelect(this.settingsDefaultVideoModelWrapper, allModels.video, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, 'VIDEO_MODEL_NAME', 'VIDEO_MODEL_PROVIDER');
-        
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
-                w.classList.remove('open');
-            });
-            document.querySelectorAll('.custom-select-dropdown.open').forEach(d => {
-                d.classList.remove('open');
-            });
-        });
+        this.populateCustomSelect(this.settingsDefaultAudioModelWrapper, allModels.audio, CONFIG.AUDIO_MODEL_NAME, CONFIG.AUDIO_MODEL_PROVIDER, 'AUDIO_MODEL_NAME', 'AUDIO_MODEL_PROVIDER');
     }
-    
+
     populateCustomSelect(wrapper, models, defaultModelId, defaultProvider, configKey, providerKey) {
-        if (!wrapper) return;
-        
+        if (!wrapper || !models) return;
+
         let dropdown = wrapper._fixedDropdown;
         if (!dropdown) {
             dropdown = document.createElement('div');
@@ -375,103 +440,106 @@ export class ModelSelectManager {
         }
         const trigger = wrapper.querySelector('.custom-select-trigger');
         const selectedText = trigger.querySelector('.selected-text');
-        
+
         dropdown.innerHTML = '';
-        
+
         const groups = {};
         let selectedModel = null;
-        
+
         models.forEach(model => {
             const groupName = model.group || 'Other';
             if (!groups[groupName]) {
                 groups[groupName] = [];
             }
             groups[groupName].push(model);
-            
+
             if (model.value === defaultModelId && model.provider === defaultProvider) {
                 selectedModel = model;
             }
         });
-        
+
         Object.keys(groups).forEach(groupName => {
             if (!groups[groupName] || groups[groupName].length === 0) return;
-            
+
             const groupLabel = document.createElement('div');
             groupLabel.className = 'custom-option-group';
             groupLabel.textContent = groupName;
             dropdown.appendChild(groupLabel);
-            
+
             groups[groupName].forEach(model => {
                 const option = document.createElement('div');
                 option.className = 'custom-option';
                 option.dataset.value = model.value;
                 option.dataset.provider = model.provider;
-                
+
                 const isSelected = model.value === defaultModelId && model.provider === defaultProvider;
                 if (isSelected) {
                     option.classList.add('selected');
                 }
-                
+
                 const textSpan = document.createElement('span');
                 textSpan.textContent = model.name;
                 option.appendChild(textSpan);
-                
+
                 if (isSelected) {
                     const dot = document.createElement('span');
                     dot.className = 'default-dot';
                     dot.textContent = ' •';
                     option.appendChild(dot);
                 }
-                
+
                 option.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    
+
                     dropdown.querySelectorAll('.custom-option').forEach(opt => {
                         opt.classList.remove('selected');
                         const dot = opt.querySelector('.default-dot');
                         if (dot) dot.remove();
                     });
-                    
+
                     option.classList.add('selected');
                     const newDot = document.createElement('span');
                     newDot.className = 'default-dot';
                     newDot.textContent = ' •';
                     option.appendChild(newDot);
-                    
+
                     selectedText.textContent = model.name;
                     dropdown.classList.remove('open');
                     wrapper.classList.remove('open');
-                    
+
                     CONFIG[configKey] = model.value;
                     CONFIG[providerKey] = model.provider;
                     localStorage.setItem('GEMINI_' + configKey, model.value);
                     localStorage.setItem('GEMINI_' + providerKey, model.provider);
-                    
+
                     if (window.dynamicProviderManager && typeof window.dynamicProviderManager.markDirty === 'function') {
                         window.dynamicProviderManager.markDirty();
                     }
-                    
+
                     this.syncFromSettingsToModeSelects();
                 });
-                
+
                 dropdown.appendChild(option);
             });
         });
-        
+
         if (selectedModel) {
             selectedText.textContent = selectedModel.name;
         }
-        
+
+        if (wrapper.dataset.listening) return;
+        wrapper.dataset.listening = 'true';
+
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            
+
             document.querySelectorAll('.custom-select-dropdown.open').forEach(d => {
                 if (d !== dropdown) d.classList.remove('open');
             });
             document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
                 if (w !== wrapper) w.classList.remove('open');
             });
-            
+
             const isOpen = dropdown.classList.contains('open');
             if (isOpen) {
                 dropdown.classList.remove('open');
@@ -486,69 +554,70 @@ export class ModelSelectManager {
             }
         });
     }
-    
+
     syncFromSettingsToModeSelects() {
         if (this.isSyncingModels) return;
         this.isSyncingModels = true;
 
-        const allModels = window.dynamicProviderManager ? window.dynamicProviderManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
-        
+        const allModels = window.dynamicProviderManager ? window.dynamicProviderManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS, audio: AUDIO_MODELS };
+
         this.updateMainCustomSelectCurrent(this.textModelNameWrapper, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, allModels.text);
         this.updateMainCustomSelectCurrent(this.imageModelNameWrapper, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, allModels.image);
         this.updateMainCustomSelectCurrent(this.videoModelNameWrapper, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, allModels.video);
-
+        this.updateMainCustomSelectCurrent(this.audioModelNameWrapper, CONFIG.AUDIO_MODEL_NAME, CONFIG.AUDIO_MODEL_PROVIDER, allModels.audio);
         this.isSyncingModels = false;
     }
-    
+
     syncFromModeToSettingsSelects() {
         if (this.isSyncingModels) return;
         this.isSyncingModels = true;
-        
+
         this.settingsDefaultTextModelWrapper = document.getElementById('settingsDefaultTextModelWrapper');
         this.settingsDefaultImageModelWrapper = document.getElementById('settingsDefaultImageModelWrapper');
         this.settingsDefaultVideoModelWrapper = document.getElementById('settingsDefaultVideoModelWrapper');
-        
-        const allModels = window.dynamicProviderManager ? window.dynamicProviderManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS };
-        
+        this.settingsDefaultAudioModelWrapper = document.getElementById('settingsDefaultAudioModelWrapper');
+
+        const allModels = window.dynamicProviderManager ? window.dynamicProviderManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS, audio: AUDIO_MODELS };
+
         this.updateCustomSelect(this.settingsDefaultTextModelWrapper, CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER, allModels.text);
         this.updateCustomSelect(this.settingsDefaultImageModelWrapper, CONFIG.IMAGE_MODEL_NAME, CONFIG.IMAGE_MODEL_PROVIDER, allModels.image);
         this.updateCustomSelect(this.settingsDefaultVideoModelWrapper, CONFIG.VIDEO_MODEL_NAME, CONFIG.VIDEO_MODEL_PROVIDER, allModels.video);
-
+        this.updateCustomSelect(this.settingsDefaultAudioModelWrapper, CONFIG.AUDIO_MODEL_NAME, CONFIG.AUDIO_MODEL_PROVIDER, allModels.audio);
         this.isSyncingModels = false;
     }
-    
+
     updateMainCustomSelectCurrent(wrapper, value, provider, models) {
         if (!wrapper) return;
         const trigger = wrapper.querySelector('.custom-select-trigger');
         const selectedText = trigger.querySelector('.selected-text');
         const dropdown = wrapper._fixedDropdown;
-        
+
         const model = models.find(m => m.value === value && m.provider === provider);
         if (model) {
             selectedText.textContent = model.name;
-            
+
             dropdown.querySelectorAll('.custom-option').forEach(opt => {
                 opt.classList.toggle('current', opt.dataset.value === value && opt.dataset.provider === provider);
             });
         }
     }
-    
+
     updateCustomSelect(wrapper, value, provider, models) {
         if (!wrapper) return;
         const trigger = wrapper.querySelector('.custom-select-trigger');
         const selectedText = trigger.querySelector('.selected-text');
         const dropdown = wrapper._fixedDropdown;
-        
+
         if (!dropdown) return;
-        
+
         const model = models.find(m => m.value === value && m.provider === provider);
         if (model) {
             selectedText.textContent = model.name;
-            
+
             dropdown.querySelectorAll('.custom-option').forEach(opt => {
                 const isSelected = opt.dataset.value === value && opt.dataset.provider === provider;
                 opt.classList.toggle('selected', isSelected);
-                
+
                 let dot = opt.querySelector('.default-dot');
                 if (isSelected && !dot) {
                     dot = document.createElement('span');

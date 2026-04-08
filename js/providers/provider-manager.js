@@ -1,9 +1,8 @@
-// Provider管理器
-// 目标：根据用户配置的Provider动态加载对应的API模块
-
+import { BaseProvider } from './base-provider.js';
 import { GeminiProvider } from './gemini-provider.js';
+import { OpenAIProvider } from './openai-provider.js';
+import { VolcesProvider } from './volces-provider.js';
 import { VideoProvider } from './video-provider.js';
-import { PROTOCOL_MAP } from '../../config.js';
 
 class DynamicProviderManager {
     constructor() {
@@ -25,6 +24,9 @@ class DynamicProviderManager {
                 ],
                 videoModels: [
                     { protocol: 'gemini', name: 'veo-3.1-fast-generate-preview' }
+                ],
+                audioModels: [
+                    { protocol: 'gemini', name: 'audio-3.1-generate' }
                 ]
             }
         ];
@@ -71,10 +73,10 @@ class DynamicProviderManager {
 
     // 根据配置创建Provider实例
     createProviderFromConfig(providerConfig) {
-        const { id, name, baseUrl, apiKey, protocol: providerProtocol, textModels, imageModels, videoModels } = providerConfig;
+        const { id, name, baseUrl, apiKey, protocol: providerProtocol, textModels, imageModels, videoModels, audioModels } = providerConfig;
         
         // 收集所有模型的协议信息
-        const allModels = [...(textModels || []), ...(imageModels || []), ...(videoModels || [])];
+        const allModels = [...(textModels || []), ...(imageModels || []), ...(videoModels || []), ...(audioModels || [])];
         
         // 为每个模型协议注册Provider
         const protocols = new Set();
@@ -87,13 +89,13 @@ class DynamicProviderManager {
         
         // 根据协议类型选择Provider类
         protocols.forEach(protocol => {
-            const protocolConfig = PROTOCOL_MAP[protocol] || PROTOCOL_MAP['openai'];
-            
             let ProviderClass;
             if (protocol === 'gemini') {
                 ProviderClass = GeminiProvider;
+            } else if (protocol === 'volces') {
+                ProviderClass = VolcesProvider;
             } else {
-                ProviderClass = VideoProvider;
+                ProviderClass = OpenAIProvider;
             }
             
             const config = {
@@ -230,10 +232,16 @@ class DynamicProviderManager {
         const protocolChecked = {
             openai: provider.protocol === 'openai' ? 'checked' : '',
             gemini: provider.protocol === 'gemini' ? 'checked' : '',
+            volces: provider.protocol === 'volces' ? 'checked' : '',
             mix: provider.protocol === 'mix' ? 'checked' : ''
         };
         
-        const protocolIndicator = provider.protocol === 'gemini' ? 'G' : (provider.protocol === 'openai' ? 'O' : 'M');
+        const protocolIndicator = ({
+            gemini: 'G',
+            openai: 'O',
+            volces: 'V',
+            mix: 'M'
+        })[provider.protocol || 'openai'];
         
         panel.innerHTML = `
             <div>
@@ -297,6 +305,11 @@ class DynamicProviderManager {
                         <span class="text-sm text-gray-600">Gemini</span>
                     </label>
                     <label class="flex items-center gap-1">
+                        <input type="radio" name="settings${provider.id}Format" value="volces" ${protocolChecked.volces} 
+                            class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                        <span class="text-sm text-gray-600">火山方舟</span>
+                    </label>
+                    <label class="flex items-center gap-1">
                         <input type="radio" name="settings${provider.id}Format" value="mix" ${protocolChecked.mix} 
                             class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
                         <span class="text-sm text-gray-600">混合</span>
@@ -304,7 +317,7 @@ class DynamicProviderManager {
                 </div>
             </div>
             
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-xs text-gray-500 mb-1.5">文本模型</label>
                     <div id="settings${provider.id}TextModels" class="space-y-1">
@@ -335,6 +348,17 @@ class DynamicProviderManager {
                     <button type="button" class="mt-1 text-xs text-blue-500 hover:text-blue-600" 
                         data-provider-id="${provider.id}" data-type="Video"
                         onclick="window.dynamicProviderManager.addModelInput('${provider.id}', 'Video')">
+                        + 添加模型
+                    </button>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1.5">音频模型</label>
+                    <div id="settings${provider.id}AudioModels" class="space-y-1">
+                        ${this.renderModelList(provider.audioModels || [], provider.protocol, provider.id)}
+                    </div>
+                    <button type="button" class="mt-1 text-xs text-blue-500 hover:text-blue-600" 
+                        data-provider-id="${provider.id}" data-type="Audio"
+                        onclick="window.dynamicProviderManager.addModelInput('${provider.id}', 'Audio')">
                         + 添加模型
                     </button>
                 </div>
@@ -395,7 +419,8 @@ class DynamicProviderManager {
                 this.markDirty();
                 const value = radio.value;
                 if (protocolIndicator) {
-                    protocolIndicator.textContent = value === 'gemini' ? 'G' : (value === 'openai' ? 'O' : 'M');
+                    const indicatorMap = { gemini: 'G', openai: 'O', volces: 'V', mix: 'M' };
+                    protocolIndicator.textContent = indicatorMap[value] || 'O';
                     protocolIndicator.title = `当前协议: ${value}`;
                 }
                 this.updateModelSelectsState(providerId, value);
@@ -409,13 +434,16 @@ class DynamicProviderManager {
         [textModelsContainer, imageModelsContainer, videoModelsContainer].forEach(container => {
             if (container) {
                 container.addEventListener('input', (e) => {
-                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
-                        this.markDirty();
+                    this.markDirty();
+                    // 实时刷新默认模型下拉列表
+                    if (e.target.tagName === 'INPUT' && e.target.type === 'text') {
+                        this.refreshModelSelects();
                     }
                 });
                 container.addEventListener('click', (e) => {
                     if (e.target.classList.contains('model-delete-btn')) {
                         this.markDirty();
+                        this.refreshModelSelects();
                     }
                 });
             }
@@ -432,6 +460,10 @@ class DynamicProviderManager {
                 const apiKey = apiKeyInput?.value;
                 const baseUrl = baseUrlInput?.value;
                 
+                // 获取该面板下的第一个模型名称用于测试
+                const firstModelInput = panel.querySelector('input[data-model-name], #settings' + providerId + 'TextModels input, #settings' + providerId + 'ImageModels input');
+                const modelName = firstModelInput ? firstModelInput.value.trim() : '';
+                
                 if (!apiKey) {
                     this.showApiStatus(apiStatus, apiStatusText, false, '请输入API Key');
                     return;
@@ -441,7 +473,7 @@ class DynamicProviderManager {
                 testBtn.textContent = '测试中...';
                 
                 try {
-                    const result = await this.testApiConnection(apiKey, baseUrl, selectedProtocol);
+                    const result = await this.testApiConnection(apiKey, baseUrl, selectedProtocol, modelName);
                     this.showApiStatus(apiStatus, apiStatusText, result.success, result.message);
                 } catch (error) {
                     this.showApiStatus(apiStatus, apiStatusText, false, error.message);
@@ -478,39 +510,32 @@ class DynamicProviderManager {
         }
     }
     
-    async testApiConnection(apiKey, baseUrl, protocol) {
-        console.log(`[API] Requesting test connection with protocol: ${protocol}, baseUrl: ${baseUrl || 'default'}`);
+    /**
+     * 测试 API 连接 (委托给对应的 Provider 类)
+     */
+    async testApiConnection(apiKey, baseUrl, protocol, modelName = '') {
+        console.log(`[API] 测试连接: 协议=${protocol}, baseUrl=${baseUrl || '默认'}`);
         try {
-            let url = baseUrl;
-            let headers = {};
-            let body = null;
-            
+            let ProviderClass;
             if (protocol === 'gemini') {
-                url = baseUrl || 'https://generativelanguage.googleapis.com';
-                url = url.replace(/\/$/, '') + '/v1beta/models?key=' + apiKey;
-                headers = { 'Content-Type': 'application/json' };
+                ProviderClass = GeminiProvider;
+            } else if (protocol === 'volces') {
+                ProviderClass = VolcesProvider;
             } else {
-                url = baseUrl || 'https://api.openai.com';
-                url = url.replace(/\/$/, '') + '/v1/models';
-                headers = { 
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
-                };
+                ProviderClass = OpenAIProvider;
             }
-            
-            console.log(`[API] Requesting ${url}`);
-            const response = await fetch(url, { method: 'GET', headers });
-            
-            if (response.ok) {
-                console.log('[API] Received: connection success');
-                return { success: true, message: '连接成功' };
-            } else {
-                const errorText = await response.text();
-                console.log(`[API] Received: connection failed - ${response.status}`);
-                return { success: false, message: `连接失败: ${response.status}` };
-            }
+
+            // 创建一个临时实例进行测试
+            const tempProvider = new ProviderClass({
+                id: 'test',
+                apiKey: apiKey,
+                baseUrl: baseUrl,
+                protocol: protocol
+            });
+
+            return await tempProvider.testConnection(null);
         } catch (error) {
-            console.log(`[API] Received: connection error - ${error.message}`);
+            console.log(`[API] 测试失败: ${error.message}`);
             return { success: false, message: `连接错误: ${error.message}` };
         }
     }
@@ -526,6 +551,7 @@ class DynamicProviderManager {
                 <select class="w-10 px-1 py-1 text-xs rounded border border-gray-200 bg-white model-format-select">
                     <option value="openai" ${model.protocol === 'openai' ? 'selected' : ''}>O</option>
                     <option value="gemini" ${model.protocol === 'gemini' ? 'selected' : ''}>G</option>
+                    <option value="volces" ${model.protocol === 'volces' ? 'selected' : ''}>V</option>
                 </select>
                 <input type="text" value="${model.name || ''}" 
                     class="flex-1 px-2 py-1 text-xs rounded border border-gray-200" 
@@ -549,6 +575,7 @@ class DynamicProviderManager {
             <select class="w-10 px-1 py-1 text-xs rounded border border-gray-200 bg-white model-format-select">
                 <option value="openai">O</option>
                 <option value="gemini">G</option>
+                <option value="volces">V</option>
             </select>
             <input type="text" class="flex-1 px-2 py-1 text-xs rounded border border-gray-200" placeholder="模型名称" data-provider-id="${providerId}">
             <button type="button" class="text-red-500 hover:text-red-700 text-xs model-delete-btn" 
@@ -566,6 +593,7 @@ class DynamicProviderManager {
         }
         
         this.markDirty();
+        this.refreshModelSelects();
     }
 
     // 更新模型下拉框状态
@@ -632,59 +660,67 @@ class DynamicProviderManager {
     // 获取所有Provider的模型列表（用于下拉选项）
     getAllModels() {
         try {
-            const savedProviders = localStorage.getItem('nano_api_providers');
-            if (!savedProviders) return { text: [], image: [], video: [] };
+            const result = { text: [], image: [], video: [], audio: [] };
             
-            const providers = JSON.parse(savedProviders);
+            // 首先尝试从当前 DOM 中实时抓取模型（Live Mode）
+            const providerTabs = document.querySelectorAll('#settingsTabs button[data-provider-id]');
             
-            const textModels = [];
-            const imageModels = [];
-            const videoModels = [];
-            
-            providers.forEach(provider => {
-                if (!provider.enabled) return;
-                
-                if (provider.textModels) {
-                    provider.textModels.forEach(m => {
-                        textModels.push({
-                            name: `${m.name}(${provider.name})`,
-                            value: m.name,
-                            provider: provider.id,
-                            group: provider.name,
-                            protocol: m.protocol || provider.protocol
+            if (providerTabs && providerTabs.length > 0) {
+                providerTabs.forEach(tab => {
+                    const providerId = tab.getAttribute('data-provider-id');
+                    const nameSpan = tab.querySelector('span:first-child');
+                    const providerName = nameSpan ? nameSpan.textContent.trim() : providerId;
+                    
+                    const collect = (containerId, type) => {
+                        const models = this.collectModels(containerId);
+                        models.forEach(m => {
+                            result[type].push({
+                                name: `${m.name}(${providerName})`,
+                                value: m.name,
+                                provider: providerId,
+                                group: providerName,
+                                protocol: m.protocol
+                            });
                         });
+                    };
+                    
+                    collect(`settings${providerId}TextModels`, 'text');
+                    collect(`settings${providerId}ImageModels`, 'image');
+                    collect(`settings${providerId}VideoModels`, 'video');
+                    collect(`settings${providerId}AudioModels`, 'audio');
+                });
+            }
+
+            // 如果从 DOM 中没抓到任何内容（比如还没渲染），再回退到 localStorage
+            if (result.text.length === 0 && result.image.length === 0 && result.video.length === 0 && result.audio.length === 0) {
+                const savedProviders = localStorage.getItem('nano_api_providers');
+                if (savedProviders) {
+                    const providers = JSON.parse(savedProviders);
+                    providers.forEach(provider => {
+                        const process = (models, type) => {
+                            if (!models) return;
+                            models.forEach(m => {
+                                result[type].push({
+                                    name: `${m.name}(${provider.name})`,
+                                    value: m.name,
+                                    provider: provider.id,
+                                    group: provider.name,
+                                    protocol: m.protocol || provider.protocol
+                                });
+                            });
+                        };
+                        process(provider.textModels, 'text');
+                        process(provider.imageModels, 'image');
+                        process(provider.videoModels, 'video');
+                        process(provider.audioModels, 'audio');
                     });
                 }
-                
-                if (provider.imageModels) {
-                    provider.imageModels.forEach(m => {
-                        imageModels.push({
-                            name: `${m.name}(${provider.name})`,
-                            value: m.name,
-                            provider: provider.id,
-                            group: provider.name,
-                            protocol: m.protocol || provider.protocol
-                        });
-                    });
-                }
-                
-                if (provider.videoModels) {
-                    provider.videoModels.forEach(m => {
-                        videoModels.push({
-                            name: `${m.name}(${provider.name})`,
-                            value: m.name,
-                            provider: provider.id,
-                            group: provider.name,
-                            protocol: m.protocol || provider.protocol
-                        });
-                    });
-                }
-            });
+            }
             
-            return { text: textModels, image: imageModels, video: videoModels };
+            return result;
         } catch (e) {
             console.error('[ProviderManager] Error getting all models:', e);
-            return { text: [], image: [], video: [] };
+            return { text: [], image: [], video: [], audio: [] };
         }
     }
 
@@ -799,6 +835,7 @@ class DynamicProviderManager {
                 const textModels = this.collectModels(`settings${providerId}TextModels`);
                 const imageModels = this.collectModels(`settings${providerId}ImageModels`);
                 const videoModels = this.collectModels(`settings${providerId}VideoModels`);
+                const audioModels = this.collectModels(`settings${providerId}AudioModels`);
                 
                 const protocolRadio = document.querySelector(`input[name="settings${providerId}Format"]:checked`);
                 const protocol = protocolRadio ? protocolRadio.value : 'openai';
@@ -806,6 +843,7 @@ class DynamicProviderManager {
                 const defaultTextModel = this.getDefaultModelFromSelect(`settingsDefaultTextModelWrapper`);
                 const defaultImageModel = this.getDefaultModelFromSelect(`settingsDefaultImageModelWrapper`);
                 const defaultVideoModel = this.getDefaultModelFromSelect(`settingsDefaultVideoModelWrapper`);
+                const defaultAudioModel = this.getDefaultModelFromSelect(`settingsDefaultAudioModelWrapper`);
                 
                 providers.push({
                     id: providerId,
@@ -817,10 +855,12 @@ class DynamicProviderManager {
                     textModels: textModels,
                     imageModels: imageModels,
                     videoModels: videoModels,
+                    audioModels: audioModels,
                     defaultModel: {
                         text: defaultTextModel,
                         image: defaultImageModel,
-                        video: defaultVideoModel
+                        video: defaultVideoModel,
+                        audio: defaultAudioModel
                     }
                 });
             });
@@ -836,7 +876,9 @@ class DynamicProviderManager {
             }
             
             this.initializeFromStorage();
-            this.refreshModelSelects();
+            if (window.modelSelectManager && typeof window.modelSelectManager.refreshModelSelects === 'function') {
+                window.modelSelectManager.refreshModelSelects();
+            }
             
         } catch (error) {
             console.error('[ProviderManager] 保存配置失败:', error);
@@ -878,7 +920,7 @@ class DynamicProviderManager {
         if (!text || text === '请选择') return null;
         
         const models = this.getAllModels();
-        const allModels = [...(models.text || []), ...(models.image || []), ...(models.video || [])];
+        const allModels = [...(models.text || []), ...(models.image || []), ...(models.video || []), ...(models.audio || [])];
         const model = allModels.find(m => m.name === text);
         
         if (model) {

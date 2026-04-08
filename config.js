@@ -6,16 +6,15 @@ export const CONFIG = {
     IMAGE_MODEL_PROVIDER: getEnvValue('GEMINI_IMAGE_MODEL_PROVIDER') || "google",
     VIDEO_MODEL_NAME: getEnvValue('GEMINI_VIDEO_MODEL_NAME') || "veo-3.1-generate",
     VIDEO_MODEL_PROVIDER: getEnvValue('GEMINI_VIDEO_MODEL_PROVIDER') || "google",
-    TWELVE_AI_API_KEY: getEnvValue('12AI_API_KEY') || "",
-    TWELVE_AI_BASE_URL_1: "https://cdn.12ai.org",
-    TWELVE_AI_BASE_URL_2: "https://new.12ai.org",
-    TWELVE_AI_SELECTED_LINE: 1
+    AUDIO_MODEL_NAME: getEnvValue('GEMINI_AUDIO_MODEL_NAME') || "audio-3.1-generate",
+    AUDIO_MODEL_PROVIDER: getEnvValue('GEMINI_AUDIO_MODEL_PROVIDER') || "google",
+    REFERENCE_MODES: {
+        OMNI: { id: 'omni', name: '全能参考', icon: '🪄' },
+        START_END: { id: 'start_end', name: '首尾帧', icon: '🎞️' },
+        MULTI_FRAME: { id: 'multi_frame', name: '智能多帧', icon: '🧠' }
+    }
 };
 
-export const TWELVE_AI_LINES = [
-    { id: 1, name: "线路一", url: "https://cdn.12ai.org" },
-    { id: 2, name: "线路二", url: "https://new.12ai.org" }
-];
 
 function getEnvValue(key) {
     if (typeof window !== 'undefined' && window.ENV && key in window.ENV) {
@@ -24,26 +23,16 @@ function getEnvValue(key) {
     return null;
 }
 
-export const PROTOCOL_MAP = {
-    'gemini': { suffix: '/v1beta', authType: 'API_KEY' },
-    'openai': { suffix: '/v1', authType: 'BEARER' }
-};
-
 export const TEXT_MODELS = [
     { name: "gemini-3-flash-preview(google)", value: "gemini-3-flash-preview", provider: "google", group: "Google" },
     { name: "gemini-3-pro-preview(google)", value: "gemini-3-pro-preview", provider: "google", group: "Google" },
-    { name: "gemini-2.5-flash(google)", value: "gemini-2.5-flash", provider: "google", group: "Google" },
-    { name: "gemini-3-pro-preview(12ai)", value: "gemini-3-pro-preview", provider: "12ai", group: "12AI" },
-    { name: "gpt-5.1(12ai)", value: "gpt-5.1", provider: "12ai", group: "12AI" }
+    { name: "gemini-2.5-flash(google)", value: "gemini-2.5-flash", provider: "google", group: "Google" }
 ];
 
 export const IMAGE_MODELS = [
     { name: "gemini-3.1-flash-image-preview(google)", value: "gemini-3.1-flash-image-preview", provider: "google", group: "Google" },
     { name: "gemini-3-pro-image-preview(google)", value: "gemini-3-pro-image-preview", provider: "google", group: "Google" },
-    { name: "gemini-2.5-flash-image(google)", value: "gemini-2.5-flash-image", provider: "google", group: "Google" },
-    { name: "gemini-3.1-flash-image-preview(12ai)", value: "gemini-3.1-flash-image-preview", provider: "12ai", group: "12AI" },
-    { name: "gemini-3-pro-image-preview(12ai)", value: "gemini-3-pro-image-preview", provider: "12ai", group: "12AI" },
-    { name: "gemini-2.5-flash-image(12ai)", value: "gemini-2.5-flash-image", provider: "12ai", group: "12AI" }
+    { name: "gemini-2.5-flash-image(google)", value: "gemini-2.5-flash-image", provider: "google", group: "Google" }
 ];
 
 export const VIDEO_MODELS = [
@@ -82,10 +71,43 @@ export const VIDEO_MODELS = [
         supportsVideoExtension: false
       }
     },
-    { name: "seedance2-5s(12ai)", value: "seedance2-5s", provider: "12ai", group: "12AI" },
-    { name: "seedance2-10s(12ai)", value: "seedance2-10s", provider: "12ai", group: "12AI" },
-    { name: "seedance2-15s(12ai)", value: "seedance2-15s", provider: "12ai", group: "12AI" },
-    { name: "veo-3.1-fast-generate-preview(12ai)", value: "veo-3.1-fast-generate-preview", provider: "12ai", group: "12AI" }
+    { name: "Seedance-2.0(Volces)", value: "doubao-seedance-2-0-260128", provider: "volces", group: "Volces",
+      params: {
+        durations: ["5", "11"],
+        aspectRatios: ["16:9", "9:16", "3:4", "4:3", "1:1", "21:9", "adaptive"],
+        resolutions: { "5": ["720p", "1080p"], "11": ["720p", "1080p"] },
+        supportsReferenceImages: true,
+        supportsVideoExtension: true,
+        referenceModes: ['omni', 'start_end', 'multi_frame']
+      }
+    },
+    { name: "Seedance-2.0-Fast(Volces)", value: "doubao-seedance-2-0-fast-260128", provider: "volces", group: "Volces",
+      params: {
+        durations: ["5", "10"],
+        aspectRatios: ["16:9", "9:16", "3:4", "4:3", "1:1", "21:9", "adaptive"],
+        resolutions: { "5": ["720p", "1080p"], "10": ["720p"] },
+        supportsReferenceImages: true,
+        supportsVideoExtension: true,
+        referenceModes: ['omni', 'start_end', 'multi_frame']
+      }
+    }
+];
+
+export const AUDIO_MODELS = [
+    { name: "audio-3.1-generate(google)", value: "audio-3.1-generate", provider: "google", group: "Google" },
+    { name: "lyra-2.0-music-preview(google)", value: "lyra-2.0-music-preview", provider: "google", group: "Google" }
+];
+
+export const AUDIO_DURATIONS = [
+    { name: "15 秒", value: "15" },
+    { name: "30 秒", value: "30" },
+    { name: "60 秒", value: "60" }
+];
+
+export const AUDIO_FORMATS = [
+    { name: "mp3", value: "mp3" },
+    { name: "wav", value: "wav" },
+    { name: "aac", value: "aac" }
 ];
 
 export const VIDEO_RATIOS = [
@@ -122,12 +144,12 @@ export function getProviderByModelId(modelId) {
     
     if (window.dynamicProviderManager) {
         const allModels = window.dynamicProviderManager.getAllModels();
-        const combined = [...(allModels.text || []), ...(allModels.image || []), ...(allModels.video || [])];
+        const combined = [...(allModels.text || []), ...(allModels.image || []), ...(allModels.video || []), ...(allModels.audio || [])];
         const model = combined.find(m => m.value === modelId);
         if (model) return model.provider;
     }
     
-    const allModels = [...TEXT_MODELS, ...IMAGE_MODELS, ...VIDEO_MODELS];
+    const allModels = [...TEXT_MODELS, ...IMAGE_MODELS, ...VIDEO_MODELS, ...AUDIO_MODELS];
     const model = allModels.find(m => m.value === modelId);
     return model?.provider || 'google';
 }
@@ -137,18 +159,18 @@ export function getModelDisplayName(modelId, provider) {
     
     if (window.dynamicProviderManager) {
         const allModels = window.dynamicProviderManager.getAllModels();
-        const combined = [...(allModels.text || []), ...(allModels.image || []), ...(allModels.video || [])];
+        const combined = [...(allModels.text || []), ...(allModels.image || []), ...(allModels.video || []), ...(allModels.audio || [])];
         const model = combined.find(m => m.value === modelId && m.provider === provider);
         if (model) {
             return { name: model.name, provider: model.group || provider };
         }
     }
     
-    const allModels = [...TEXT_MODELS, ...IMAGE_MODELS, ...VIDEO_MODELS];
+    const allModels = [...TEXT_MODELS, ...IMAGE_MODELS, ...VIDEO_MODELS, ...AUDIO_MODELS];
     const model = allModels.find(m => m.value === modelId && m.provider === provider);
     if (model) {
-        const name = model.name.replace(/\s*\(Google\)|\s*\(12AI\)/g, '');
-        const providerName = provider === 'google' ? 'Google' : '12AI';
+        const name = model.name.replace(/\s*\(Google\)/g, '');
+        const providerName = provider === 'google' ? 'Google' : provider;
         return { name, provider: providerName };
     }
     return { name: modelId, provider: '' };
@@ -158,7 +180,8 @@ export function migrateOldStorageFormat() {
     const keys = [
         { name: 'GEMINI_MODEL_NAME', providerKey: 'GEMINI_MODEL_PROVIDER' },
         { name: 'GEMINI_IMAGE_MODEL_NAME', providerKey: 'GEMINI_IMAGE_MODEL_PROVIDER' },
-        { name: 'GEMINI_VIDEO_MODEL_NAME', providerKey: 'GEMINI_VIDEO_MODEL_PROVIDER' }
+        { name: 'GEMINI_VIDEO_MODEL_NAME', providerKey: 'GEMINI_VIDEO_MODEL_PROVIDER' },
+        { name: 'GEMINI_AUDIO_MODEL_NAME', providerKey: 'GEMINI_AUDIO_MODEL_PROVIDER' }
     ];
     
     keys.forEach(({ name, providerKey }) => {

@@ -44,6 +44,8 @@ export class EventHandler {
                 
                 this.uiPanel.style.left = `${clampedLeft}px`;
                 this.uiPanel.style.top = `${clampedTop}px`;
+                this.uiPanel.style.bottom = 'auto'; // 确保高度由内容决定，从上往下长
+                this.uiPanel.style.right = 'auto';  // 转由 left 接管位置，避免冲突
             }
         });
 

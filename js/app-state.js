@@ -25,6 +25,12 @@ export const AppState = {
     resizeNode: null,
     nodes: new Map(),
     
+    // 连线引用状态
+    isLinking: false,
+    linkStartNode: null,
+    linkCurrentX: 0,
+    linkCurrentY: 0,
+    
     updateScale: function(newScale) {
         this.scale = newScale;
     },
@@ -37,6 +43,8 @@ export const AppState = {
         this.isMiddleMouseDown = false;
         this.isResizingNode = false;
         this.resizeNode = null;
+        this.isLinking = false;
+        this.linkStartNode = null;
     }
 };
 

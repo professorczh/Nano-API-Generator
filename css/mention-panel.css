@@ -1,0 +1,263 @@
+/**
+ * 提及面板 (Mention Panel) - 仿极梦深色风格
+ */
+
+.mention-panel {
+    position: absolute;
+    z-index: 999999;
+    width: 220px;
+    background: #1e1e24; /* 深色背景 */
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    padding: 8px;
+    color: #f1f5f9;
+    animation: mentionPaneFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@keyframes mentionPaneFadeIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.mention-panel-header {
+    font-size: 11px;
+    color: #64748b;
+    padding: 4px 8px 8px;
+}
+
+.mention-list {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.mention-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.mention-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.mention-thumb {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mention-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mention-thumb .thumb-video-icon,
+.mention-thumb .thumb-audio-icon {
+    font-size: 16px;
+}
+
+.mention-label {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.mention-panel-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin-top: 4px;
+    padding-top: 4px;
+}
+
+.mention-add-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    color: #3b82f6;
+    font-size: 13px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.mention-add-btn:hover {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.mention-add-btn span {
+    font-size: 18px;
+}
+
+/**
+ * 提及标记 (Mention Tag) - 嵌入在输入框内的 HTML
+ */
+
+.node-reference-mention-tag {
+    display: inline-flex;
+    vertical-align: middle;
+    margin: 0 4px;
+    line-height: 1;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 2px 4px;
+    user-select: none;
+    cursor: grab;
+}
+
+/* 标签内的排列布局 */
+.tag-Qw6RMP {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.thumbnail-vJ6ynC {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+}
+
+.thumbnail-vJ6ynC img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.label-DEyGrL {
+    font-size: 12px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.thumbnail-vJ6ynC.audio-item-e_NZ3R {
+    background: transparent;
+    color: #3b82f6;
+}
+
+.thumbnail-vJ6ynC.audio-item-e_NZ3R svg {
+    width: 12px;
+    height: 12px;
+}
+
+.video-indicator {
+    font-size: 10px;
+    line-height: 1;
+}
+
+/**
+ * 提及预览窗 (Mention Preview Tooltip)
+ */
+
+#mentionPreviewTooltip {
+    position: absolute;
+    width: 280px;
+    background: rgba(15, 23, 42, 0.85); /* 深靛蓝半透明 */
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px; /* 大圆角 */
+    padding: 16px;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+    z-index: 1000000;
+    pointer-events: none; /* 穿透鼠标，防止遮挡标签 */
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: previewFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#mentionPreviewTooltip.hidden {
+    display: none;
+}
+
+@keyframes previewFadeIn {
+    from { opacity: 0; transform: scale(0.92) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.preview-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 12px;
+    letter-spacing: 0.02em;
+}
+
+.preview-content {
+    width: 100%;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #000;
+    position: relative;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.preview-content img,
+.preview-content video {
+    display: block;
+    width: 100%;
+    max-height: 180px;
+    object-fit: contain;
+}
+
+/* 视频倒计时角标 */
+.preview-duration-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
+}
+
+/* 音频播放器样式 */
+.preview-audio-player {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0;
+}
+
+.audio-play-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    pointer-events: auto; /* 音频按钮需要响应点击 */
+}
+
+.audio-play-btn:hover {
+    background: var(--accent-primary);
+    transform: scale(1.1);
+}
+
+.audio-time-info {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    font-family: inherit;
+}

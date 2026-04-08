@@ -14,6 +14,10 @@ import { createLoadingPlaceholder, createTextLoadingPlaceholder, updateLoadingPl
 import { TemplateLoader } from './template-loader.js';
 import { DebugConsole } from './debug-console.js';
 import { SettingsPanel } from './settings-panel.js';
+import { referenceManager } from './reference-manager.js';
+import { mentionManager } from './mention-manager.js';
+import { previewManager } from './preview-manager.js';
+import { LinkerManager } from './linker-manager.js';
 
 class GlobalLogger {
     constructor() {
@@ -252,18 +256,17 @@ const App = {
             providerToggleContainer: document.getElementById('providerToggleContainer'),
             storageWarning: document.getElementById('storageWarning'),
             canvasCenterMarker: document.getElementById('canvasCenterMarker'),
-            debugGrid: document.getElementById('debugGrid')
+            debugGrid: document.getElementById('debugGrid'),
+            referenceShelf: document.getElementById('referenceShelf'),
+            shelfFileInput: document.getElementById('shelfFileInput'),
+            audioModelNameWrapper: document.getElementById('audioModelNameWrapper'),
+            audioDurationWrapper: document.getElementById('audioDurationWrapper'),
+            audioFormatWrapper: document.getElementById('audioFormatWrapper')
         };
     },
 
     loadConfig() {
-        const saved12AIKey = window.ENV?.['12AI_API_KEY'] || localStorage.getItem('12AI_API_KEY') || '';
         migrateOldStorageFormat();
-        
-        if (saved12AIKey) {
-            CONFIG.TWELVE_AI_API_KEY = saved12AIKey;
-            apiClient.update12AIKey(saved12AIKey);
-        }
 
         const savedModelName = localStorage.getItem('GEMINI_MODEL_NAME');
         const savedModelProvider = localStorage.getItem('GEMINI_MODEL_PROVIDER');
@@ -279,6 +282,11 @@ const App = {
         const savedVideoModelProvider = localStorage.getItem('GEMINI_VIDEO_MODEL_PROVIDER');
         if (savedVideoModelName) CONFIG.VIDEO_MODEL_NAME = savedVideoModelName;
         if (savedVideoModelProvider) CONFIG.VIDEO_MODEL_PROVIDER = savedVideoModelProvider;
+
+        const savedAudioModelName = localStorage.getItem('GEMINI_AUDIO_MODEL_NAME');
+        const savedAudioModelProvider = localStorage.getItem('GEMINI_AUDIO_MODEL_PROVIDER');
+        if (savedAudioModelName) CONFIG.AUDIO_MODEL_NAME = savedAudioModelName;
+        if (savedAudioModelProvider) CONFIG.AUDIO_MODEL_PROVIDER = savedAudioModelProvider;
     },
 
     initModules() {
@@ -304,6 +312,18 @@ const App = {
             showGenerationTime: true,
             showModelTag: true
         });
+        
+        if (this.elements.referenceShelf) {
+            referenceManager.setShelfElement(this.elements.referenceShelf);
+        }
+
+        if (this.elements.promptInput) {
+            mentionManager.init(this.elements.promptInput);
+        }
+
+        previewManager.init();
+
+        LinkerManager.init();
 
         this.initProviderToggle();
     },
@@ -318,7 +338,22 @@ const App = {
         this.initModalEvents();
         this.initSendEvents();
         this.initMouseEvents();
+        this.initShelfEvents();
         this.initResizeEvent();
+    },
+
+    initShelfEvents() {
+        const { shelfFileInput } = this.elements;
+        if (shelfFileInput) {
+            shelfFileInput.addEventListener('change', async (e) => {
+                const files = Array.from(e.target.files);
+                for (const file of files) {
+                    await referenceManager.addReference(file, file.name);
+                }
+                // 清空 input 方便重复选择同一个文件
+                shelfFileInput.value = '';
+            });
+        }
     },
 
     initUploadEvents() {
@@ -488,21 +523,19 @@ const App = {
             { containerId: 'geminiTextModels', addBtnId: 'geminiTextModelsAddBtn', colorClass: 'text-blue-600 hover:text-blue-700', defaultFormat: 'gemini' },
             { containerId: 'geminiImageModels', addBtnId: 'geminiImageModelsAddBtn', colorClass: 'text-blue-600 hover:text-blue-700', defaultFormat: 'gemini' },
             { containerId: 'geminiVideoModels', addBtnId: 'geminiVideoModelsAddBtn', colorClass: 'text-blue-600 hover:text-blue-700', defaultFormat: 'gemini' },
-            { containerId: '12aiTextModels', addBtnId: '12aiTextModelsAddBtn', colorClass: 'text-purple-600 hover:text-purple-700', defaultFormat: 'openai' },
-            { containerId: '12aiImageModels', addBtnId: '12aiImageModelsAddBtn', colorClass: 'text-purple-600 hover:text-purple-700', defaultFormat: 'openai' },
-            { containerId: '12aiVideoModels', addBtnId: '12aiVideoModelsAddBtn', colorClass: 'text-purple-600 hover:text-purple-700', defaultFormat: 'openai' },
+            { containerId: 'geminiAudioModels', addBtnId: 'geminiAudioModelsAddBtn', colorClass: 'text-blue-600 hover:text-blue-700', defaultFormat: 'gemini' },
             { containerId: 'openaiTextModels', addBtnId: 'openaiTextModelsAddBtn', colorClass: 'text-green-600 hover:text-green-700', defaultFormat: 'openai' },
             { containerId: 'openaiImageModels', addBtnId: 'openaiImageModelsAddBtn', colorClass: 'text-green-600 hover:text-green-700', defaultFormat: 'openai' },
             { containerId: 'openaiVideoModels', addBtnId: 'openaiVideoModelsAddBtn', colorClass: 'text-green-600 hover:text-green-700', defaultFormat: 'openai' },
+            { containerId: 'openaiAudioModels', addBtnId: 'openaiAudioModelsAddBtn', colorClass: 'text-green-600 hover:text-green-700', defaultFormat: 'openai' },
             { containerId: 'claudeTextModels', addBtnId: 'claudeTextModelsAddBtn', colorClass: 'text-orange-600 hover:text-orange-700', defaultFormat: 'openai' },
             { containerId: 'claudeImageModels', addBtnId: 'claudeImageModelsAddBtn', colorClass: 'text-orange-600 hover:text-orange-700', defaultFormat: 'openai' },
             { containerId: 'claudeVideoModels', addBtnId: 'claudeVideoModelsAddBtn', colorClass: 'text-orange-600 hover:text-orange-700', defaultFormat: 'openai' }
         ];
 
         const formatConfigs = [
-            { radioName: 'settingsGeminiFormat', containers: ['geminiTextModels', 'geminiImageModels', 'geminiVideoModels'], defaultFormat: 'gemini' },
-            { radioName: 'settings12AiFormat', containers: ['12aiTextModels', '12aiImageModels', '12aiVideoModels'], defaultFormat: 'openai' },
-            { radioName: 'settingsOpenAIFormat', containers: ['openaiTextModels', 'openaiImageModels', 'openaiVideoModels'], defaultFormat: 'openai' },
+            { radioName: 'settingsGeminiFormat', containers: ['geminiTextModels', 'geminiImageModels', 'geminiVideoModels', 'geminiAudioModels'], defaultFormat: 'gemini' },
+            { radioName: 'settingsOpenAIFormat', containers: ['openaiTextModels', 'openaiImageModels', 'openaiVideoModels', 'openaiAudioModels'], defaultFormat: 'openai' },
             { radioName: 'settingsClaudeFormat', containers: ['claudeTextModels', 'claudeImageModels', 'claudeVideoModels'], defaultFormat: 'openai' }
         ];
 
@@ -641,7 +674,7 @@ const App = {
     },
 
     initSendEvents() {
-        const { sendBtn, promptInput, temperature, topP, aspectRatioWrapper, imageSize, videoRatioWrapper, videoResolutionWrapper, videoDurationWrapper, loader, statusTag, imageResponseContainer } = this.elements;
+        const { sendBtn, promptInput, temperature, topP, aspectRatioWrapper, imageSize, videoRatioWrapper, videoResolutionWrapper, videoDurationWrapper, audioModelNameWrapper, audioDurationWrapper, audioFormatWrapper, loader, statusTag, imageResponseContainer } = this.elements;
 
         const callAPI = () => handleAPICall({
             promptInput,
@@ -652,6 +685,9 @@ const App = {
             videoRatioWrapper,
             videoResolutionWrapper,
             videoDurationWrapper,
+            audioModelNameWrapper,
+            audioDurationWrapper,
+            audioFormatWrapper,
             loader,
             statusTag,
             imageResponseContainer,
@@ -706,6 +742,10 @@ const App = {
                     debugLog(`[调整大小] width=${newWidth.toFixed(0)}`, 'event');
                 }
             }
+
+            if (AppState.isLinking) {
+                LinkerManager.updateLinking(e);
+            }
         });
 
         document.addEventListener('mouseup', (e) => {
@@ -730,6 +770,10 @@ const App = {
             if (AppState.isMiddleMouseDown) {
                 AppState.isMiddleMouseDown = false;
                 canvasViewport.style.cursor = 'default';
+            }
+
+            if (AppState.isLinking) {
+                LinkerManager.endLinking(e);
             }
         });
 
@@ -790,7 +834,6 @@ const App = {
         
         const baseUrlInputs = [
             'settingsGeminiBaseUrl',
-            'settings12AiBaseUrl', 
             'settingsOpenAIBaseUrl',
             'settingsClaudeBaseUrl'
         ];

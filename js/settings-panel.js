@@ -16,9 +16,6 @@ export class SettingsPanel {
             { containerId: 'geminiTextModels', addBtnId: 'geminiTextModelsAddBtn', colorClass: 'text-blue-600 hover:text-blue-700', defaultFormat: 'gemini' },
             { containerId: 'geminiImageModels', addBtnId: 'geminiImageModelsAddBtn', colorClass: 'text-blue-600 hover:text-blue-700', defaultFormat: 'gemini' },
             { containerId: 'geminiVideoModels', addBtnId: 'geminiVideoModelsAddBtn', colorClass: 'text-blue-600 hover:text-blue-700', defaultFormat: 'gemini' },
-            { containerId: '12aiTextModels', addBtnId: '12aiTextModelsAddBtn', colorClass: 'text-purple-600 hover:text-purple-700', defaultFormat: 'openai' },
-            { containerId: '12aiImageModels', addBtnId: '12aiImageModelsAddBtn', colorClass: 'text-purple-600 hover:text-purple-700', defaultFormat: 'openai' },
-            { containerId: '12aiVideoModels', addBtnId: '12aiVideoModelsAddBtn', colorClass: 'text-purple-600 hover:text-purple-700', defaultFormat: 'openai' },
             { containerId: 'openaiTextModels', addBtnId: 'openaiTextModelsAddBtn', colorClass: 'text-green-600 hover:text-green-700', defaultFormat: 'openai' },
             { containerId: 'openaiImageModels', addBtnId: 'openaiImageModelsAddBtn', colorClass: 'text-green-600 hover:text-green-700', defaultFormat: 'openai' },
             { containerId: 'openaiVideoModels', addBtnId: 'openaiVideoModelsAddBtn', colorClass: 'text-green-600 hover:text-green-700', defaultFormat: 'openai' },
@@ -32,11 +29,6 @@ export class SettingsPanel {
                 radioName: 'settingsGeminiFormat', 
                 containers: ['geminiTextModels', 'geminiImageModels', 'geminiVideoModels'],
                 defaultFormat: 'gemini'
-            },
-            { 
-                radioName: 'settings12AiFormat', 
-                containers: ['12aiTextModels', '12aiImageModels', '12aiVideoModels'],
-                defaultFormat: 'openai'
             },
             { 
                 radioName: 'settingsOpenAIFormat', 
@@ -148,6 +140,7 @@ export class SettingsPanel {
             <select class="w-10 px-1 py-1 text-xs rounded border border-gray-200 bg-white model-format-select">
                 <option value="openai" ${openaiSelected} title="OpenAI格式">O</option>
                 <option value="gemini" ${geminiSelected} title="Gemini格式">G</option>
+                <option value="volces" title="火山方舟">V</option>
             </select>
             <input type="text" placeholder="模型名称" class="flex-1 px-2 py-1 text-xs rounded border border-gray-200">
             <button type="button" class="text-red-500 hover:text-red-700 text-xs model-delete-btn">×</button>

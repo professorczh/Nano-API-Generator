@@ -430,7 +430,7 @@ export function createImageTag(imageData, index) {
     return item;
 }
 
-export function insertImageToPrompt(imageUrl, filename) {
+export async function insertImageToPrompt(imageUrl, filename) {
     const promptInput = getPromptInput();
     if (!promptInput) return;
     
@@ -439,10 +439,38 @@ export function insertImageToPrompt(imageUrl, filename) {
         name: filename
     };
     imageDataList.push(imageData);
+
+    // 1. 在提示词框内插入可视标签 (原有逻辑)
     const imageTag = createImageTag(imageData, pasteImageCounter++);
     promptInput.appendChild(imageTag);
     updateImageDataList();
     debugLog(`[插入图片] 文件名: ${filename}`, 'info');
+
+    // 2. 同步到参考架 (Sync to Reference Shelf)
+    try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        
+        // 确保有一个有效的文件名和扩展名
+        const extension = blob.type.split('/')[1] || 'png';
+        const fileNameWithExt = filename.includes('.') ? filename : `${filename}.${extension}`;
+        const file = new File([blob], fileNameWithExt, { type: blob.type });
+
+        // 智能插槽分配: 如果在“首尾帧”模式下，尝试填入空位
+        let targetSlot = null;
+        if (window.referenceManager.currentMode === 'start_end') {
+            const refs = window.referenceManager.getAllReferences();
+            const hasStart = refs.some(r => r.slot === 0);
+            const hasEnd = refs.some(r => r.slot === 1);
+            if (!hasStart) targetSlot = 0;
+            else if (!hasEnd) targetSlot = 1;
+        }
+
+        await window.referenceManager.addReference(file, fileNameWithExt, null, targetSlot);
+        debugLog(`[同步] 已同步至参考架: ${fileNameWithExt}`, 'success');
+    } catch (err) {
+        console.error('[Sync] Failed to sync to reference shelf:', err);
+    }
 }
 
 export function updateImageDataList() {

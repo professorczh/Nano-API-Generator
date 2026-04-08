@@ -123,33 +123,101 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--space-2) var(--space-4);
-    background: rgba(0, 0, 0, 0.3);
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 8px 16px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 20px;
+}
+
+.debug-console-footer-center {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    flex: 1;
 }
 
 .debug-console-mouse-label {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    color: rgba(255, 255, 255, 0.6);
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.5);
     font-size: 11px;
+    font-weight: 500;
     cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.debug-console-mouse-label:hover {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.debug-console-mouse-checkbox {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: transparent;
+}
+
+.debug-console-mouse-checkbox:checked {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+}
+
+.debug-console-mouse-checkbox:checked::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 0px;
+    width: 4px;
+    height: 7px;
+    border: solid white;
+    border-width: 0 1.5px 1.5px 0;
+    transform: rotate(45deg);
+}
+
+.debug-console-mouse-checkbox:checked + span {
+    color: #60a5fa;
+    text-shadow: 0 0 10px rgba(96, 165, 250, 0.3);
+}
+
+.debug-console-divider {
+    color: rgba(255, 255, 255, 0.15);
+    font-size: 12px;
+    margin: 0 2px;
 }
 
 .debug-console-clear {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    border: none;
-    padding: 4px 12px;
-    border-radius: 6px;
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 3px 10px;
+    border-radius: 5px;
     cursor: pointer;
-    font-size: 11px;
-    transition: var(--transition-smooth);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    transition: all 0.2s ease;
 }
 
 .debug-console-clear:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(239, 68, 68, 0.3);
+    color: #ffffff;
+    border-color: rgba(239, 68, 68, 0.4);
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
 }
 
 /* --- 3. UI 面板基础 --- */
@@ -232,4 +300,106 @@ input[type="range"]::-webkit-slider-thumb {
 input[type="range"]::-webkit-slider-thumb:hover {
     transform: scale(1.1);
     box-shadow: var(--shadow-md);
+}
+
+/* --- 5. 悬浮工具栏 (Mini Toolbar) --- */
+#miniToolbar .flex {
+    background: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    padding: 6px 12px;
+    border-radius: 40px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.toolbar-upload-btn, .toolbar-settings-btn {
+    width: 34px;
+    height: 34px;
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(15, 23, 42, 0.6);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.toolbar-upload-btn:hover {
+    background: #2563eb;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+}
+
+.toolbar-settings-btn:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: rgba(15, 23, 42, 0.9);
+    transform: rotate(30deg);
+}
+
+/* 线性缩放轨道 */
+.zoom-controls-track {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    border-radius: 20px;
+    padding: 2px;
+    gap: 2px;
+}
+
+.zoom-track-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(15, 23, 42, 0.45);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.zoom-track-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: rgba(15, 23, 42, 0.9);
+}
+
+.zoom-track-value {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(15, 23, 42, 0.7);
+    min-width: 42px;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.zoom-track-value:hover {
+    color: #2563eb;
+}
+
+/* Provider Toggle 适配 */
+#providerToggleContainer {
+    background: rgba(0, 0, 0, 0.03) !important;
+    border: 1px solid rgba(0, 0, 0, 0.04) !important;
+    border-radius: 20px !important;
+    padding: 2px 10px !important;
+    height: 32px;
+}
+
+#providerToggleLabel {
+    color: rgba(15, 23, 42, 0.3) !important;
+    font-size: 10px !important;
+}
+
+#providerToggleLabelDynamic {
+    color: #2563eb !important;
+    font-size: 10px !important;
+    font-weight: 700;
 }

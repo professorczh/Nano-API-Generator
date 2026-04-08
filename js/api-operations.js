@@ -17,6 +17,8 @@ export async function handleAPICall(params) {
         videoRatioWrapper,
         videoResolutionWrapper,
         videoDurationWrapper,
+        audioDurationWrapper,
+        audioFormatWrapper,
         loader,
         statusTag,
         imageResponseContainer,
@@ -33,9 +35,29 @@ export async function handleAPICall(params) {
     
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = promptInput.innerHTML;
+
+    // 1. 处理旧版的粘贴图片 (pasted-image-item)
     const imageTags = tempDiv.querySelectorAll('.pasted-image-item');
     imageTags.forEach(tag => tag.remove());
     
+    // 2. 处理新的提及标签 (Mention Tags)
+    // 我们需要收集这些提及，并将它们对应的媒体内容合并到发送包中
+    const mentionTags = tempDiv.querySelectorAll('.node-reference-mention-tag');
+    const mentionedRefs = [];
+    
+    mentionTags.forEach(tag => {
+        const refId = tag.dataset.refId;
+        if (refId) {
+            const ref = window.referenceManager?.getReference(refId);
+            if (ref) {
+                mentionedRefs.push(ref);
+                // 将 HTML 标签替换为纯文本标签，方便 LLM 理解，例如 [图片1]
+                const textLabel = document.createTextNode(`[${ref.name}]`);
+                tag.parentNode.replaceChild(textLabel, tag);
+            }
+        }
+    });
+
     const pinnedImageTags = tempDiv.querySelectorAll('.pinned-image-tag');
     let processedPrompt = tempDiv.textContent.trim();
     
@@ -97,6 +119,9 @@ export async function handleAPICall(params) {
     } else if (currentMode === 'text') {
         modelName = CONFIG.MODEL_NAME;
         modelProvider = CONFIG.MODEL_PROVIDER;
+    } else if (currentMode === 'audio') {
+        modelName = CONFIG.AUDIO_MODEL_NAME;
+        modelProvider = CONFIG.AUDIO_MODEL_PROVIDER;
     } else {
         modelName = CONFIG.VIDEO_MODEL_NAME;
         modelProvider = CONFIG.VIDEO_MODEL_PROVIDER;
@@ -122,7 +147,32 @@ export async function handleAPICall(params) {
     
     debugLog(`[模型配置] 模型: ${modelName}, 温度: ${generationConfig.temperature}, TopP: ${generationConfig.topP}`, 'info');
     
-    let allImageData = [...imageDataList];
+    // --- 全能参考货架采集 (Omni-Reference) ---
+    // 默认采集货架上所有的内容（除非是 Gemini VEO 模式要求纯净 Prompt）
+    const isGeminiVeo = (currentMode === 'video' && modelProvider === 'gemini');
+    let shelfRefs = [];
+    
+    if (!isGeminiVeo && window.referenceManager) {
+        shelfRefs = window.referenceManager.getAllReferences();
+        debugLog(`[全能参考] 从货架采集了 ${shelfRefs.length} 个素材`, 'info');
+    }
+
+    let allMediaData = [...imageDataList];
+
+    // 合并货架内容 (避重复)
+    const combinedRefs = [...mentionedRefs, ...shelfRefs];
+    combinedRefs.forEach(ref => {
+        const existing = allMediaData.find(m => m.refId === ref.id);
+        if (!existing) {
+            allMediaData.push({
+                data: ref.data,
+                name: ref.name,
+                type: ref.type,
+                refId: ref.id,
+                originalFile: ref.originalFile
+            });
+        }
+    });
     
     for (const info of pinInfo) {
         const node = PinManager.findNodeByImageUrl(info.imageUrl);
@@ -147,22 +197,24 @@ export async function handleAPICall(params) {
                 base64Data = await drawPinsOnImage(base64Data, pins);
             }
             
-            const existing = allImageData.find(data => data.data === base64Data);
+            const existing = allMediaData.find(data => data.data === base64Data);
             if (!existing) {
-                allImageData.push({
+                allMediaData.push({
                     data: base64Data,
-                    name: info.filename
+                    name: info.filename,
+                    type: 'image'
                 });
             }
         }
     }
     
-    for (let i = 0; i < allImageData.length; i++) {
-        const imageData = allImageData[i];
-        if (imageData.data && imageData.data.startsWith('blob:')) {
+    for (let i = 0; i < allMediaData.length; i++) {
+        const mediaData = allMediaData[i];
+        // 只有图片且是 blob: 协议才需要转换 (视频/音频稍后由 Provider 处理)
+        if (mediaData.type === 'image' && mediaData.data && mediaData.data.startsWith('blob:')) {
             try {
-                debugLog(`[图片预处理] 转换 blob URL 为 base64: ${imageData.name}`, 'info');
-                const response = await fetch(imageData.data);
+                debugLog(`[图片预处理] 转换 blob URL 为 base64: ${mediaData.name}`, 'info');
+                const response = await fetch(mediaData.data);
                 const arrayBuffer = await response.arrayBuffer();
                 const bytes = new Uint8Array(arrayBuffer);
                 let binary = '';
@@ -170,10 +222,10 @@ export async function handleAPICall(params) {
                     binary += String.fromCharCode(bytes[j]);
                 }
                 const base64 = btoa(binary);
-                imageData.data = `data:image/png;base64,${base64}`;
-                debugLog(`[图片预处理] 转换成功: ${imageData.name}`, 'success');
+                mediaData.data = `data:image/png;base64,${base64}`;
+                debugLog(`[图片预处理] 转换成功: ${mediaData.name}`, 'success');
             } catch (convertError) {
-                debugLog(`[图片预处理] 转换失败: ${imageData.name}, 错误: ${convertError.message}`, 'error');
+                debugLog(`[图片预处理] 转换失败: ${mediaData.name}, 错误: ${convertError.message}`, 'error');
                 if (statusTag) {
                     statusTag.innerText = "图片预处理失败";
                     statusTag.className = "text-xs px-2 py-1 rounded bg-red-50 text-red-600";
@@ -348,6 +400,11 @@ export async function handleAPICall(params) {
             
             const videoGenStartTime = Date.now();
             const videoTimeElement = videoPlaceholder.querySelector('.node-sidebar .node-generation-time');
+            
+            // 获取参考架上的所有多模态资源 (Seedance 2.0 支持)
+            const allReferences = referenceManager.getAllReferences();
+            const referenceMode = referenceManager.currentMode;
+            
             if (videoTimeElement) {
                 videoTimeElement.textContent = '⏱️ 0.0s';
                 const videoTimer = setInterval(() => {
@@ -363,10 +420,12 @@ export async function handleAPICall(params) {
                 isVideoGenMode: true,
                 videoModel: CONFIG.VIDEO_MODEL_NAME,
                 videoProvider: CONFIG.VIDEO_MODEL_PROVIDER,
-                videoRatio: videoRatioWrapper.dataset.value,
-                videoResolution: videoResolutionWrapper.dataset.value,
-                videoDuration: videoDurationWrapper.dataset.value,
+                aspectRatio: videoRatioWrapper.dataset.value,
+                resolution: videoResolutionWrapper.dataset.value,
+                durationSeconds: videoDurationWrapper.dataset.value,
                 selectedImageUrl: selectedImageUrl,
+                media: allReferences, // 传递所有多模态参考
+                referenceMode: referenceMode, // 传递参考模式 (omni/start_end/etc)
                 onVideoProgress: (progress) => {
                     debugLog(`[视频进度] ${progress}%`, 'info');
                     if (videoPlaceholder && videoPlaceholder._updateProgress) {
@@ -374,25 +433,25 @@ export async function handleAPICall(params) {
                     }
                 },
                 onVideoGenerated: async (videoUrl) => {
-                    debugLog(`[视频完成] ${videoUrl}`, 'info');
+                    // 入口保护：防止由于轮询竞态导致的多次触发
+                    if (!videoPlaceholder || !videoPlaceholder.parentNode || !videoPlaceholder.classList.contains('loading-placeholder')) {
+                        debugLog('[视频回调] 忽略重复的完成信号', 'info');
+                        return;
+                    }
                     
                     if (videoPlaceholder && videoPlaceholder._timer) {
                         clearInterval(videoPlaceholder._timer);
                         videoPlaceholder._timer = null;
                     }
                     
-                    if (videoPlaceholder && videoPlaceholder._updateProgress) {
-                        videoPlaceholder._updateProgress(100);
-                    }
-                    
                     const videoGenEndTime = Date.now();
                     const genTime = videoPlaceholder._startTime ? (videoGenEndTime - videoPlaceholder._startTime) / 1000 : 0;
                     
+                    debugLog(`[视频完成] ${videoUrl}, 耗时: ${genTime.toFixed(1)}s`, 'info');
+                    
                     const proxyUrl = `/api/video-proxy?url=${encodeURIComponent(videoUrl)}`;
-                    debugLog(`[视频代理] 使用代理URL: ${proxyUrl}`, 'info');
                     
                     try {
-                        debugLog(`[保存视频] 开始保存到服务器`, 'info');
                         const saveResponse = await fetch('/api/save-video', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -404,18 +463,21 @@ export async function handleAPICall(params) {
                                 modelName: videoModelDisplayName
                             })
                         });
-                        const saveResult = await saveResponse.json();
-                        if (saveResult.success) {
-                            debugLog(`[保存视频] 保存成功: ${saveResult.fileName}`, 'success');
-                        } else {
-                            debugLog(`[保存视频] 保存失败: ${saveResult.error}`, 'error');
-                        }
-                    } catch (saveError) {
-                        debugLog(`[保存视频] 保存异常: ${saveError.message}`, 'error');
+                        await saveResponse.json();
+                    } catch (e) {
+                        console.error('[保存视频] 失败:', e);
                     }
                     
                     console.log('[视频完成] prompt:', prompt.substring(0, 80), '... videoUrl:', proxyUrl);
                     NodeFactory.replaceWithVideo(videoPlaceholder, proxyUrl, prompt, videoModelDisplayName, genTime, videoRatioWrapper.dataset.value);
+                    
+                    // 确保更新小地图并重新选择节点以刷新 UI
+                    if (typeof updateMinimapWithImage === 'function') {
+                        updateMinimapWithImage(videoPlaceholder);
+                    }
+                    if (typeof selectNode === 'function') {
+                        selectNode(videoPlaceholder);
+                    }
                 },
                 onError: (error) => {
                     debugLog(`[视频错误] ${error.message}`, 'error');
@@ -444,17 +506,91 @@ export async function handleAPICall(params) {
             incrementNodeCounter();
             return;
         }
+
+        const isAudioGenMode = currentMode === 'audio';
+        if (isAudioGenMode) {
+            const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
+            let nodeX = 5000;
+            let nodeY = 5000;
+            
+            if (existingNodes.length > 0) {
+                const lastNode = existingNodes[existingNodes.length - 1];
+                const lastNodeX = parseInt(lastNode.style.left) || 0;
+                const lastNodeY = parseInt(lastNode.style.top) || 0;
+                const lastNodeWidth = lastNode.offsetWidth;
+                const lastNodeHeight = lastNode.offsetHeight;
+                
+                nodeX = lastNodeX + lastNodeWidth + 50;
+                nodeY = lastNodeY;
+                
+                if (nodeX > 6000) {
+                    nodeX = 5000;
+                    nodeY = lastNodeY + lastNodeHeight + 50;
+                }
+            }
+            
+            const audioModel = CONFIG.AUDIO_MODEL_NAME;
+            const audioProvider = CONFIG.AUDIO_MODEL_PROVIDER;
+            const audioModelDisplayNameObj = getModelDisplayName(audioModel, audioProvider);
+            const audioModelDisplayName = audioModelDisplayNameObj.name || audioModel;
+            
+            const audioPlaceholder = NodeFactory.createAudioPlaceholder(nodeX, nodeY, prompt, audioModelDisplayName);
+            imageResponseContainer.appendChild(audioPlaceholder);
+            updateMinimapWithImage(audioPlaceholder);
+            selectNode(audioPlaceholder);
+            
+            const audioGenStartTime = Date.now();
+            const audioTimeElement = audioPlaceholder.querySelector('.node-sidebar .node-generation-time');
+            if (audioTimeElement) {
+                audioTimeElement.textContent = '⏱️ 0.0s';
+                const audioTimer = setInterval(() => {
+                    const elapsed = (Date.now() - audioGenStartTime) / 1000;
+                    audioTimeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
+                }, 100);
+                audioPlaceholder._timer = audioTimer;
+                audioPlaceholder._startTime = audioGenStartTime;
+            }
+            
+            await apiClient.request({
+                prompt,
+                media: allMediaData,
+                isAudioGenMode: true,
+                modelName: audioModel,
+                modelProvider: audioProvider,
+                audioDuration: params.audioDurationWrapper.dataset.value,
+                audioFormat: params.audioFormatWrapper.dataset.value,
+                onAudioGenerated: (audioUrl) => {
+                    debugLog(`[音频完成] ${audioUrl}`, 'info');
+                    if (audioPlaceholder._timer) {
+                        clearInterval(audioPlaceholder._timer);
+                        audioPlaceholder._timer = null;
+                    }
+                    const genTime = (Date.now() - audioGenStartTime) / 1000;
+                    NodeFactory.replaceWithAudio(audioPlaceholder, audioUrl, prompt, audioModelDisplayName, genTime, params.audioFormatWrapper.dataset.value);
+                },
+                onError: (error) => {
+                    debugLog(`[音频错误] ${error.message}`, 'error');
+                    if (audioPlaceholder._timer) clearInterval(audioPlaceholder._timer);
+                    audioPlaceholder.remove();
+                    // ... (error node handling)
+                }
+            });
+            
+            incrementNodeCounter();
+            return;
+        }
         
-        await apiClient.request({
+        const requestConfig = {
             prompt,
-            images: allImageData,
-            pinInfo,
             modelName,
             modelProvider,
-            modelDisplayName: modelDisplayName,
+            media: allMediaData,
+            temperature: parseFloat(temperature.value),
+            topP: parseFloat(topP.value),
             modelProviderDisplay,
             generationConfig,
             isImageGenMode,
+            isAudioGenMode, // 补充模式标志
             aspectRatio: aspectRatioWrapper.dataset.value,
             imageSize: imageSizeWrapper.dataset.value,
             onImageGenerated: async (result) => {
@@ -625,7 +761,9 @@ export async function handleAPICall(params) {
                     statusTag.className = "text-xs px-2 py-1 rounded bg-red-50 text-red-600";
                 }
             }
-        });
+        };
+
+        await apiClient.request(requestConfig);
     } finally {
         CanvasState.activeRequests--;
         

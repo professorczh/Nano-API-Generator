@@ -4,6 +4,7 @@ import { DebugConsole } from './debug-console.js';
 import { debugLog, formatGenerationTime } from './utils.js';
 import { updateMinimapWithImage, updateImageCenterCoordinates, getPanzoom, getImageResponseContainer } from './canvas-manager.js';
 import { getIcon } from './icons.js';
+import { addLinkerHandle } from './node-factory.js';
 
 let clipboardNode = null;
 let minimapCanvas;
@@ -265,9 +266,11 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
         errorText.style.overflow = 'hidden';
         errorText.title = errorMessage;
         
-        errorContainer.appendChild(errorIcon);
         errorContainer.appendChild(errorText);
         node.appendChild(errorContainer);
+        
+        // 即使是错误节点也允许连线（虽然通常不需要，但为了代码一致性）
+        addLinkerHandle(node);
     } else {
         const img = document.createElement('img');
         img.src = imageUrl;
@@ -347,6 +350,9 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
             promptContainer.appendChild(promptContent);
             node.appendChild(promptContainer);
         }
+
+        // 添加连线引用手柄
+        addLinkerHandle(node);
     }
     
     const header = document.createElement('div');
@@ -761,6 +767,9 @@ export function createTextNode(text, prompt = '', index = 0, filename = '', reso
     });
     node.appendChild(info);
     
+    // 添加连线引用手柄
+    addLinkerHandle(node);
+
     node.style.left = '5000px';
     node.style.top = '5000px';
     node.style.zIndex = '10';

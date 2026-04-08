@@ -215,6 +215,67 @@ button:active {
     transform: scale(1.1);
 }
 
+/* --- 7. 粘贴图片项 (Pasted Image Item) --- */
+.pasted-image-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass);
+    padding: 2px 6px;
+    border-radius: 6px;
+    margin: 2px 4px;
+    vertical-align: middle;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-smooth);
+    user-select: none;
+}
+
+.pasted-image-item:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent-primary);
+    box-shadow: var(--shadow-md);
+}
+
+.pasted-image-item img {
+    width: 24px;
+    height: 24px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.pasted-image-item span:not(.delete-btn) {
+    font-size: 11px;
+    color: var(--text-main);
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.pasted-image-item .delete-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    border-radius: 50%;
+    margin-left: 2px;
+}
+
+.pasted-image-item .delete-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    transform: scale(1.2);
+}
+
 .image-preview-tooltip {
     position: absolute;
     display: none;

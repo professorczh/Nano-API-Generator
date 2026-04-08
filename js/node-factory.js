@@ -1,4 +1,7 @@
-import { AppState } from './app-state.js';
+import { AppState, CanvasState } from './app-state.js';
+import { LinkerManager } from './linker-manager.js';
+import { getIcon } from './icons.js';
+import { DebugConsole } from './debug-console.js';
 
 function formatGenerationTime(seconds) {
     if (seconds < 60) {
@@ -13,6 +16,19 @@ function formatGenerationTime(seconds) {
         const secs = Math.floor(seconds % 60);
         return `⏱️ ${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
+}
+
+export function addLinkerHandle(node) {
+    const handle = document.createElement('div');
+    handle.className = 'node-linker-handle';
+    handle.title = '拖拽引出线进行节点引用 (Cite this node)';
+    handle.addEventListener('mousedown', (e) => {
+        if (e.button === 0) {
+            e.stopPropagation();
+            LinkerManager.startLinking(node, e);
+        }
+    });
+    node.appendChild(handle);
 }
 
 export const NodeFactory = {
@@ -60,32 +76,23 @@ export const NodeFactory = {
         contentArea.className = 'node-content';
         node.appendChild(contentArea);
 
-        const promptText = document.createElement('div');
-        promptText.className = 'node-prompt-text';
-        promptText.textContent = prompt || '视频生成中...';
-        node.appendChild(promptText);
+        const info = document.createElement('div');
+        info.className = 'node-info';
+        info.textContent = prompt || '视频生成中...';
+        node.appendChild(info);
 
         const sidebar = document.createElement('div');
         sidebar.className = 'node-sidebar';
         
         const timeElement = document.createElement('div');
         timeElement.className = 'node-generation-time';
-        timeElement.style.display = typeof window.showGenerationTime !== 'undefined' && window.showGenerationTime ? 'flex' : 'none';
+        timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
         sidebar.appendChild(timeElement);
 
-        const toolbar = document.createElement('div');
-        toolbar.className = 'node-toolbar';
-        
-        // ... (toolbar buttons)
-        
-        sidebar.appendChild(toolbar);
-        node.appendChild(sidebar);
-        sidebar.appendChild(timeElement);
-        
         if (modelName) {
             const modelTag = document.createElement('div');
             modelTag.className = 'node-model-tag';
-            modelTag.style.display = typeof window.showModelTag !== 'undefined' && window.showModelTag ? 'block' : 'none';
+            modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
             if (typeof modelName === 'object' && modelName.name) {
                 modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
                 modelTag.title = `${modelName.name} (${modelName.provider})`;
@@ -95,8 +102,12 @@ export const NodeFactory = {
             }
             sidebar.appendChild(modelTag);
         }
+        node.appendChild(sidebar);
 
-        // 恢复必要的生成中状态容器
+        // 添加连线引用手柄
+        addLinkerHandle(node);
+
+        // 恢复必要的生成中状态容器 (使用毛玻璃风格)
         const loadingContainer = document.createElement('div');
         loadingContainer.className = 'loading-container';
         loadingContainer.style.width = '100%';
@@ -105,12 +116,13 @@ export const NodeFactory = {
         loadingContainer.style.flexDirection = 'column';
         loadingContainer.style.justifyContent = 'center';
         loadingContainer.style.alignItems = 'center';
-        loadingContainer.style.backgroundColor = 'rgba(26, 26, 46, 0.8)';
+        loadingContainer.style.backgroundColor = 'rgba(15, 15, 20, 0.6)'; // 更细腻的深色背景
+        loadingContainer.style.backdropFilter = 'blur(10px)'; // 毛玻璃效果
         loadingContainer.style.borderRadius = '8px';
         loadingContainer.style.position = 'absolute';
         loadingContainer.style.top = '0';
         loadingContainer.style.left = '0';
-        loadingContainer.style.zIndex = '5';
+        loadingContainer.style.zIndex = '1'; // 确保在 Header (通常是 5+) 之下
 
         // 进度环和状态文本
         const progressContainer = document.createElement('div');
@@ -163,9 +175,10 @@ export const NodeFactory = {
         const statusText = document.createElement('div');
         statusText.className = 'video-status';
         statusText.style.marginTop = '8px';
-        statusText.style.color = '#4ade80';
+        statusText.style.color = '#fbbf24'; // 使用 Amber 色调
         statusText.style.fontSize = '11px';
-        statusText.textContent = '⏳ 等待中';
+        statusText.style.fontWeight = '500';
+        statusText.textContent = '⏳ 排队中';
 
         loadingContainer.appendChild(progressContainer);
         loadingContainer.appendChild(statusText);
@@ -268,12 +281,12 @@ export const NodeFactory = {
         
         const copyPromptBtn = document.createElement('button');
         copyPromptBtn.className = 'toolbar-btn';
-        copyPromptBtn.innerHTML = '📝';
+        copyPromptBtn.innerHTML = getIcon('file-text', 16);
         copyPromptBtn.title = '复制提示词';
         copyPromptBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             navigator.clipboard.writeText(prompt || '').then(() => {
-                if (typeof showMouseLogs !== 'undefined' && showMouseLogs) {
+                if (DebugConsole.showMouseLogs) {
                     console.log(`[复制] 提示词: ${node.dataset.filename}`);
                 }
             });
@@ -281,16 +294,27 @@ export const NodeFactory = {
         
         const insertBtn = document.createElement('button');
         insertBtn.className = 'toolbar-btn';
-        insertBtn.innerHTML = '✏️';
+        insertBtn.innerHTML = getIcon('edit', 16);
         insertBtn.title = '插入到输入框';
-        insertBtn.disabled = true;
-        insertBtn.style.opacity = '0.5';
+        insertBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const video = node.querySelector('video');
+            if (video) {
+                const url = node.dataset.videoUrl || video.src;
+                const filename = node.dataset.filename || 'Video';
+                if (window.insertImageToPrompt) {
+                    window.insertImageToPrompt(url, filename);
+                    console.log(`[工具栏] 插入视频到输入框: node=${filename}`, 'info');
+                }
+            }
+        });
         
         const copyBtn = document.createElement('button');
         copyBtn.className = 'toolbar-btn';
-        copyBtn.innerHTML = '📋';
+        copyBtn.innerHTML = getIcon('clipboard', 16);
         copyBtn.title = '复制视频';
         copyBtn.addEventListener('click', (e) => {
+            // ... (blob logic remains)
             e.stopPropagation();
             const video = node.querySelector('video');
             if (!video) return;
@@ -304,10 +328,8 @@ export const NodeFactory = {
                             new ClipboardItem({ [blob.type]: blob })
                         ]).then(() => {
                             console.log('视频已复制到剪贴板');
-                            debugLog('[复制] 视频: 已复制到剪贴板', 'success');
                         }).catch(err => {
                             console.error('复制失败:', err);
-                            debugLog('[复制] 视频失败: ' + err.message, 'error');
                         });
                     })
                     .catch(err => {
@@ -318,7 +340,7 @@ export const NodeFactory = {
         
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'toolbar-btn';
-        deleteBtn.innerHTML = '🗑️';
+        deleteBtn.innerHTML = getIcon('trash', 16);
         deleteBtn.title = '删除视频';
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -567,7 +589,7 @@ export const NodeFactory = {
         
         const timeElement = document.createElement('div');
         timeElement.className = 'node-generation-time';
-        timeElement.style.display = typeof window.showGenerationTime !== 'undefined' && window.showGenerationTime ? 'flex' : 'none';
+        timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
         if (generationTime !== null) {
             timeElement.textContent = formatGenerationTime(generationTime);
             timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
@@ -577,7 +599,7 @@ export const NodeFactory = {
         if (savedModelName) {
             const modelTag = document.createElement('div');
             modelTag.className = 'node-model-tag';
-            modelTag.style.display = typeof window.showModelTag !== 'undefined' && window.showModelTag ? 'block' : 'none';
+            modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
             if (typeof savedModelName === 'object' && savedModelName.name) {
                 modelTag.innerHTML = `<div class="model-name">${savedModelName.name}</div><div class="model-provider">${savedModelName.provider}</div>`;
                 modelTag.title = `${savedModelName.name} (${savedModelName.provider})`;
@@ -594,6 +616,9 @@ export const NodeFactory = {
         node.appendChild(info);
         node.appendChild(centerCoords);
         node.appendChild(sidebar);
+
+        // 添加连线引用手柄
+        addLinkerHandle(node);
 
         const left = parseInt(node.style.left) || 0;
         const top = parseInt(node.style.top) || 0;
@@ -622,6 +647,267 @@ export const NodeFactory = {
         if (typeof window.updateMinimapWithImage === 'function') {
             window.updateMinimapWithImage(node);
         }
+
+        return node;
+    },
+
+    createAudioPlaceholder(x, y, prompt = '', modelName = '') {
+        const nodeWidth = 300;
+        const nodeHeight = 120;
+        
+        const node = document.createElement('div');
+        node.className = 'canvas-node audio-node loading-placeholder';
+        node.style.position = 'absolute';
+        node.style.left = `${x}px`;
+        node.style.top = `${y}px`;
+        node.style.width = `${nodeWidth}px`;
+        node.style.height = `${nodeHeight}px`;
+        node.style.zIndex = '10';
+        node.dataset.modelName = modelName;
+        node.dataset.nodeType = 'audio';
+        node.dataset.audioUrl = '';
+        node.dataset.filename = 'Audio';
+
+        const header = document.createElement('div');
+        header.className = 'node-header';
+        
+        const filenameElement = document.createElement('div');
+        filenameElement.className = 'node-filename';
+        filenameElement.textContent = 'Audio...';
+        
+        const resolutionElement = document.createElement('div');
+        resolutionElement.className = 'node-resolution';
+        resolutionElement.textContent = 'Generating';
+        
+        header.appendChild(filenameElement);
+        header.appendChild(resolutionElement);
+        node.appendChild(header);
+
+        const contentArea = document.createElement('div');
+        contentArea.className = 'node-content';
+        contentArea.style.background = 'linear-gradient(135deg, #fce7f3 0%, #f9a8d4 100%)';
+        node.appendChild(contentArea);
+
+        // 添加连线引用手柄
+        addLinkerHandle(node);
+
+        const sidebar = document.createElement('div');
+        sidebar.className = 'node-sidebar';
+        
+        const timeElement = document.createElement('div');
+        timeElement.className = 'node-generation-time';
+        timeElement.style.display = typeof window.showGenerationTime !== 'undefined' && window.showGenerationTime ? 'flex' : 'none';
+        sidebar.appendChild(timeElement);
+        
+        const modelTag = document.createElement('div');
+        modelTag.className = 'node-model-tag';
+        modelTag.style.display = typeof window.showModelTag !== 'undefined' && window.showModelTag ? 'block' : 'none';
+        modelTag.textContent = typeof modelName === 'object' ? modelName.name : modelName;
+        sidebar.appendChild(modelTag);
+        
+        node.appendChild(sidebar);
+
+        const loadingContainer = document.createElement('div');
+        loadingContainer.className = 'loading-container';
+        loadingContainer.style.cssText = `
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(4px);
+            border-radius: 8px;
+        `;
+
+        const spinner = document.createElement('div');
+        spinner.className = 'audio-spinner';
+        spinner.innerHTML = '🎵';
+        spinner.style.fontSize = '24px';
+        spinner.style.animation = 'bounce 1s infinite';
+        loadingContainer.appendChild(spinner);
+
+        const statusText = document.createElement('div');
+        statusText.style.color = '#db2777';
+        statusText.style.fontSize = '12px';
+        statusText.style.fontWeight = 'bold';
+        statusText.style.marginTop = '4px';
+        statusText.textContent = '音频生成中...';
+        loadingContainer.appendChild(statusText);
+
+        contentArea.appendChild(loadingContainer);
+
+        node.addEventListener('mousedown', (e) => {
+            if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
+                e.stopPropagation();
+                if (typeof window.selectNode === 'function') {
+                    window.selectNode(node);
+                }
+                AppState.isDraggingNode = true;
+                AppState.dragNode = node;
+                AppState.activeNode = node;
+                AppState.dragStartX = e.clientX;
+                AppState.dragStartY = e.clientY;
+                AppState.dragNodeStartLeft = parseInt(node.style.left) || 0;
+                AppState.dragNodeStartTop = parseInt(node.style.top) || 0;
+            }
+        });
+
+        return node;
+    },
+
+    replaceWithAudio(node, audioUrl, prompt = '', modelName = '', generationTime = null, format = 'mp3') {
+        const savedModelName = node.dataset.modelName || modelName;
+        const savedLeft = node.style.left;
+        const savedTop = node.style.top;
+        const nodeWidth = 300;
+        const nodeHeight = 120;
+        
+        node.innerHTML = '';
+        node.className = 'canvas-node audio-node';
+        node.style.left = savedLeft;
+        node.style.top = savedTop;
+        node.style.width = `${nodeWidth}px`;
+        node.style.height = `${nodeHeight}px`;
+        node.dataset.nodeType = 'audio';
+        node.dataset.audioUrl = audioUrl;
+
+        const header = document.createElement('div');
+        header.className = 'node-header';
+        const filenameElement = document.createElement('div');
+        filenameElement.className = 'node-filename';
+        filenameElement.textContent = 'Audio Result';
+        const resolutionElement = document.createElement('div');
+        resolutionElement.className = 'node-resolution';
+        resolutionElement.textContent = format.toUpperCase();
+        header.appendChild(filenameElement);
+        header.appendChild(resolutionElement);
+        node.appendChild(header);
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'node-toolbar';
+        
+        const insertBtn = document.createElement('button');
+        insertBtn.className = 'toolbar-btn';
+        insertBtn.innerHTML = '✏️';
+        insertBtn.title = '插入到输入框';
+        insertBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const filename = node.dataset.filename || 'Audio';
+            if (window.insertImageToPrompt) {
+                window.insertImageToPrompt(audioUrl, filename);
+                debugLog(`[工具栏] 插入音频到输入框: node=${filename}`, 'info');
+            }
+        });
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'toolbar-btn';
+        deleteBtn.innerHTML = '🗑️';
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            node.remove();
+        });
+        
+        toolbar.appendChild(insertBtn);
+        toolbar.appendChild(deleteBtn);
+        node.appendChild(toolbar);
+
+        const contentArea = document.createElement('div');
+        contentArea.className = 'node-content';
+        contentArea.style.background = 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)';
+        node.appendChild(contentArea);
+
+        // 添加连线引用手柄
+        addLinkerHandle(node);
+
+        const audio = document.createElement('audio');
+        audio.src = audioUrl;
+
+        const controls = document.createElement('div');
+        controls.style.cssText = `
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            gap: 12px;
+        `;
+
+        const playBtn = document.createElement('button');
+        playBtn.innerHTML = '▶️';
+        playBtn.style.cssText = `
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: #db2777;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        `;
+
+        const progressContainer = document.createElement('div');
+        progressContainer.style.flex = '1';
+        progressContainer.style.height = '6px';
+        progressContainer.style.background = '#f9a8d4';
+        progressContainer.style.borderRadius = '3px';
+        progressContainer.style.position = 'relative';
+        progressContainer.style.cursor = 'pointer';
+
+        const progressFill = document.createElement('div');
+        progressFill.style.height = '100%';
+        progressFill.style.width = '0%';
+        progressFill.style.background = '#db2777';
+        progressFill.style.borderRadius = '3px';
+        progressContainer.appendChild(progressFill);
+
+        const timeDisplay = document.createElement('div');
+        timeDisplay.style.fontSize = '10px';
+        timeDisplay.style.color = '#db2777';
+        timeDisplay.style.minWidth = '40px';
+        timeDisplay.textContent = '0:00';
+
+        controls.appendChild(playBtn);
+        controls.appendChild(progressContainer);
+        controls.appendChild(timeDisplay);
+        contentArea.appendChild(controls);
+
+        playBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (audio.paused) {
+                audio.play();
+                playBtn.innerHTML = '⏸️';
+            } else {
+                audio.pause();
+                playBtn.innerHTML = '▶️';
+            }
+        });
+
+        audio.addEventListener('timeupdate', () => {
+            const percent = (audio.currentTime / audio.duration) * 100;
+            progressFill.style.width = `${percent}%`;
+            const mins = Math.floor(audio.currentTime / 60);
+            const secs = Math.floor(audio.currentTime % 60);
+            timeDisplay.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+        });
+
+        audio.addEventListener('ended', () => {
+            playBtn.innerHTML = '▶️';
+            progressFill.style.width = '0%';
+        });
+
+        const sidebar = document.createElement('div');
+        sidebar.className = 'node-sidebar';
+        const timeElement = document.createElement('div');
+        timeElement.className = 'node-generation-time';
+        timeElement.style.display = typeof window.showGenerationTime !== 'undefined' && window.showGenerationTime ? 'flex' : 'none';
+        if (generationTime) timeElement.textContent = `⏱️ ${generationTime.toFixed(1)}s`;
+        sidebar.appendChild(timeElement);
+        node.appendChild(sidebar);
 
         return node;
     }

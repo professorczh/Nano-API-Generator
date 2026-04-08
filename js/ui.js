@@ -21,7 +21,6 @@ class UIManager {
         // 为现有标签页添加事件处理
         const tabs = [
             { id: 'Gemini', element: document.getElementById('settingsTabGemini') },
-            { id: '12AI', element: document.getElementById('settingsTab12AI') },
             { id: 'OpenAI', element: document.getElementById('settingsTabOpenAI') },
             { id: 'Claude', element: document.getElementById('settingsTabClaude') }
         ];
@@ -165,10 +164,12 @@ export function initModeSwitchers() {
     tabText = document.getElementById('tabText');
     tabImage = document.getElementById('tabImage');
     tabVideo = document.getElementById('tabVideo');
+    const tabAudio = document.getElementById('tabAudio');
     
     if (tabText) tabText.addEventListener('click', switchToTextMode);
     if (tabImage) tabImage.addEventListener('click', switchToImageMode);
     if (tabVideo) tabVideo.addEventListener('click', switchToVideoMode);
+    if (tabAudio) tabAudio.addEventListener('click', switchToAudioMode);
     
     switchToImageMode();
 }
@@ -180,15 +181,20 @@ export function switchToTextMode() {
     if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white';
     if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
     if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50';
+    const tabAudio = document.getElementById('tabAudio');
+    if (tabAudio) tabAudio.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-pink-50';
     
     const textParams = document.getElementById('textParams');
     const imageParams = document.getElementById('imageParams');
     const videoParams = document.getElementById('videoParams');
+    const audioParams = document.getElementById('audioParams');
     if (textParams) textParams.classList.remove('hidden');
     if (imageParams) imageParams.classList.add('hidden');
     if (videoParams) videoParams.classList.add('hidden');
+    if (audioParams) audioParams.classList.add('hidden');
     
     window.modelSelectManager?.populateModelSelects();
+    window.referenceManager?.render();
 }
 
 export function switchToImageMode() {
@@ -198,33 +204,75 @@ export function switchToImageMode() {
     if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
     if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white';
     if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50';
+    const tabAudio = document.getElementById('tabAudio');
+    if (tabAudio) tabAudio.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-pink-50';
     
     const textParams = document.getElementById('textParams');
     const imageParams = document.getElementById('imageParams');
     const videoParams = document.getElementById('videoParams');
+    const audioParams = document.getElementById('audioParams');
     if (textParams) textParams.classList.add('hidden');
     if (imageParams) imageParams.classList.remove('hidden');
     if (videoParams) videoParams.classList.add('hidden');
+    if (audioParams) audioParams.classList.add('hidden');
     
     window.modelSelectManager?.populateModelSelects();
-}
-
-export function switchToVideoMode() {
+    window.referenceManager?.render();
+}export function switchToVideoMode() {
     currentMode = 'video';
     window.currentMode = 'video';
     CanvasState.currentMode = 'video';
     if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
     if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
     if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-purple-600 text-white';
+    const tabAudio = document.getElementById('tabAudio');
+    if (tabAudio) tabAudio.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-pink-50';
     
     const textParams = document.getElementById('textParams');
     const imageParams = document.getElementById('imageParams');
     const videoParams = document.getElementById('videoParams');
+    const audioParams = document.getElementById('audioParams');
     if (textParams) textParams.classList.add('hidden');
     if (imageParams) imageParams.classList.add('hidden');
     if (videoParams) videoParams.classList.remove('hidden');
+    if (audioParams) audioParams.classList.add('hidden');
     
     window.modelSelectManager?.populateModelSelects();
+    
+    // Import CONFIG dynamically to avoid circular dependency if needed, 
+    // but here we just use the global variables set by ModelSelectManager
+    setTimeout(() => {
+        const videoModelGroup = document.getElementById('videoModelNameWrapper');
+        const currentModelValue = videoModelGroup?.dataset.value;
+        const currentProviderId = videoModelGroup?.dataset.provider;
+        if (currentModelValue && currentProviderId) {
+            window.modelSelectManager?.updateReferenceMode(currentModelValue, currentProviderId);
+        }
+        window.referenceManager?.render();
+    }, 0);
+}
+
+export function switchToAudioMode() {
+    currentMode = 'audio';
+    window.currentMode = 'audio';
+    CanvasState.currentMode = 'audio';
+    if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
+    if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
+    if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50';
+    const tabAudio = document.getElementById('tabAudio');
+    if (tabAudio) tabAudio.className = 'flex-1 py-2 px-3 text-sm font-medium bg-pink-600 text-white';
+    
+    const textParams = document.getElementById('textParams');
+    const imageParams = document.getElementById('imageParams');
+    const videoParams = document.getElementById('videoParams');
+    const audioParams = document.getElementById('audioParams');
+    if (textParams) textParams.classList.add('hidden');
+    if (imageParams) imageParams.classList.add('hidden');
+    if (videoParams) videoParams.classList.add('hidden');
+    if (audioParams) audioParams.classList.remove('hidden');
+    
+    window.modelSelectManager?.populateModelSelects();
+    window.referenceManager?.render();
 }
 
 export function getCurrentMode() {
