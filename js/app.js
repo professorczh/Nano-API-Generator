@@ -202,6 +202,97 @@ const App = {
         this.initGlobalFunctions();
         this.initLogo();
         await this.loadTemplates();
+        
+        // 页面加载后自动尝试恢复未完成的视频任务
+        this.resumeVideoTasks();
+    },
+
+    async resumeVideoTasks() {
+        try {
+            const response = await fetch('/api/google/list-operations');
+            if (!response.ok) return;
+            const operations = await response.json();
+            
+            const opNames = Object.keys(operations);
+            if (opNames.length === 0) return;
+
+            debugLog(`[状态恢复] 发现 ${opNames.length} 个历史任务记录，正在检查状态...`, 'info');
+            
+            for (const opName of opNames) {
+                const info = operations[opName];
+                // 如果是最近生成的（比如1小时内），尝试在画布上找回或重建
+                // 注意：这里我们简单处理，直接为那些看起来没完成的任务建立轮询
+                if (info.timestamp && (Date.now() - info.timestamp < 3600000 * 2)) {
+                    // 调用 apiClient 重新启动轮询
+                    this.resumeSingleVideoTask(opName, info);
+                }
+            }
+        } catch (e) {
+            console.error('[恢复任务] 失败:', e);
+        }
+    },
+
+    resumeSingleVideoTask(operationName, info) {
+        const { prompt, modelName, modelProvider } = info;
+        // 避免重复创建 (虽然简单刷新后 canvas 应该是空的，但为了健壮性检查一下)
+        const existingNode = Array.from(document.querySelectorAll('.canvas-node'))
+            .find(node => node.dataset.operationName === operationName);
+        if (existingNode) return;
+
+        // 这里我们借用 handleAPICall 相似的逻辑，但跳过提交请求阶段，直接进轮询
+        import('./api-operations.js').then(async (module) => {
+            // 在画布中心附近找个位置
+            const x = 5000 + (Math.random() * 200 - 100);
+            const y = 5000 + (Math.random() * 200 - 100);
+            
+            const modelDisplayName = info.modelName || 'Google Veo';
+            const videoPlaceholder = NodeFactory.createVideoPlaceholder(x, y, prompt, modelDisplayName);
+            videoPlaceholder.dataset.operationName = operationName;
+            
+            this.elements.imageResponseContainer.appendChild(videoPlaceholder);
+            updateMinimapWithImage(videoPlaceholder);
+            selectNode(videoPlaceholder);
+
+            // 启动真实计时器
+            const startTime = info.timestamp || Date.now();
+            const timeElement = videoPlaceholder.querySelector('.node-sidebar .node-generation-time');
+            if (timeElement) {
+                const timer = setInterval(() => {
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    timeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
+                }, 100);
+                videoPlaceholder._timer = timer;
+            }
+
+            // 调用 apiClient 的轮询入口
+            apiClient.generateVideo({
+                videoModel: modelName,
+                videoProvider: modelProvider,
+                prompt: prompt,
+                _resumeOperation: operationName, // 特殊标志位：跳过提交，直接轮询
+                onVideoProgress: (progress) => {
+                    const progressEl = videoPlaceholder.querySelector('.video-progress-text');
+                    if (progressEl) progressEl.textContent = `视频进度: ${progress}%`;
+                },
+                onVideoGenerated: (videoUrl) => {
+                    if (videoPlaceholder._timer) clearInterval(videoPlaceholder._timer);
+                    const genTime = (Date.now() - startTime) / 1000;
+                    NodeFactory.replaceWithVideo(videoPlaceholder, videoUrl, prompt, modelDisplayName, genTime, '16:9');
+                },
+                onError: (error) => {
+                    debugLog(`[恢复错误] ${error.message}`, 'error');
+                    if (videoPlaceholder._timer) clearInterval(videoPlaceholder._timer);
+                    // 替换成错误节点
+                    const errorX = parseInt(videoPlaceholder.style.left);
+                    const errorY = parseInt(videoPlaceholder.style.top);
+                    videoPlaceholder.remove();
+                    const errorNode = createImageNode('', prompt, CanvasState.nodeCounter++, 'Error', '', 0, modelDisplayName, error.message);
+                    errorNode.style.left = `${errorX}px`;
+                    errorNode.style.top = `${errorY}px`;
+                    this.elements.imageResponseContainer.appendChild(errorNode);
+                }
+            });
+        });
     },
 
     initLogo() {
@@ -259,6 +350,10 @@ const App = {
             debugGrid: document.getElementById('debugGrid'),
             referenceShelf: document.getElementById('referenceShelf'),
             shelfFileInput: document.getElementById('shelfFileInput'),
+            settingsDefaultTextModelWrapper: document.getElementById('settingsDefaultTextModelWrapper'),
+            settingsDefaultImageModelWrapper: document.getElementById('settingsDefaultImageModelWrapper'),
+            settingsDefaultVideoModelWrapper: document.getElementById('settingsDefaultVideoModelWrapper'),
+            settingsDefaultAudioModelWrapper: document.getElementById('settingsDefaultAudioModelWrapper'),
             audioModelNameWrapper: document.getElementById('audioModelNameWrapper'),
             audioDurationWrapper: document.getElementById('audioDurationWrapper'),
             audioFormatWrapper: document.getElementById('audioFormatWrapper')
@@ -338,23 +433,9 @@ const App = {
         this.initModalEvents();
         this.initSendEvents();
         this.initMouseEvents();
-        this.initShelfEvents();
         this.initResizeEvent();
     },
 
-    initShelfEvents() {
-        const { shelfFileInput } = this.elements;
-        if (shelfFileInput) {
-            shelfFileInput.addEventListener('change', async (e) => {
-                const files = Array.from(e.target.files);
-                for (const file of files) {
-                    await referenceManager.addReference(file, file.name);
-                }
-                // 清空 input 方便重复选择同一个文件
-                shelfFileInput.value = '';
-            });
-        }
-    },
 
     initUploadEvents() {
         const { uploadImageBtn, imageUploadInput } = this.elements;

@@ -72,6 +72,8 @@ class ReferenceManager {
         this.references.push(ref);
         this.render();
         
+        debugLog(`[货架] 成功添加${labelType}: ${name}`, 'success');
+        
         if (this.onUpdate) this.onUpdate(this.references);
         return ref;
     }
@@ -90,6 +92,13 @@ class ReferenceManager {
     }
 
     getAllReferences() {
+        if (this.references.length > 0) {
+            console.group(`[货架采集] 当前共有 ${this.references.length} 个素材:`);
+            this.references.forEach((ref, i) => {
+                console.log(`${i+1}. [${ref.type}] ${ref.name} (原名: ${ref.originalName || '未知'})`);
+            });
+            console.groupEnd();
+        }
         return this.references;
     }
 
@@ -254,16 +263,27 @@ class ReferenceManager {
         btn.onclick = () => {
             const input = document.getElementById('shelfFileInput');
             if (input) {
-                input.onchange = async (e) => {
-                    const files = Array.from(e.target.files);
-                    for (const file of files) {
-                        await this.addReference(file, file.name, null, slot);
-                    }
-                    input.value = '';
-                };
+                // 设置当前操作的目标槽位
+                input.dataset.targetSlot = slot !== null ? slot : '';
                 input.click();
             }
         };
+        
+        // 确保全局文件输入框只绑定一次事件处理
+        const input = document.getElementById('shelfFileInput');
+        if (input && !input.dataset.listenerBound) {
+            input.onchange = async (e) => {
+                const slot = input.dataset.targetSlot !== '' && input.dataset.targetSlot !== undefined 
+                    ? parseInt(input.dataset.targetSlot) : null;
+                const files = Array.from(e.target.files);
+                for (const file of files) {
+                    await this.addReference(file, file.name, null, slot);
+                }
+                input.value = '';
+            };
+            input.dataset.listenerBound = 'true';
+        }
+
         return btn;
     }
 

@@ -244,25 +244,27 @@ class DynamicProviderManager {
         })[provider.protocol || 'openai'];
         
         panel.innerHTML = `
-            <div>
-                <label class="block text-xs text-gray-500 mb-1.5">名称:</label>
-                <input type="text" id="settings${provider.id}NameInput" value="${provider.name || ''}" 
-                    class="w-36 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                    placeholder="Provider名称">
-            </div>
-            
-            <div>
-                <label class="block text-xs text-gray-500 mb-1.5">Base URL:</label>
-                <div class="flex items-center gap-2">
-                    <input type="text" id="settings${provider.id}BaseUrlInput" value="${provider.baseUrl || ''}" 
-                        autocomplete="off"
-                        class="auto-width-input px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[200px]" 
-                        placeholder="API Base URL"
-                        data-min-width="200">
-                    <div id="settings${provider.id}ProtocolIndicator" 
-                        class="w-6 h-6 flex items-center justify-center text-xs font-bold rounded border border-gray-300 bg-gray-50"
-                        title="当前协议: ${provider.protocol || 'openai'}">
-                        ${protocolIndicator}
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0">
+                    <label class="block text-xs text-gray-500 mb-1.5">名称:</label>
+                    <input type="text" id="settings${provider.id}NameInput" value="${provider.name || ''}" 
+                        class="w-36 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                        placeholder="Provider名称">
+                </div>
+                
+                <div class="flex-1">
+                    <label class="block text-xs text-gray-500 mb-1.5">Base URL:</label>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="settings${provider.id}BaseUrlInput" value="${provider.baseUrl || ''}" 
+                            autocomplete="off"
+                            class="auto-width-input px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[200px]" 
+                            placeholder="API Base URL"
+                            data-min-width="200">
+                        <div id="settings${provider.id}ProtocolIndicator" 
+                            class="w-6 h-6 flex items-center justify-center text-xs font-bold rounded border border-gray-300 bg-gray-50"
+                            title="当前协议: ${provider.protocol || 'openai'}">
+                            ${protocolIndicator}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -602,7 +604,8 @@ class DynamicProviderManager {
         const containers = [
             `settings${providerId}TextModels`,
             `settings${providerId}ImageModels`,
-            `settings${providerId}VideoModels`
+            `settings${providerId}VideoModels`,
+            `settings${providerId}AudioModels`
         ];
         
         containers.forEach(containerId => {

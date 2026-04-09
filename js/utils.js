@@ -1,6 +1,8 @@
 // 工具函数
 
 import { CONFIG, IMAGE_RATIOS, IMAGE_SIZES, VIDEO_MODELS } from "../config.js";
+import { getIcon } from "./icons.js";
+import { DebugConsole } from "./debug-console.js";
 
 export function maskApiKey(apiKey) {
     if (!apiKey || apiKey.length < 6) return apiKey;
@@ -269,4 +271,104 @@ export function updateVideoResolutionOptions(modelValue, durationValue, videoRes
             videoResolutionSelect.appendChild(option);
         });
     }
+}
+
+/**
+ * 渲染模型标签
+ */
+export function renderModelTag(container, modelName) {
+    if (!modelName) return;
+    
+    const modelTag = document.createElement('div');
+    modelTag.className = 'node-model-tag';
+    modelTag.style.display = (typeof DebugConsole !== 'undefined' && DebugConsole.showModelTag) ? 'block' : 'none';
+    
+    let displayName = modelName;
+    let providerName = '';
+    
+    if (typeof modelName === 'object' && modelName.name) {
+        displayName = modelName.name;
+        providerName = modelName.provider || '';
+    } else if (typeof modelName === 'string' && modelName.includes('(')) {
+        const parts = modelName.split('(');
+        displayName = parts[0].trim();
+        providerName = parts[1].replace(')', '').trim();
+    }
+    
+    if (providerName) {
+        modelTag.innerHTML = `<div class="model-name">${displayName}</div><div class="model-provider">${providerName}</div>`;
+        modelTag.title = `${displayName} (${providerName})`;
+    } else {
+        modelTag.textContent = displayName;
+        modelTag.title = displayName;
+    }
+    
+    container.appendChild(modelTag);
+}
+
+/**
+ * 统一创建节点页眉
+ */
+export function createNodeHeader(type, metadataText, fileName) {
+    const header = document.createElement('div');
+    header.className = 'node-header';
+    
+    const iconName = type === 'image' ? 'image' : 
+                   type === 'video' ? 'video' : 
+                   type === 'audio' ? 'music' : 'file-text';
+    
+    const displayName = fileName || (type.charAt(0).toUpperCase() + type.slice(1));
+
+    header.innerHTML = `
+        <div class="node-filename">
+            ${getIcon(iconName, 14)}
+            <span>${displayName}</span>
+        </div>
+        <div class="node-resolution">${metadataText || ''}</div>
+    `;
+    return header;
+}
+
+/**
+ * 统一创建节点侧边栏
+ */
+export function createNodeSidebar(generationTime, modelName) {
+    const sidebar = document.createElement('div');
+    sidebar.className = 'node-sidebar';
+    
+    if (generationTime !== null && generationTime !== undefined) {
+        const timeElement = document.createElement('div');
+        timeElement.className = 'node-generation-time';
+        timeElement.style.display = (typeof DebugConsole !== 'undefined' && DebugConsole.showGenerationTime) ? 'flex' : 'none';
+        timeElement.innerHTML = `${getIcon('clock', 12)} <span>${formatGenerationTime(generationTime).replace('⏱️', '').trim()}</span>`;
+        timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
+        sidebar.appendChild(timeElement);
+    }
+    
+    if (modelName) {
+        renderModelTag(sidebar, modelName);
+    }
+    
+    return sidebar;
+}
+
+/**
+ * 统一创建节点信息面板 (Prompt)
+ */
+export function createNodeInfo(prompt, fallbackText) {
+    const info = document.createElement('div');
+    info.className = 'node-info';
+    info.textContent = prompt || fallbackText;
+    info.title = '点击复制提示词';
+    
+    info.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const textToCopy = prompt || info.textContent;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            info.classList.add('copied');
+            setTimeout(() => info.classList.remove('copied'), 500);
+        });
+    });
+    
+    return info;
 }

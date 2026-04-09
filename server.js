@@ -5,26 +5,14 @@ const path = require('path');
 // 加载环境变量
 require('dotenv').config();
 
-// Google GenAI SDK
-let GoogleGenAI;
-try {
-    GoogleGenAI = require('@google/genai').GoogleGenAI;
-} catch (e) {
-    console.warn('[@google/genai] SDK not installed. Google Veo video generation will not be available.');
-}
+const { GoogleGenAI } = require('@google/genai');
 
 process.env.TZ = 'Asia/Shanghai';
 
-// 代理配置：支持 HTTP_PROXY/HTTPS_PROXY 环境变量
-const HTTP_PROXY = process.env.HTTP_PROXY || process.env.HTTPS_PROXY || process.env.http_proxy || process.env.https_proxy;
-const USE_PROXY = !!HTTP_PROXY;
-
-if (USE_PROXY) {
-    console.log(`[Proxy] 已启用代理: ${HTTP_PROXY}`);
-    process.env.HTTP_PROXY = HTTP_PROXY;
-    process.env.HTTPS_PROXY = HTTP_PROXY;
-    process.env.http_proxy = HTTP_PROXY;
-    process.env.https_proxy = HTTP_PROXY;
+// 代理配置：全面交由系统环境变量接管
+// 不再手动指定端口或注入 Agent，以确保与生图成功的环境一致
+if (process.env.HTTP_PROXY || process.env.HTTPS_PROXY) {
+    console.log(`[Proxy] 检测到系统代理变量，将由 Node.js 原生 Fetch 自动处理转发。`);
 }
 
 const PORT = 8000;
@@ -123,7 +111,7 @@ function saveImage(base64Data, prompt, aspectRatio, imageSize) {
     fs.writeFileSync(txtFilePath, txtContent, 'utf-8');
     
     return {
-        path: filePath,
+        path: filePath.replace(/\\/g, '/'),
         filename: fileName,
         txtFileName: txtFileName,
         dateFolder: dateFolder,
@@ -180,7 +168,7 @@ async function saveVideo(videoUrl, prompt, aspectRatio, duration, modelName) {
     fs.writeFileSync(txtFilePath, txtContent, 'utf-8');
     
     return {
-        path: filePath,
+        path: filePath.replace(/\\/g, '/'),
         fileName: fileName,
         txtFileName: txtFileName,
         dateFolder: dateFolder,
@@ -207,7 +195,7 @@ function getNextAudioNumber(dateFolder) {
     return maxNumber + 1;
 }
 
-function saveAudio(base64Data, prompt, format, duration, modelName) {
+async function saveAudio(audioUrl, prompt, format, duration, modelName) {
     const dateFolder = getDateFolder();
     const audioNumber = getNextAudioNumber(dateFolder);
     
@@ -221,7 +209,12 @@ function saveAudio(base64Data, prompt, format, duration, modelName) {
     const folderPath = path.join(GENERATED_AUDIO_DIR, dateFolder);
     const filePath = path.join(folderPath, fileName);
     
-    const buffer = Buffer.from(base64Data, 'base64');
+    console.log(`[Audio Save] Downloading: ${audioUrl}`);
+    const response = await fetch(audioUrl);
+    if (!response.ok) throw new Error(`Failed to download audio: ${response.status}`);
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
     fs.writeFileSync(filePath, buffer);
     
     const txtFileName = fileName.replace(`.${format}`, '.txt');
@@ -230,7 +223,7 @@ function saveAudio(base64Data, prompt, format, duration, modelName) {
     fs.writeFileSync(txtFilePath, txtContent, 'utf-8');
     
     return {
-        path: filePath,
+        path: filePath.replace(/\\/g, '/').replace(/^.*outputs\//, '/DL/'), // 对齐静态资源路径
         fileName: fileName,
         txtFileName: txtFileName,
         dateFolder: dateFolder,
@@ -409,27 +402,61 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    if (req.url === '/save-video' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk.toString(); });
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(body);
+                const { videoUrl, prompt, aspectRatio, duration, modelName } = data;
+                
+                if (!videoUrl) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'videoUrl is required' }));
+                    return;
+                }
+                
+                const result = await saveVideo(videoUrl, prompt, aspectRatio, duration, modelName);
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ 
+                    success: true, 
+                    ...result 
+                }));
+            } catch (error) {
+                console.error('Error saving video:', error);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: error.message }));
+            }
+        });
+        return;
+    }
+
     if (req.url === '/save-audio' && req.method === 'POST') {
         let body = '';
         req.on('data', chunk => body += chunk.toString());
-        req.on('end', () => {
+        req.on('end', async () => {
             try {
                 const data = JSON.parse(body);
-                const { audioData, prompt, format, duration, modelName, saveToDisk = true } = data;
-                if (!audioData) {
+                const { audioUrl, prompt, format, duration, modelName, saveToDisk = true } = data;
+                
+                if (!audioUrl) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'No audio data' }));
+                    res.end(JSON.stringify({ error: 'No audioUrl provided' }));
                     return;
                 }
+                
                 if (!saveToDisk) {
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ success: true, skipped: true }));
                     return;
                 }
-                const result = saveAudio(audioData, prompt, format, duration, modelName);
+                
+                const result = await saveAudio(audioUrl, prompt, format, duration, modelName);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true, ...result }));
             } catch (e) {
+                console.error('Error in /save-audio:', e);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: e.message }));
             }
@@ -458,6 +485,127 @@ const server = http.createServer((req, res) => {
         return;
     }
     
+    // Google 全能代理网关 (处理生图、生文、生音等)
+    if (req.url === '/api/google/proxy-command' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk.toString());
+        req.on('end', async () => {
+            try {
+                const { apiKey, model, action, payload } = JSON.parse(body);
+                // 根据 action 构造 URL (备用，默认通用 generateContent)
+                const baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+                const apiUrl = `${baseUrl}/models/${model}:${action}?key=${apiKey}`;
+                
+                console.log(`[Google Proxy] [${action}] 转发请求至: ${model}`);
+                
+                const fetchOptions = {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                };
+
+                const response = await fetch(apiUrl, fetchOptions);
+                const result = await response.json();
+                
+                res.writeHead(response.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            } catch (e) {
+                console.error('[Google Proxy] Error:', e);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: e.message }));
+            }
+        });
+        return;
+    }
+
+    // Google 音频生成 API
+    if (req.url === '/api/google/generate-audio' && req.method === 'POST') {
+        console.log('>>> [SERVER] BACKEND RECEIVED AUDIO REQUEST AT:', new Date().toISOString());
+        
+        let body = '';
+        req.on('data', chunk => body += chunk.toString());
+        
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(body);
+                const { apiKey, model, prompt, format } = data;
+                
+                if (!apiKey || apiKey === 'none' || apiKey.trim() === '') {
+                    res.writeHead(401, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: '前端未传递有效 API Key' }));
+                    return;
+                }
+
+                console.log(`[Google Audio] 收到音频生成请求, 模型: ${model}, 格式: ${format}`);
+                
+                // 构造多模态内容 Parts
+                const parts = [];
+                
+                // 1. 添加图片数据 (如果是多模态请求)
+                if (data.media && Array.isArray(data.media)) {
+                    data.media.forEach(item => {
+                        let base64Data = item.data;
+                        let mimeType = item.mimeType || 'image/jpeg';
+                        
+                        // 清理 base64
+                        if (base64Data.includes(',')) {
+                            base64Data = base64Data.split(',')[1];
+                        }
+                        
+                        parts.push({
+                            inline_data: {
+                                data: base64Data,
+                                mime_type: mimeType
+                            }
+                        });
+                    });
+                }
+                
+                // 2. 添加文本提示
+                parts.push({ "text": prompt });
+                
+                // 构建符合官方文档的请求体
+                const googlePayload = {
+                    "contents": [{
+                        "parts": parts
+                    }],
+                    "generationConfig": {
+                        "responseModalities": ["AUDIO", "TEXT"]
+                        // 移除 responseMimeType，Google Lyria 3 会报错
+                    }
+                };
+
+                const baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+                const apiUrl = `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
+                
+                console.log(`[Google Audio] 正在发送请求...`);
+                
+                const apiResponse = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(googlePayload)
+                });
+
+                if (!apiResponse.ok) {
+                    const errorText = await apiResponse.text();
+                    console.error('[Google Audio] API Error:', errorText);
+                    res.writeHead(apiResponse.status, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: errorText }));
+                    return;
+                }
+
+                const result = await apiResponse.json();
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            } catch (error) {
+                console.error('[Google Audio] 生成失败:', error);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: error.message }));
+            }
+        });
+        return;
+    }
+
     // Google Veo 视频生成 API
     if (req.url === '/api/google/generate-video' && req.method === 'POST') {
         console.log('>>> [SERVER] BACKEND RECEIVED REQUEST AT:', new Date().toISOString());
@@ -477,11 +625,21 @@ const server = http.createServer((req, res) => {
         req.on('end', async () => {
             try {
                 const data = JSON.parse(body);
-                // 严禁使用 process.env.GOOGLE_API_KEY 兜底，必须且仅能使用前端传来的 apiKey
-                const apiKey = data.apiKey;
-                const model = data.model;
-                const prompt = data.prompt;
-                const config = data.config;
+                const { apiKey, model, instances, parameters, payload: legacyPayload } = data;
+                
+                // 自动纠正前端发来的套娃结构
+                const finalInstances = instances || (legacyPayload ? legacyPayload.instances : null);
+                const finalParameters = parameters || (legacyPayload ? legacyPayload.parameters : {});
+                
+                if (!finalInstances) {
+                    throw new Error('Request must contain instances');
+                }
+
+                // 准备发往 Google 的根对象
+                const googlePayload = {
+                    instances: finalInstances,
+                    parameters: finalParameters || {}
+                };
                 
                 // 安全审计：检查前端传来的 apiKey
                 if (!apiKey || apiKey === 'none' || apiKey.trim() === '') {
@@ -496,10 +654,10 @@ const server = http.createServer((req, res) => {
                 const startTime = Date.now();
                 console.log(`[Google Veo] [${requestId}] 开始调用 Google SDK, 时间: ${startTime}`);
                 
-                const googleAI = new GoogleGenAI({ apiKey: apiKey });
+                // 准备开始
                 
-                // 调试：检查 SDK 版本和配置
-                console.log(`[Google Veo] [${requestId}] SDK 初始化完成, 代理: ${USE_PROXY ? HTTP_PROXY : '无'}`);
+                // 调试：检查 SDK 状态
+                console.log(`[Google Veo] [${requestId}] SDK 准备就绪，遵循系统代理配置`);
                 
                 // 超时保护：30秒超时
                 const TIMEOUT_MS = 30000;
@@ -512,18 +670,36 @@ const server = http.createServer((req, res) => {
                 
                 let operation;
                 try {
-                    operation = await Promise.race([
-                        googleAI.models.generateVideos({
-                            model: model,
-                            prompt: prompt,
-                            config: config
-                        }),
+                    // --- 极简直连方案 ---
+                    // 构造符合 SDK 预期的预测请求
+                    
+                    // 使用原生 fetch 发起请求
+                    const baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+                    const apiUrl = `${baseUrl}/models/${model}:predictLongRunning?key=${apiKey}`;
+                    
+                    const fetchOptions = {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(googlePayload)
+                    };
+
+                    console.log(`[Google Veo] [${requestId}] 正在通过直连启动生成任务...`);
+                    const apiResponse = await Promise.race([
+                        fetch(apiUrl, fetchOptions),
                         timeoutPromise
                     ]);
+                    
                     clearTimeout(timeoutHandle);
-                } catch (timeoutError) {
+
+                    if (!apiResponse.ok) {
+                        const errorText = await apiResponse.text();
+                        throw new Error(`Google API (${apiResponse.status}): ${errorText}`);
+                    }
+
+                    operation = await apiResponse.json();
+                } catch (error) {
                     clearTimeout(timeoutHandle);
-                    throw timeoutError;
+                    throw error;
                 }
                 
                 const endTime = Date.now();
@@ -544,7 +720,7 @@ const server = http.createServer((req, res) => {
                 operations[operationName] = {
                     createdAt: new Date().toISOString(),
                     model: model,
-                    prompt: prompt,
+                    prompt: (finalInstances && finalInstances[0]) ? finalInstances[0].prompt : (data.prompt || ''),
                     apiKey: apiKey
                 };
                 fs.writeFileSync(operationFile, JSON.stringify(operations, null, 2));
@@ -628,6 +804,22 @@ const server = http.createServer((req, res) => {
         return;
     }
     
+    // 获取所有视频操作任务列表
+    if (req.url === '/api/google/list-operations' && req.method === 'GET') {
+        const operationFile = path.join(GENERATED_IMAGES_DIR, 'video-operations.json');
+        let operations = {};
+        if (fs.existsSync(operationFile)) {
+            try {
+                operations = JSON.parse(fs.readFileSync(operationFile, 'utf-8'));
+            } catch (e) {
+                console.error('Error reading operations file:', e);
+            }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(operations));
+        return;
+    }
+
     // Google Veo 视频生成状态查询 API
     if (req.url.startsWith('/api/google/video-status') && req.method === 'GET') {
         if (!GoogleGenAI) {
@@ -945,45 +1137,6 @@ const server = http.createServer((req, res) => {
         return;
     }
     
-    // 视频保存 API
-    if (req.url === '/api/save-video' && req.method === 'POST') {
-        let body = '';
-        
-        req.on('data', chunk => {
-            body += chunk.toString();
-        });
-        
-        req.on('end', async () => {
-            try {
-                const data = JSON.parse(body);
-                const { videoUrl, prompt, aspectRatio, duration, modelName } = data;
-                
-                if (!videoUrl) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Video URL is required' }));
-                    return;
-                }
-                
-                console.log('[Save Video] Saving video from:', videoUrl);
-                
-                const result = await saveVideo(videoUrl, prompt || '', aspectRatio || '16:9', duration || '5', modelName || '');
-                
-                console.log(`[Save Video] Saved to: ${result.path} | Prompt: ${prompt.substring(0,20)}...`);
-                
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ 
-                    success: true, 
-                    ...result 
-                }));
-            } catch (error) {
-                console.error('[Save Video] Error:', error);
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: error.message }));
-            }
-        });
-        
-        return;
-    }
     
     let filePath = '.' + req.url;
     if (filePath === './') {

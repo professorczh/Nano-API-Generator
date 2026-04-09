@@ -36,12 +36,12 @@ export async function handleAPICall(params) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = promptInput.innerHTML;
 
-    // 1. 处理旧版的粘贴图片 (pasted-image-item)
+    // 1. 处理旧版的粘贴图�?(pasted-image-item)
     const imageTags = tempDiv.querySelectorAll('.pasted-image-item');
     imageTags.forEach(tag => tag.remove());
     
     // 2. 处理新的提及标签 (Mention Tags)
-    // 我们需要收集这些提及，并将它们对应的媒体内容合并到发送包中
+    // 我们需要收集这些提及，并将它们对应的媒体内容合并到发送包�?
     const mentionTags = tempDiv.querySelectorAll('.node-reference-mention-tag');
     const mentionedRefs = [];
     
@@ -51,7 +51,7 @@ export async function handleAPICall(params) {
             const ref = window.referenceManager?.getReference(refId);
             if (ref) {
                 mentionedRefs.push(ref);
-                // 将 HTML 标签替换为纯文本标签，方便 LLM 理解，例如 [图片1]
+                // �?HTML 标签替换为纯文本标签，方�?LLM 理解，例�?[图片1]
                 const textLabel = document.createTextNode(`[${ref.name}]`);
                 tag.parentNode.replaceChild(textLabel, tag);
             }
@@ -88,14 +88,14 @@ export async function handleAPICall(params) {
             const pinTag = `[${info.pinNumber}]`;
             if (processedPrompt.includes(pinTag)) {
                 const node = PinManager.findNodeByImageUrl(info.imageUrl);
-                let positionDesc = `图片中 PIN ${info.pinNumber} 标记的位置`;
+                let positionDesc = `图片�?PIN ${info.pinNumber} 标记的位置`;
                 if (node) {
                     const width = parseInt(node.dataset.width) || 0;
                     const height = parseInt(node.dataset.height) || 0;
                     if (width > 0 && height > 0) {
                         const relX = ((info.x / width) * 100).toFixed(1);
                         const relY = ((info.y / height) * 100).toFixed(1);
-                        positionDesc = `图片中 PIN ${info.pinNumber} 标记的位置（图片尺寸${width}x${height}，相对坐标${relX}%, ${relY}%）`;
+                        positionDesc = `图片�?PIN ${info.pinNumber} 标记的位置（图片尺寸${width}x${height}，相对坐�?{relX}%, ${relY}%）`;
                     }
                 }
                 processedPrompt = processedPrompt.replace(pinTag, positionDesc);
@@ -108,7 +108,7 @@ export async function handleAPICall(params) {
     const isImageGenMode = currentMode === 'image';
     const imageDataList = PinManager.getImageDataList();
     
-    debugLog(`[参数检查] 模式: ${currentMode}, 提示词: "${prompt}", 图片数量: ${imageDataList.length}, PIN数量: ${pinInfo.length}`, 'info');
+    debugLog(`[参数检查] 模式: ${currentMode}, 提示�? "${prompt}", 图片数量: ${imageDataList.length}, PIN数量: ${pinInfo.length}`, 'info');
     
     let modelName;
     let modelProvider;
@@ -147,8 +147,8 @@ export async function handleAPICall(params) {
     
     debugLog(`[模型配置] 模型: ${modelName}, 温度: ${generationConfig.temperature}, TopP: ${generationConfig.topP}`, 'info');
     
-    // --- 全能参考货架采集 (Omni-Reference) ---
-    // 默认采集货架上所有的内容（除非是 Gemini VEO 模式要求纯净 Prompt）
+    // --- 全能参考货架采�?(Omni-Reference) ---
+    // 默认采集货架上所有的内容（除非是 Gemini VEO 模式要求纯净 Prompt�?
     const isGeminiVeo = (currentMode === 'video' && modelProvider === 'gemini');
     let shelfRefs = [];
     
@@ -159,7 +159,7 @@ export async function handleAPICall(params) {
 
     let allMediaData = [...imageDataList];
 
-    // 合并货架内容 (避重复)
+    // 合并货架内容 (避重�?
     const combinedRefs = [...mentionedRefs, ...shelfRefs];
     combinedRefs.forEach(ref => {
         const existing = allMediaData.find(m => m.refId === ref.id);
@@ -210,10 +210,10 @@ export async function handleAPICall(params) {
     
     for (let i = 0; i < allMediaData.length; i++) {
         const mediaData = allMediaData[i];
-        // 只有图片且是 blob: 协议才需要转换 (视频/音频稍后由 Provider 处理)
+        // 只有图片且是 blob: 协议才需要转�?(视频/音频稍后�?Provider 处理)
         if (mediaData.type === 'image' && mediaData.data && mediaData.data.startsWith('blob:')) {
             try {
-                debugLog(`[图片预处理] 转换 blob URL 为 base64: ${mediaData.name}`, 'info');
+                debugLog(`[图片预处理] 转换 blob URL 为 base64: ${mediaData.name}`, "info");
                 const response = await fetch(mediaData.data);
                 const arrayBuffer = await response.arrayBuffer();
                 const bytes = new Uint8Array(arrayBuffer);
@@ -241,12 +241,12 @@ export async function handleAPICall(params) {
     if (activeRequests === 1) {
         loader.classList.remove('hidden');
         if (statusTag) {
-            statusTag.innerText = "请求中";
+            statusTag.innerText = "正在请求";
             statusTag.className = "text-xs px-2 py-1 rounded bg-blue-50 text-blue-600";
         }
     }
     
-    debugLog(`[请求状态] 活跃请求数: ${activeRequests}`, 'info');
+    debugLog(`[请求状态] 活跃请求数: ${activeRequests}`, "info");
     imageResponseContainer.classList.remove('hidden');
     
     let loadingPlaceholder = null;
@@ -316,10 +316,10 @@ export async function handleAPICall(params) {
                 const elapsed = (Date.now() - imgGenStartTime) / 1000;
                 imgTimeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
             }, 100);
-            loadingPlaceholder._timer = imgTimer;
+            loadingPlaceholder._loadingInterval = imgTimer;
             loadingPlaceholder._startTime = imgGenStartTime;
         }
-    } else if (currentMode !== 'video') {
+    } else if (currentMode !== 'video' && currentMode !== 'audio') {
         const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
         let x = 5000;
         let y = 5000;
@@ -352,7 +352,7 @@ export async function handleAPICall(params) {
                 const elapsed = (Date.now() - textGenStartTime) / 1000;
                 textTimeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
             }, 100);
-            loadingPlaceholder._timer = textTimer;
+            loadingPlaceholder._loadingInterval = textTimer;
             loadingPlaceholder._startTime = textGenStartTime;
         }
     }
@@ -360,6 +360,11 @@ export async function handleAPICall(params) {
     try {
         const isVideoGenMode = currentMode === 'video';
         
+        // Define Model Branding
+        const modelDisplayName = getModelDisplayName(modelName, modelProvider);
+        const modelProviderDisplay = modelDisplayName.provider || modelProvider;
+        const modelDisplayNameStr = modelDisplayName.name || modelName;
+
         if (isVideoGenMode) {
             const selectedNode = AppState.selectedNode;
             let selectedImageUrl = null;
@@ -375,8 +380,8 @@ export async function handleAPICall(params) {
                 const lastNode = existingNodes[existingNodes.length - 1];
                 const lastNodeX = parseInt(lastNode.style.left) || 0;
                 const lastNodeY = parseInt(lastNode.style.top) || 0;
-                const lastNodeWidth = lastNode.offsetWidth;
-                const lastNodeHeight = lastNode.offsetHeight;
+                const lastNodeWidth = lastNode.offsetWidth || 300;
+                const lastNodeHeight = lastNode.offsetHeight || 169;
                 
                 nodeX = lastNodeX + lastNodeWidth + 50;
                 nodeY = lastNodeY;
@@ -387,13 +392,7 @@ export async function handleAPICall(params) {
                 }
             }
             
-            const videoModel = CONFIG.VIDEO_MODEL_NAME;
-            const videoProvider = CONFIG.VIDEO_MODEL_PROVIDER;
-            const videoModelDisplayNameObj = getModelDisplayName(videoModel, videoProvider);
-            const videoModelDisplayName = videoModelDisplayNameObj.name || videoModel;
-            const videoModelProviderDisplay = videoModelDisplayNameObj.provider || videoProvider;
-            console.log('[视频生成] prompt:', prompt.substring(0, 80), '...');
-            const videoPlaceholder = NodeFactory.createVideoPlaceholder(nodeX, nodeY, prompt, videoModelDisplayName, videoRatioWrapper.dataset.value);
+            const videoPlaceholder = NodeFactory.createVideoPlaceholder(nodeX, nodeY, prompt, modelDisplayName, videoRatioWrapper.dataset.value);
             imageResponseContainer.appendChild(videoPlaceholder);
             updateMinimapWithImage(videoPlaceholder);
             selectNode(videoPlaceholder);
@@ -401,58 +400,45 @@ export async function handleAPICall(params) {
             const videoGenStartTime = Date.now();
             const videoTimeElement = videoPlaceholder.querySelector('.node-sidebar .node-generation-time');
             
-            // 获取参考架上的所有多模态资源 (Seedance 2.0 支持)
-            const allReferences = referenceManager.getAllReferences();
-            const referenceMode = referenceManager.currentMode;
+            // 获取参考架上的所有多模态资�?
+            const allReferences = referenceManager?.getAllReferences ? referenceManager.getAllReferences() : [];
+            const referenceMode = referenceManager?.currentMode || 'omni';
             
-            if (videoTimeElement) {
-                videoTimeElement.textContent = '⏱️ 0.0s';
-                const videoTimer = setInterval(() => {
-                    const elapsed = (Date.now() - videoGenStartTime) / 1000;
-                    videoTimeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
-                }, 100);
-                videoPlaceholder._timer = videoTimer;
-                videoPlaceholder._startTime = videoGenStartTime;
-            }
+            // 计时器现在由 NodeFactory.createVideoPlaceholder 内部统一管理，此处不再手动干�?
             
             await apiClient.request({
                 prompt,
                 isVideoGenMode: true,
-                videoModel: CONFIG.VIDEO_MODEL_NAME,
-                videoProvider: CONFIG.VIDEO_MODEL_PROVIDER,
+                videoModel: modelName,
+                videoProvider: modelProvider,
                 aspectRatio: videoRatioWrapper.dataset.value,
                 resolution: videoResolutionWrapper.dataset.value,
                 durationSeconds: videoDurationWrapper.dataset.value,
                 selectedImageUrl: selectedImageUrl,
-                media: allReferences, // 传递所有多模态参考
-                referenceMode: referenceMode, // 传递参考模式 (omni/start_end/etc)
+                media: allReferences,
+                referenceMode: referenceMode,
                 onVideoProgress: (progress) => {
                     debugLog(`[视频进度] ${progress}%`, 'info');
-                    if (videoPlaceholder && videoPlaceholder._updateProgress) {
-                        videoPlaceholder._updateProgress(progress);
+                    if (videoPlaceholder && typeof NodeFactory !== 'undefined') {
+                        NodeFactory.updateVideoLoadingStatus(videoPlaceholder, 'generating', progress);
                     }
                 },
                 onVideoGenerated: async (videoUrl) => {
-                    // 入口保护：防止由于轮询竞态导致的多次触发
                     if (!videoPlaceholder || !videoPlaceholder.parentNode || !videoPlaceholder.classList.contains('loading-placeholder')) {
-                        debugLog('[视频回调] 忽略重复的完成信号', 'info');
                         return;
-                    }
-                    
-                    if (videoPlaceholder && videoPlaceholder._timer) {
-                        clearInterval(videoPlaceholder._timer);
-                        videoPlaceholder._timer = null;
                     }
                     
                     const videoGenEndTime = Date.now();
                     const genTime = videoPlaceholder._startTime ? (videoGenEndTime - videoPlaceholder._startTime) / 1000 : 0;
                     
-                    debugLog(`[视频完成] ${videoUrl}, 耗时: ${genTime.toFixed(1)}s`, 'info');
+                    if (videoPlaceholder && typeof NodeFactory !== 'undefined') {
+                        NodeFactory.updateVideoLoadingStatus(videoPlaceholder, 'saving', 100);
+                    }
+                    debugLog(`[视频成功] 正在完成云端存储...`, 'info');
                     
-                    const proxyUrl = `/api/video-proxy?url=${encodeURIComponent(videoUrl)}`;
-                    
+                    let finalVideoUrl = videoUrl;
                     try {
-                        const saveResponse = await fetch('/api/save-video', {
+                        const saveResponse = await fetch('/save-video', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -460,41 +446,38 @@ export async function handleAPICall(params) {
                                 prompt: prompt,
                                 aspectRatio: videoRatioWrapper.dataset.value,
                                 duration: videoDurationWrapper.dataset.value,
-                                modelName: videoModelDisplayName
+                                modelName: modelDisplayNameStr
                             })
                         });
-                        await saveResponse.json();
+                        const saveResult = await saveResponse.json();
+                        if (saveResult.success && saveResult.path) {
+                            finalVideoUrl = saveResult.path;
+                            debugLog(`[保存成功] 记录已同步到磁盘: ${saveResult.fileName}`, 'success');
+                        }
                     } catch (e) {
                         console.error('[保存视频] 失败:', e);
                     }
                     
-                    console.log('[视频完成] prompt:', prompt.substring(0, 80), '... videoUrl:', proxyUrl);
-                    NodeFactory.replaceWithVideo(videoPlaceholder, proxyUrl, prompt, videoModelDisplayName, genTime, videoRatioWrapper.dataset.value);
+                    if (videoPlaceholder && videoPlaceholder._loadingInterval) {
+                        clearInterval(videoPlaceholder._loadingInterval);
+                        videoPlaceholder._loadingInterval = null;
+                    }
                     
-                    // 确保更新小地图并重新选择节点以刷新 UI
-                    if (typeof updateMinimapWithImage === 'function') {
-                        updateMinimapWithImage(videoPlaceholder);
-                    }
-                    if (typeof selectNode === 'function') {
-                        selectNode(videoPlaceholder);
-                    }
+                    NodeFactory.replaceWithVideo(videoPlaceholder, finalVideoUrl, prompt, modelDisplayName, genTime, videoRatioWrapper.dataset.value);
+                    
+                    if (typeof updateMinimapWithImage === 'function') updateMinimapWithImage(videoPlaceholder);
+                    if (typeof selectNode === 'function') selectNode(videoPlaceholder);
                 },
                 onError: (error) => {
                     debugLog(`[视频错误] ${error.message}`, 'error');
-                    
-                    let errorX = 5000;
-                    let errorY = 5000;
-                    
+                    let errorX = 5000, errorY = 5000;
                     if (videoPlaceholder) {
-                        if (videoPlaceholder._timer) {
-                            clearInterval(videoPlaceholder._timer);
-                        }
+                        if (videoPlaceholder._loadingInterval) clearInterval(videoPlaceholder._loadingInterval);
                         errorX = parseInt(videoPlaceholder.style.left) || 5000;
                         errorY = parseInt(videoPlaceholder.style.top) || 5000;
                         videoPlaceholder.remove();
                     }
-                    
-                    const errorNode = createImageNode('', prompt, CanvasState.nodeCounter++, 'Error', '', 0, videoModelDisplayName, error.message);
+                    const errorNode = createImageNode('', prompt, CanvasState.nodeCounter++, 'Error', '', 0, modelDisplayName, error.message);
                     errorNode.style.left = `${errorX}px`;
                     errorNode.style.top = `${errorY}px`;
                     imageResponseContainer.appendChild(errorNode);
@@ -534,6 +517,7 @@ export async function handleAPICall(params) {
             const audioModelDisplayNameObj = getModelDisplayName(audioModel, audioProvider);
             const audioModelDisplayName = audioModelDisplayNameObj.name || audioModel;
             
+            // --- 关键修复：确保只有一个音频节点存�?---
             const audioPlaceholder = NodeFactory.createAudioPlaceholder(nodeX, nodeY, prompt, audioModelDisplayName);
             imageResponseContainer.appendChild(audioPlaceholder);
             updateMinimapWithImage(audioPlaceholder);
@@ -541,40 +525,60 @@ export async function handleAPICall(params) {
             
             const audioGenStartTime = Date.now();
             const audioTimeElement = audioPlaceholder.querySelector('.node-sidebar .node-generation-time');
-            if (audioTimeElement) {
-                audioTimeElement.textContent = '⏱️ 0.0s';
-                const audioTimer = setInterval(() => {
-                    const elapsed = (Date.now() - audioGenStartTime) / 1000;
-                    audioTimeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
-                }, 100);
-                audioPlaceholder._timer = audioTimer;
-                audioPlaceholder._startTime = audioGenStartTime;
-            }
-            
-            await apiClient.request({
-                prompt,
-                media: allMediaData,
-                isAudioGenMode: true,
-                modelName: audioModel,
-                modelProvider: audioProvider,
-                audioDuration: params.audioDurationWrapper.dataset.value,
-                audioFormat: params.audioFormatWrapper.dataset.value,
-                onAudioGenerated: (audioUrl) => {
-                    debugLog(`[音频完成] ${audioUrl}`, 'info');
-                    if (audioPlaceholder._timer) {
-                        clearInterval(audioPlaceholder._timer);
-                        audioPlaceholder._timer = null;
+            // 音频计时器也由工厂统一管理
+
+            try {
+                await apiClient.request({
+                    prompt,
+                    media: allMediaData,
+                    isAudioGenMode: true,
+                    modelName: audioModel,
+                    modelProvider: audioProvider,
+                    audioDuration: params.audioDurationWrapper.dataset.value,
+                    audioFormat: params.audioFormatWrapper.dataset.value,
+                    onAudioGenerated: async (audioUrl) => {
+                        debugLog(`[音频完成] 正在进入本地化存盘流程...`, 'info');
+                        
+                        if (typeof NodeFactory !== 'undefined') {
+                            NodeFactory.updateAudioLoadingStatus(audioPlaceholder, 'saving');
+                        }
+
+                        let finalAudioUrl = audioUrl;
+                        try {
+                            const saveResponse = await fetch('/save-audio', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    audioUrl: audioUrl,
+                                    prompt: prompt,
+                                    format: params.audioFormatWrapper.dataset.value,
+                                    duration: params.audioDurationWrapper.dataset.value,
+                                    modelName: audioModelDisplayName
+                                })
+                            });
+                            const saveResult = await saveResponse.json();
+                            if (saveResult.success && saveResult.path) {
+                                finalAudioUrl = saveResult.path;
+                                debugLog(`[音频保存] 已同步到磁盘: ${saveResult.fileName}`, 'success');
+                            }
+                        } catch (saveError) {
+                            console.error('[音频保存] 失败:', saveError);
+                            debugLog(`[音频保存] 存盘失败，回退到云端预览`, 'warning');
+                        }
+
+                        const genTime = (Date.now() - audioGenStartTime) / 1000;
+                        NodeFactory.replaceWithAudio(audioPlaceholder, finalAudioUrl, prompt, audioModelDisplayName, genTime, params.audioFormatWrapper.dataset.value);
+                    },
+                    onError: (error) => {
+                        debugLog(`[音频错误] ${error.message}`, 'error');
+                        // 健壮性修复：音频拦截展示
+                        NodeFactory.markAsError(audioPlaceholder, '音频生成失败', error.message || '内容触发安全策略');
                     }
-                    const genTime = (Date.now() - audioGenStartTime) / 1000;
-                    NodeFactory.replaceWithAudio(audioPlaceholder, audioUrl, prompt, audioModelDisplayName, genTime, params.audioFormatWrapper.dataset.value);
-                },
-                onError: (error) => {
-                    debugLog(`[音频错误] ${error.message}`, 'error');
-                    if (audioPlaceholder._timer) clearInterval(audioPlaceholder._timer);
-                    audioPlaceholder.remove();
-                    // ... (error node handling)
-                }
-            });
+                });
+            } catch (error) {
+                console.error("Audio API error:", error);
+                NodeFactory.markAsError(audioPlaceholder, '音频请求异常', error.message || '连接超时');
+            }
             
             incrementNodeCounter();
             return;
@@ -594,7 +598,7 @@ export async function handleAPICall(params) {
             aspectRatio: aspectRatioWrapper.dataset.value,
             imageSize: imageSizeWrapper.dataset.value,
             onImageGenerated: async (result) => {
-                debugLog(`[API响应] 收到响应, 候选数量: 1`, 'info');
+                debugLog(`[API响应] 收到响应, 候选数�? 1`, 'info');
                 
                 const imageData = result.imageData;
                 const apiResponse = result.response;
@@ -612,7 +616,7 @@ export async function handleAPICall(params) {
                     console.log('%c[State] Image API safety ratings detected:', 'color: #a855f7; font-weight: bold', safetyRatings);
                 }
                 
-                // 探测：检查 response.text() 内容
+                // 探测：检�?response.text() 内容
                 try {
                     const responseText = typeof apiResponse?.text === 'function' ? await apiResponse.text() : null;
                     if (responseText) {
@@ -626,7 +630,7 @@ export async function handleAPICall(params) {
                     console.log('%c[DOM] response.text() 不可用或解析失败:', 'color: #a855f7', textError.message);
                 }
                 
-                // 探测：检查 candidates[0].content.parts 结构
+                // 探测：检�?candidates[0].content.parts 结构
                 const parts = apiResponse?.candidates?.[0]?.content?.parts || [];
                 if (parts.length > 0) {
                     console.log('%c[DOM] candidates[0].content.parts 结构探测:', 'color: #a855f7; font-weight: bold');
@@ -658,7 +662,7 @@ export async function handleAPICall(params) {
                     const providerToggle = document.getElementById('providerToggle');
                     const saveToDisk = providerToggle ? providerToggle.checked : false;
                     
-                    debugLog(`[保存图片] 开始保存到服务器, saveToDisk: ${saveToDisk}`, 'info');
+                    debugLog(`[保存图片] 开始保存到服务�? saveToDisk: ${saveToDisk}`, 'info');
                     
                     if (!saveToDisk) {
                         debugLog(`[保存图片] 跳过存盘（仅预览模式）`, 'info');
@@ -685,9 +689,9 @@ export async function handleAPICall(params) {
                     debugLog(`[保存图片] 保存失败: ${saveError.message}`, 'error');
                 }
                 
-                if (loadingPlaceholder && loadingPlaceholder._timer) {
-                    clearInterval(loadingPlaceholder._timer);
-                    loadingPlaceholder._timer = null;
+                if (loadingPlaceholder && loadingPlaceholder._loadingInterval) {
+                    clearInterval(loadingPlaceholder._loadingInterval);
+                    loadingPlaceholder._loadingInterval = null;
                 }
                 
                 const imgGenEndTime = Date.now();
@@ -713,9 +717,9 @@ export async function handleAPICall(params) {
             onTextGenerated: (text) => {
                 debugLog(`[API响应] 收到文本响应`, 'info');
                 
-                if (loadingPlaceholder && loadingPlaceholder._timer) {
-                    clearInterval(loadingPlaceholder._timer);
-                    loadingPlaceholder._timer = null;
+                if (loadingPlaceholder && loadingPlaceholder._loadingInterval) {
+                    clearInterval(loadingPlaceholder._loadingInterval);
+                    loadingPlaceholder._loadingInterval = null;
                 }
                 
                 const textGenEndTime = Date.now();
@@ -741,8 +745,8 @@ export async function handleAPICall(params) {
                 let errorY = 5000;
                 
                 if (loadingPlaceholder) {
-                    if (loadingPlaceholder._timer) {
-                        clearInterval(loadingPlaceholder._timer);
+                    if (loadingPlaceholder._loadingInterval) {
+                        clearInterval(loadingPlaceholder._loadingInterval);
                     }
                     errorX = parseInt(loadingPlaceholder.style.left) || 5000;
                     errorY = parseInt(loadingPlaceholder.style.top) || 5000;

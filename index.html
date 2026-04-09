@@ -90,18 +90,18 @@
                     </div>
                     
                     <!-- 任务类型 Tab -->
-                    <div class="mt-4 flex border border-gray-200 rounded-lg overflow-hidden">
-                        <button id="tabText" class="flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50 border-r border-gray-200 flex items-center justify-center gap-2">
-                            <i data-lucide="file-text" class="w-4 h-4"></i> 文本
+                    <div class="mt-4 flex border border-gray-200 rounded-lg overflow-hidden bg-white w-full">
+                        <button id="tabText" class="flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50 flex items-center justify-center">
+                            文本
                         </button>
-                        <button id="tabImage" class="flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white flex items-center justify-center gap-2">
-                            <i data-lucide="image" class="w-4 h-4"></i> 图片
+                        <button id="tabImage" class="flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-blue-600 text-white flex items-center justify-center">
+                            图片
                         </button>
-                        <button id="tabVideo" class="flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50 flex items-center justify-center gap-2">
-                            <i data-lucide="video" class="w-4 h-4"></i> 视频
+                        <button id="tabVideo" class="flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50 flex items-center justify-center">
+                            视频
                         </button>
-                        <button id="tabAudio" class="flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-pink-50 flex items-center justify-center gap-2">
-                            <i data-lucide="music" class="w-4 h-4"></i> 音频
+                        <button id="tabAudio" class="flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-pink-50 flex items-center justify-center">
+                            音频
                         </button>
                     </div>
                     
@@ -425,6 +425,12 @@
             </button>
             <h3 id="confirmModalTitle" class="text-lg font-bold text-gray-800 mb-4">确认</h3>
             <p id="confirmModalMessage" class="text-gray-600 mb-6"></p>
+            
+            <div class="flex items-center gap-2 mb-6">
+                <input type="checkbox" id="confirmModalCheckbox" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2">
+                <label for="confirmModalCheckbox" class="text-sm text-gray-500 cursor-pointer">不再询问 (本次会话)</label>
+            </div>
+
             <div class="flex justify-end gap-3">
                 <button id="confirmModalCancel" class="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">取消</button>
                 <button id="confirmModalOk" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">确定</button>

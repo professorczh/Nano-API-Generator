@@ -112,7 +112,7 @@ export function deleteSelectedNode(skipConfirm = false) {
         confirmModal.classList.add('flex');
         
         const handleConfirm = () => {
-            const dontShowAgain = confirmModalCheckbox.checked;
+            const dontShowAgain = confirmModalCheckbox ? confirmModalCheckbox.checked : false;
             
             if (dontShowAgain) {
                 localStorage.setItem('dontShowDeleteConfirm', 'true');
@@ -489,12 +489,19 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
         const modelTag = document.createElement('div');
         modelTag.className = 'node-model-tag';
         modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
-        if (typeof modelName === 'object' && modelName.name) {
-            modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
-            modelTag.title = `${modelName.name} (${modelName.provider})`;
+                let _dn = modelName, _pn = '';
+        if (typeof modelName === 'object' && modelName && modelName.name) {
+            _dn = modelName.name; _pn = modelName.provider || '';
+        } else if (typeof modelName === 'string' && modelName.includes('(')) {
+            const _p = modelName.split('(');
+            _dn = _p[0].trim(); _pn = _p[1].replace(')', '').trim();
+        }
+        if (_pn) {
+            modelTag.innerHTML = `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>`;
+            modelTag.title = `${_dn} (${_pn})`;
         } else {
-            modelTag.textContent = modelName;
-            modelTag.title = modelName;
+            modelTag.textContent = _dn;
+            modelTag.title = _dn;
         }
         sidebar.appendChild(modelTag);
     }
@@ -736,12 +743,19 @@ export function createTextNode(text, prompt = '', index = 0, filename = '', reso
         const modelTag = document.createElement('div');
         modelTag.className = 'node-model-tag';
         modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
-        if (typeof modelName === 'object' && modelName.name) {
-            modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
-            modelTag.title = `${modelName.name} (${modelName.provider})`;
+                let _dn = modelName, _pn = '';
+        if (typeof modelName === 'object' && modelName && modelName.name) {
+            _dn = modelName.name; _pn = modelName.provider || '';
+        } else if (typeof modelName === 'string' && modelName.includes('(')) {
+            const _p = modelName.split('(');
+            _dn = _p[0].trim(); _pn = _p[1].replace(')', '').trim();
+        }
+        if (_pn) {
+            modelTag.innerHTML = `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>`;
+            modelTag.title = `${_dn} (${_pn})`;
         } else {
-            modelTag.textContent = modelName;
-            modelTag.title = modelName;
+            modelTag.textContent = _dn;
+            modelTag.title = _dn;
         }
         sidebar.appendChild(modelTag);
     }

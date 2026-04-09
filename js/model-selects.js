@@ -1,6 +1,6 @@
 // 模型选择相关逻辑
 
-import { CONFIG, TEXT_MODELS, IMAGE_MODELS, VIDEO_MODELS, VIDEO_RATIOS, IMAGE_RATIOS, IMAGE_SIZES } from "../config.js";
+import { CONFIG, TEXT_MODELS, IMAGE_MODELS, VIDEO_MODELS, AUDIO_MODELS, VIDEO_RATIOS, IMAGE_RATIOS, IMAGE_SIZES, AUDIO_DURATIONS, AUDIO_FORMATS } from "../config.js";
 
 export class ModelSelectManager {
     constructor() {
@@ -209,15 +209,39 @@ export class ModelSelectManager {
     }
 
     initAudioOptions() {
-        // Use globals or constants from config.js directly
-        // Actually, looking at the top: TEXT_MODELS, IMAGE_MODELS, VIDEO_MODELS etc are imported. I should import AUDIO ones too.
+        this.updateAudioOptions(CONFIG.AUDIO_MODEL_NAME);
+    }
 
-        this.initSimpleDropdown(this.audioDurationWrapper, window.AUDIO_DURATIONS || [], '15', (value) => {
+    updateAudioOptions(modelValue) {
+        let model = null;
+        if (window.dynamicProviderManager) {
+            const allModels = window.dynamicProviderManager.getAllModels();
+            model = (allModels.audio || []).find(m => m.value === modelValue);
+        }
+        if (!model && typeof AUDIO_MODELS !== 'undefined') {
+            model = AUDIO_MODELS.find(m => m.value === modelValue);
+        }
+
+        let durations = ['15', '30', '60'];
+        let formats = ['mp3', 'wav'];
+
+        if (model && model.params) {
+            if (model.params.durations) durations = model.params.durations;
+            if (model.params.formats) formats = model.params.formats;
+        }
+
+        const durationOptions = durations.map(d => ({ value: d, name: d + ' 秒' }));
+        this.initSimpleDropdown(this.audioDurationWrapper, durationOptions, durations[0], (value) => {
             CONFIG.AUDIO_DURATION = value;
         });
-        this.initSimpleDropdown(this.audioFormatWrapper, window.AUDIO_FORMATS || [], 'mp3', (value) => {
+
+        const formatOptions = formats.map(f => ({ value: f, name: f.toUpperCase() }));
+        this.initSimpleDropdown(this.audioFormatWrapper, formatOptions, formats[0], (value) => {
             CONFIG.AUDIO_FORMAT = value;
         });
+
+        CONFIG.AUDIO_DURATION = durations[0];
+        CONFIG.AUDIO_FORMAT = formats[0];
     }
 
     populateModelSelects() {
@@ -272,6 +296,7 @@ export class ModelSelectManager {
             (value, provider) => {
                 CONFIG.AUDIO_MODEL_NAME = value;
                 CONFIG.AUDIO_MODEL_PROVIDER = provider;
+                this.updateAudioOptions(value);
             }
         );
         this.populateSettingsModelSelects();

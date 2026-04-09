@@ -232,12 +232,14 @@ export class VolcesProvider extends BaseProvider {
                                 if (onVideoGenerated) onVideoGenerated(videoUrl);
                                 resolve(videoUrl);
                             } else {
+                                reject(new Error('视频生成成功但未找到有效的视频 URL'));
+                            }
+                        } else if (status === 'failed' || status === 'error' || status === 'canceled') {
+                            const errorMsg = statusData.error?.message || '视频生成失败';
                             reject(new Error(errorMsg));
+                        } else {
+                            reject(new Error(`未知任务状态: ${status}`));
                         }
-                    } else if (status === 'failed' || status === 'error' || status === 'canceled') {
-                        isFinished = true;
-                        const errorMsg = statusData.error?.message || '视频生成失败';
-                        reject(new Error(errorMsg));
                     } else if (!isFinished) {
                         // 任务未完成，3秒后下一轮
                         const interval = status === 'queued' ? 5000 : 3000;

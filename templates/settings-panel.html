@@ -23,7 +23,7 @@
                 <div class="flex items-center gap-2 mb-3">
                     <span class="text-sm font-medium text-gray-700">默认模型选择</span>
                 </div>
-                <div class="grid grid-cols-3 gap-4">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-xs text-gray-500 mb-1.5">文本模型</label>
                         <div class="custom-select-wrapper" id="settingsDefaultTextModelWrapper">
@@ -47,6 +47,16 @@
                     <div>
                         <label class="block text-xs text-gray-500 mb-1.5">视频模型</label>
                         <div class="custom-select-wrapper" id="settingsDefaultVideoModelWrapper">
+                            <div class="custom-select-trigger">
+                                <span class="selected-text">选择模型</span>
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                            <div class="custom-select-dropdown"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1.5">音频模型</label>
+                        <div class="custom-select-wrapper" id="settingsDefaultAudioModelWrapper">
                             <div class="custom-select-trigger">
                                 <span class="selected-text">选择模型</span>
                                 <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>

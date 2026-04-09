@@ -64,53 +64,47 @@ export class GeminiProvider extends BaseProvider {
     }
 
     /**
-     * 实现：音频生成 (利用 SDK)
+     * 实现：音频生成 (通过代理)
      */
     async generateAudio(params) {
-        const { modelName, prompt, media = [], generationConfig, audioDuration, audioFormat, debugLog } = params;
-        if (!this.genAI) throw new Error("Google SDK 未初始化 (API Key缺失)");
-
-        const model = this.genAI.getGenerativeModel({ 
-            model: modelName,
-            generationConfig: {
-                ...generationConfig,
-                responseModalities: ['AUDIO']
-            }
-        });
-
-        const content = await this.buildTextContent(prompt, media);
-
+        const { modelName, prompt, media = [], audioFormat, debugLog } = params;
+        
         if (debugLog) debugLog(`[Gemini] 发送音频请求, 模型: ${modelName}`, 'info');
 
-        const result = await model.generateContent(content);
-        const response = await result.response;
-
-        const audioData = this.extractAudioData(response);
-        
-        // 如果开启了磁盘保存
-        const saveToDisk = document.getElementById('providerToggle')?.checked || false;
-        if (saveToDisk && audioData) {
-            try {
-                await fetch('/save-audio', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        audioData,
-                        prompt,
-                        format: audioFormat || 'mp3',
-                        duration: audioDuration || '15',
-                        modelName
+        try {
+            const response = await fetch('/api/google/generate-audio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    apiKey: this.apiKey,
+                    model: modelName,
+                    prompt: prompt,
+                    format: audioFormat || 'mp3',
+                    media: media.map(item => {
+                        const { data, mimeType } = this._getMediaData(item.data || item);
+                        return { data, mimeType };
                     })
-                });
-            } catch (e) {
-                console.error('[Gemini] 保存音频失败:', e);
-            }
-        }
+                })
+            });
 
-        return this._wrapResponse({
-            audioUrl: audioData ? `data:audio/${audioFormat || 'mp3'};base64,${audioData}` : null,
-            raw: response
-        });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP ${response.status}`);
+            }
+
+            const apiResponse = await response.json();
+            const audioData = this.extractAudioData(apiResponse);
+
+            return this._wrapResponse({
+                audioUrl: audioData ? `data:audio/${audioFormat || 'mp3'};base64,${audioData}` : null,
+                raw: apiResponse,
+                audioData: audioData
+            });
+
+        } catch (error) {
+            console.error('[Gemini] 音频生成失败:', error);
+            throw error;
+        }
     }
 
     /**
@@ -123,6 +117,8 @@ export class GeminiProvider extends BaseProvider {
             aspectRatio,
             resolution,
             durationSeconds,
+            media,
+            referenceMode,
             onProgressUpdate,
             onVideoGenerated,
             onError,
@@ -130,38 +126,118 @@ export class GeminiProvider extends BaseProvider {
         } = config;
 
         try {
-            if (debugLog) debugLog(`[Google Veo] 开始生成视频, 模型: ${modelName}`, 'info');
+            if (debugLog) debugLog(`[Google Veo] 开始生成视频, 模式: ${referenceMode || 'omni'}, 模型: ${modelName}`, 'info');
             
+            const isHighRes = resolution === "1080p" || resolution === "4k";
+            const images = (media || []).filter(m => m.type === 'image');
+            const videos = (media || []).filter(m => m.type === 'video');
+            
+            // 文档关键：如果使用了参考图、视频扩展或高分辨率，强制时长为 8s
+            const smartDuration = (images.length > 0 || videos.length > 0 || isHighRes) ? 8 : parseInt(durationSeconds || 5, 10);
+
+            // 分辨率对齐：Gemini 最低要求 720p
+            let finalResolution = resolution || "720p";
+            if (finalResolution === "480p" || finalResolution === "360p") {
+                if (debugLog) debugLog(`[Google Veo] 自动将不兼容的分辨率 ${finalResolution} 提升至 720p`, 'info');
+                finalResolution = "720p";
+            }
+
+            // --- 强效清理 Prompt ---
+            let cleanPrompt = prompt.trim();
+            cleanPrompt = cleanPrompt.replace(/^["'“]*|["'”]*[,\s]*$/g, '');
+            if (cleanPrompt.includes('"prompt":')) {
+                const match = cleanPrompt.match(/"prompt":\s*"([^"]+)"/);
+                if (match) cleanPrompt = match[1];
+            }
+            cleanPrompt = cleanPrompt.replace(/[",\s]+$/g, '');
+
+            const instance = {
+                prompt: cleanPrompt
+            };
+
+            const parameters = {
+                aspectRatio: aspectRatio || "16:9",
+                resolution: finalResolution,
+                durationSeconds: parseInt(smartDuration, 10)
+            };
+
+            const isLite = modelName.toLowerCase().includes('lite');
+
+            // --- 核心逻辑：无论是否 Lite，只要是首尾帧模式，就尝试带上两张图 ---
+            if (referenceMode === 'start_end' && images.length >= 1) {
+                const firstMedia = this._getMediaData(images[0]);
+                instance.image = { 
+                    mimeType: firstMedia.mimeType, 
+                    bytesBase64Encoded: firstMedia.data 
+                };
+                
+                if (images.length >= 2) {
+                    const lastMedia = this._getMediaData(images[1]);
+                    instance.lastFrame = { 
+                        mimeType: lastMedia.mimeType, 
+                        bytesBase64Encoded: lastMedia.data 
+                    };
+                }
+            } else if (images.length > 0) {
+                // 全能模式 (Omni)
+                if (!isLite) {
+                    instance.referenceImages = images.map(img => {
+                        const mediaData = this._getMediaData(img);
+                        return {
+                            image: { 
+                                mimeType: mediaData.mimeType,
+                                bytesBase64Encoded: mediaData.data
+                            },
+                            referenceType: "asset"
+                        };
+                    });
+                } else {
+                    // Lite 模型仅支持单图参考 (在非 start_end 模式下)
+                    const mediaData = this._getMediaData(images[0]);
+                    instance.image = { 
+                        mimeType: mediaData.mimeType, 
+                        bytesBase64Encoded: mediaData.data 
+                    };
+                }
+            }
+            
+            // 视频参考逻辑 (仅限标准版)
+            if (videos.length > 0 && !isLite) {
+                const videoMedia = this._getMediaData(videos[0]);
+                instance.video = { 
+                    mimeType: videoMedia.mimeType, 
+                    bytesBase64Encoded: videoMedia.data 
+                };
+            }
+
             const requestBody = {
                 apiKey: this.apiKey,
                 model: modelName,
-                prompt: prompt,
-                config: {
-                    aspectRatio: aspectRatio,
-                    durationSeconds: parseInt(durationSeconds, 10)
-                }
+                instances: [instance],
+                parameters: parameters
             };
             
-            if (!modelName.includes('veo-2')) {
-                requestBody.config.resolution = resolution;
+            let operationName = config._resumeOperation;
+            
+            if (!operationName) {
+                const response = await fetch('/api/google/generate-video', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                operationName = data.operationName;
+                
+                if (debugLog) debugLog(`[Google Veo] 任务提交成功, Operation: ${operationName}`, 'info');
+            } else {
+                if (debugLog) debugLog(`[Google Veo] 正在恢复任务轮询: ${operationName}`, 'info');
             }
-            
-            // 提交任务到后端
-            const response = await fetch('/api/google/generate-video', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP ${response.status}`);
-            }
-            
-            const data = await response.json();
-            const operationName = data.operationName;
-            
-            if (debugLog) debugLog(`[Google Veo] 任务提交成功, Operation: ${operationName}`, 'info');
 
             // 轮询状态
             const videoUrl = await this.pollVideoTask({ operationName, onProgressUpdate, onVideoGenerated, onError, debugLog });
@@ -361,5 +437,30 @@ export class GeminiProvider extends BaseProvider {
     extractAudioData(response) {
         const audioPart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData && part.inlineData.mimeType.startsWith('audio/'));
         return audioPart ? audioPart.inlineData.data : null;
+    }
+
+    /**
+     * 内部辅助：格式化媒体数据为 inlineData
+     */
+    _getMediaData(mediaItem) {
+        let base64 = mediaItem.data || mediaItem;
+        let mimeType = 'image/png'; // 默认值
+        
+        if (base64.startsWith('data:')) {
+            const parts = base64.split(';');
+            // 从 dataURI 真实提取 mimeType (如 image/jpeg)
+            mimeType = parts[0].split(':')[1];
+            base64 = parts[1].split(',')[1];
+        } else {
+            // 如果只有 base64，尝试根据内容推断或保持默认
+            if (base64.startsWith('/9j/')) mimeType = 'image/jpeg';
+        }
+        
+        const cleanBase64 = base64.replace(/[\n\r\s]/g, '');
+        
+        return {
+            mimeType: mimeType,
+            data: cleanBase64
+        };
     }
 }

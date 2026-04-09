@@ -38,12 +38,19 @@ export function createTextLoadingPlaceholder(prompt, x, y, modelName = '') {
         const modelTag = document.createElement('div');
         modelTag.className = 'node-model-tag';
         modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
-        if (typeof modelName === 'object' && modelName.name) {
-            modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
-            modelTag.title = `${modelName.name} (${modelName.provider})`;
+                let _dn = modelName, _pn = '';
+        if (typeof modelName === 'object' && modelName && modelName.name) {
+            _dn = modelName.name; _pn = modelName.provider || '';
+        } else if (typeof modelName === 'string' && modelName.includes('(')) {
+            const _p = modelName.split('(');
+            _dn = _p[0].trim(); _pn = _p[1].replace(')', '').trim();
+        }
+        if (_pn) {
+            modelTag.innerHTML = `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>`;
+            modelTag.title = `${_dn} (${_pn})`;
         } else {
-            modelTag.textContent = modelName;
-            modelTag.title = modelName;
+            modelTag.textContent = _dn;
+            modelTag.title = _dn;
         }
         sidebar.appendChild(modelTag);
     }
@@ -193,13 +200,20 @@ export function updateTextLoadingPlaceholder(node, text, prompt, generationTime 
                 const modelTag = document.createElement('div');
                 modelTag.className = 'node-model-tag';
                 modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
-                if (typeof modelName === 'object' && modelName.name) {
-                    modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
-                    modelTag.title = `${modelName.name} (${modelName.provider})`;
-                } else {
-                    modelTag.textContent = modelName;
-                    modelTag.title = modelName;
-                }
+                        let _dn = modelName, _pn = '';
+        if (typeof modelName === 'object' && modelName && modelName.name) {
+            _dn = modelName.name; _pn = modelName.provider || '';
+        } else if (typeof modelName === 'string' && modelName.includes('(')) {
+            const _p = modelName.split('(');
+            _dn = _p[0].trim(); _pn = _p[1].replace(')', '').trim();
+        }
+        if (_pn) {
+            modelTag.innerHTML = `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>`;
+            modelTag.title = `${_dn} (${_pn})`;
+        } else {
+            modelTag.textContent = _dn;
+            modelTag.title = _dn;
+        }
                 sidebar.appendChild(modelTag);
             }
         }
@@ -244,10 +258,15 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '', ty
         'video': getIcon('video', 32)
     };
 
+    const loadingIcon = document.createElement('div');
+    loadingIcon.className = 'loading-icon';
+    loadingIcon.innerHTML = iconMap[type] || '';
+    
     const loadingText = document.createElement('div');
     loadingText.className = 'loading-text';
-    loadingText.innerHTML = `${iconMap[type] || ''}<br>正在生成${type === 'image' ? '图片' : type === 'text' ? '回复' : '视频'}...`;
+    loadingText.textContent = `正在生成${type === 'image' ? '图片' : type === 'text' ? '回复' : '视频'}...`;
     
+    loadingContainer.appendChild(loadingIcon);
     loadingContainer.appendChild(loadingText);
     
     const header = document.createElement('div');
@@ -357,12 +376,19 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '', ty
         const modelTag = document.createElement('div');
         modelTag.className = 'node-model-tag';
         modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
-        if (typeof modelName === 'object' && modelName.name) {
-            modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
-            modelTag.title = `${modelName.name} (${modelName.provider})`;
+                let _dn = modelName, _pn = '';
+        if (typeof modelName === 'object' && modelName && modelName.name) {
+            _dn = modelName.name; _pn = modelName.provider || '';
+        } else if (typeof modelName === 'string' && modelName.includes('(')) {
+            const _p = modelName.split('(');
+            _dn = _p[0].trim(); _pn = _p[1].replace(')', '').trim();
+        }
+        if (_pn) {
+            modelTag.innerHTML = `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>`;
+            modelTag.title = `${_dn} (${_pn})`;
         } else {
-            modelTag.textContent = modelName;
-            modelTag.title = modelName;
+            modelTag.textContent = _dn;
+            modelTag.title = _dn;
         }
         sidebar.appendChild(modelTag);
     }
@@ -599,13 +625,20 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
             const modelTag = document.createElement('div');
             modelTag.className = 'node-model-tag';
             modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
-            if (typeof modelName === 'object' && modelName.name) {
-                modelTag.innerHTML = `<div class="model-name">${modelName.name}</div><div class="model-provider">${modelName.provider}</div>`;
-                modelTag.title = `${modelName.name} (${modelName.provider})`;
-            } else {
-                modelTag.textContent = modelName;
-                modelTag.title = modelName;
-            }
+                    let _dn = modelName, _pn = '';
+        if (typeof modelName === 'object' && modelName && modelName.name) {
+            _dn = modelName.name; _pn = modelName.provider || '';
+        } else if (typeof modelName === 'string' && modelName.includes('(')) {
+            const _p = modelName.split('(');
+            _dn = _p[0].trim(); _pn = _p[1].replace(')', '').trim();
+        }
+        if (_pn) {
+            modelTag.innerHTML = `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>`;
+            modelTag.title = `${_dn} (${_pn})`;
+        } else {
+            modelTag.textContent = _dn;
+            modelTag.title = _dn;
+        }
             sidebar.appendChild(modelTag);
         }
         

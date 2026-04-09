@@ -6,7 +6,7 @@ export const CONFIG = {
     IMAGE_MODEL_PROVIDER: getEnvValue('GEMINI_IMAGE_MODEL_PROVIDER') || "google",
     VIDEO_MODEL_NAME: getEnvValue('GEMINI_VIDEO_MODEL_NAME') || "veo-3.1-generate",
     VIDEO_MODEL_PROVIDER: getEnvValue('GEMINI_VIDEO_MODEL_PROVIDER') || "google",
-    AUDIO_MODEL_NAME: getEnvValue('GEMINI_AUDIO_MODEL_NAME') || "audio-3.1-generate",
+    AUDIO_MODEL_NAME: getEnvValue('GEMINI_AUDIO_MODEL_NAME') || "lyria-3-clip-preview",
     AUDIO_MODEL_PROVIDER: getEnvValue('GEMINI_AUDIO_MODEL_PROVIDER') || "google",
     REFERENCE_MODES: {
         OMNI: { id: 'omni', name: '全能参考', icon: '🪄' },
@@ -94,8 +94,18 @@ export const VIDEO_MODELS = [
 ];
 
 export const AUDIO_MODELS = [
-    { name: "audio-3.1-generate(google)", value: "audio-3.1-generate", provider: "google", group: "Google" },
-    { name: "lyra-2.0-music-preview(google)", value: "lyra-2.0-music-preview", provider: "google", group: "Google" }
+    { name: "lyria-3-clip-preview(google)", value: "lyria-3-clip-preview", provider: "google", group: "Google",
+      params: {
+        durations: ["30"],
+        formats: ["mp3"]
+      }
+    },
+    { name: "lyria-3-pro-preview(google)", value: "lyria-3-pro-preview", provider: "google", group: "Google",
+      params: {
+        durations: ["60", "120", "180"],
+        formats: ["mp3", "wav"]
+      }
+    }
 ];
 
 export const AUDIO_DURATIONS = [

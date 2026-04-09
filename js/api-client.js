@@ -134,6 +134,14 @@ export class APIClient {
                 debugLog
             });
 
+            // --- 关键加固：捕获 Safety Block ---
+            if (result && result.response && result.response.promptFeedback) {
+                const fb = result.response.promptFeedback;
+                if (fb.blockReason) {
+                    throw new Error(`内容拦截: ${fb.blockReason} (你的提示词可能触及了安全红线)`);
+                }
+            }
+
             const elapsedTime = (Date.now() - requestStartTime) / 1000;
             debugLog(`[视频完成] 耗时: ${elapsedTime.toFixed(2)}秒`, 'success');
             updateStatus('成功');

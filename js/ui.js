@@ -67,7 +67,7 @@ class UIManager {
 
         // 重置所有标签样式（隐藏删除按钮）
         document.querySelectorAll('#settingsTabs button:not(#settingsTabAdd)').forEach(tab => {
-            tab.className = 'py-1.5 px-3 text-sm font-medium text-gray-500 hover:text-gray-600 rounded-full transition-all flex items-center gap-2';
+            tab.className = 'py-1.5 px-3 text-sm font-medium text-gray-500 hover:text-gray-600 rounded-full transition-all flex items-center ';
             const deleteSpan = tab.querySelector('.tab-delete');
             if (deleteSpan) deleteSpan.classList.add('hidden');
         });
@@ -75,7 +75,7 @@ class UIManager {
         // 设置当前标签样式（显示删除按钮）
         const currentTab = document.getElementById(`settingsTab${providerId}`);
         if (currentTab) {
-            currentTab.className = 'py-1.5 px-3 text-sm font-medium text-blue-600 bg-blue-50 rounded-full transition-all flex items-center gap-2';
+            currentTab.className = 'py-1.5 px-3 text-sm font-medium text-blue-600 bg-blue-50 rounded-full transition-all flex items-center ';
             const deleteSpan = currentTab.querySelector('.tab-delete');
             if (deleteSpan) deleteSpan.classList.remove('hidden');
         }
@@ -95,7 +95,7 @@ class UIManager {
 
         // 重置所有标签样式（隐藏删除按钮）
         document.querySelectorAll('#settingsTabs button:not(#settingsTabAdd)').forEach(tab => {
-            tab.className = 'py-1.5 px-3 text-sm font-medium text-gray-500 hover:text-gray-600 rounded-full transition-all flex items-center gap-2';
+            tab.className = 'py-1.5 px-3 text-sm font-medium text-gray-500 hover:text-gray-600 rounded-full transition-all flex items-center ';
             const deleteSpan = tab.querySelector('.tab-delete');
             if (deleteSpan) deleteSpan.classList.add('hidden');
         });
@@ -103,7 +103,7 @@ class UIManager {
         // 设置当前标签样式（显示删除按钮）
         const currentTab = document.querySelector(`#settingsTabs button[data-provider-id="${providerId}"]`);
         if (currentTab) {
-            currentTab.className = 'py-1.5 px-3 text-sm font-medium text-blue-600 bg-blue-50 rounded-full transition-all flex items-center gap-2';
+            currentTab.className = 'py-1.5 px-3 text-sm font-medium text-blue-600 bg-blue-50 rounded-full transition-all flex items-center ';
             const deleteSpan = currentTab.querySelector('.tab-delete');
             if (deleteSpan) deleteSpan.classList.remove('hidden');
         }
@@ -171,18 +171,27 @@ export function initModeSwitchers() {
     if (tabVideo) tabVideo.addEventListener('click', switchToVideoMode);
     if (tabAudio) tabAudio.addEventListener('click', switchToAudioMode);
     
-    switchToImageMode();
+    // 从缓存恢复上次的模式，如果没有则默认图片模式
+    const lastMode = localStorage.getItem('partta_last_mode');
+    if (lastMode === 'text') switchToTextMode();
+    else if (lastMode === 'video') switchToVideoMode();
+    else if (lastMode === 'audio') switchToAudioMode();
+    else switchToImageMode();
 }
 
 export function switchToTextMode() {
     currentMode = 'text';
     window.currentMode = 'text';
     CanvasState.currentMode = 'text';
-    if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white';
-    if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
-    if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50';
+    localStorage.setItem('partta_last_mode', 'text');
     const tabAudio = document.getElementById('tabAudio');
-    if (tabAudio) tabAudio.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-pink-50';
+    if (tabText) tabText.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-blue-600 text-white flex items-center justify-center';
+    if (tabImage) tabImage.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50 flex items-center justify-center';
+    if (tabVideo) tabVideo.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50 flex items-center justify-center';
+    if (tabAudio) {
+    if (tabAudio) tabAudio.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-pink-50 flex items-center justify-center';
+        tabAudio.style.backgroundColor = '';
+    }
     
     const textParams = document.getElementById('textParams');
     const imageParams = document.getElementById('imageParams');
@@ -201,11 +210,15 @@ export function switchToImageMode() {
     currentMode = 'image';
     window.currentMode = 'image';
     CanvasState.currentMode = 'image';
-    if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
-    if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-blue-600 text-white';
-    if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50';
+    localStorage.setItem('partta_last_mode', 'image');
     const tabAudio = document.getElementById('tabAudio');
-    if (tabAudio) tabAudio.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-pink-50';
+    if (tabText) tabText.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50 flex items-center justify-center ';
+    if (tabImage) tabImage.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-blue-600 text-white flex items-center justify-center ';
+    if (tabVideo) tabVideo.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50 flex items-center justify-center ';
+    if (tabAudio) {
+        tabAudio.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-pink-50 flex items-center justify-center ';
+        tabAudio.style.backgroundColor = '';
+    }
     
     const textParams = document.getElementById('textParams');
     const imageParams = document.getElementById('imageParams');
@@ -222,11 +235,15 @@ export function switchToImageMode() {
     currentMode = 'video';
     window.currentMode = 'video';
     CanvasState.currentMode = 'video';
-    if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
-    if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
-    if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-purple-600 text-white';
+    localStorage.setItem('partta_last_mode', 'video');
     const tabAudio = document.getElementById('tabAudio');
-    if (tabAudio) tabAudio.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-pink-50';
+    if (tabText) tabText.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50 flex items-center justify-center ';
+    if (tabImage) tabImage.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50 flex items-center justify-center ';
+    if (tabVideo) tabVideo.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-purple-600 text-white flex items-center justify-center ';
+    if (tabAudio) {
+        tabAudio.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-pink-50 flex items-center justify-center ';
+        tabAudio.style.backgroundColor = '';
+    }
     
     const textParams = document.getElementById('textParams');
     const imageParams = document.getElementById('imageParams');
@@ -256,11 +273,15 @@ export function switchToAudioMode() {
     currentMode = 'audio';
     window.currentMode = 'audio';
     CanvasState.currentMode = 'audio';
-    if (tabText) tabText.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
-    if (tabImage) tabImage.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50';
-    if (tabVideo) tabVideo.className = 'flex-1 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50';
+    localStorage.setItem('partta_last_mode', 'audio');
     const tabAudio = document.getElementById('tabAudio');
-    if (tabAudio) tabAudio.className = 'flex-1 py-2 px-3 text-sm font-medium bg-pink-600 text-white';
+    if (tabText) tabText.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50 flex items-center justify-center ';
+    if (tabImage) tabImage.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-blue-50 flex items-center justify-center ';
+    if (tabVideo) tabVideo.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium bg-gray-50 text-gray-700 hover:bg-purple-50 flex items-center justify-center ';
+    if (tabAudio) {
+        tabAudio.className = 'flex-1 min-w-0 py-2 px-3 text-sm font-medium text-white flex items-center justify-center ';
+        tabAudio.style.backgroundColor = '#db2777';
+    }
     
     const textParams = document.getElementById('textParams');
     const imageParams = document.getElementById('imageParams');
