@@ -2,7 +2,7 @@ import { AppState, CanvasState } from './app-state.js';
 import { LinkerManager } from './linker-manager.js';
 import { getIcon } from './icons.js';
 import { DebugConsole } from './debug-console.js';
-import { createNodeHeader, createNodeSidebar, createNodeInfo, renderModelTag } from './utils.js';
+import { createNodeHeader, createNodeSidebar, createNodeInfo, renderModelTag, createNodeToolbar } from './utils.js';
 
 /* 强制注入旋转动画和视频节点布局修正 */
 if (!document.getElementById('loading-animation-style')) {
@@ -34,19 +34,21 @@ if (!document.getElementById('loading-animation-style')) {
             box-shadow: 0 2px 6px rgba(0,0,0,0.05) !important; border: 1px solid rgba(0,0,0,0.05) !important;
         }
 
-        /* 侧边栏与模型标签纠偏 */
-        .node-sidebar { position: absolute !important; left: calc(100% + 12px) !important; top: 0 !important; display: flex !important; flex-direction: column !important; gap: 6px !important; z-index: 1001 !important; }
+        /* 侧边栏与模型标签纠偏：挪到左侧，避免与右侧工具栏冲突 */
+        .node-sidebar { position: absolute !important; right: calc(100% + 14px) !important; top: 0 !important; display: flex !important; flex-direction: column !important; align-items: flex-end !important; gap: 6px !important; z-index: 1001 !important; transform-origin: right; }
         .node-model-tag { 
             background: #1e293b !important; color: #f1f5f9 !important; 
             padding: 4px 10px !important; border-radius: 8px !important; 
             font-size: 11px !important; font-weight: 600 !important; border: 1px solid rgba(255,255,255,0.1) !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; text-align: center !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; text-align: right !important;
+            white-space: nowrap !important;
         }
         .node-generation-time { 
             background: #3b82f6 !important; color: #fff !important; 
             padding: 2px 8px !important; border-radius: 6px !important; 
             font-size: 10px !important; font-weight: 700 !important; 
             box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
+            display: flex !important; align-items: center !important; gap: 4px !important;
         }
 
         .canvas-node .node-info { 
@@ -58,8 +60,61 @@ if (!document.getElementById('loading-animation-style')) {
             background: rgba(255,255,255,0.9) !important; padding: 6px 12px !important; border-radius: 12px !important;
             box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important; font-size: 11px !important;
         }
-        .node-toolbar { position: absolute !important; left: calc(100% + 12px) !important; top: 80px !important; display: none !important; flex-direction: column !important; gap: 6px !important; z-index: 1002 !important; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 6px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-        .canvas-node.selected .node-toolbar { display: flex !important; }
+        .node-toolbar { 
+            position: absolute !important; 
+            left: calc(100% + 14px) !important; 
+            top: 50% !important; 
+            transform: translateY(-50%) translateX(-10px) !important;
+            display: none !important; 
+            flex-direction: column !important; 
+            align-items: center !important;
+            gap: 10px !important; 
+            z-index: 1002 !important; 
+            background: rgba(255,255,255,0.85) !important; 
+            backdrop-filter: blur(20px) saturate(180%) !important; 
+            padding: 12px 0 !important; 
+            width: 34px !important;
+            border-radius: 20px !important; 
+            border: 1px solid rgba(255,255,255,0.5) !important; 
+            box-shadow: 0 10px 30px -5px rgba(0,0,0,0.1), 0 4px 12px -2px rgba(0,0,0,0.05) !important;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1) !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+        .canvas-node.selected .node-toolbar { 
+            display: flex !important; 
+            transform: translateY(-50%) translateX(0) !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+        .node-toolbar .toolbar-btn {
+            width: 26px !important;
+            height: 26px !important;
+            border-radius: 8px !important;
+            border: none !important;
+            background: transparent !important;
+            color: #64748b !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            cursor: pointer !important;
+            position: relative !important;
+        }
+        .node-toolbar .toolbar-btn:hover {
+            background: rgba(59, 130, 246, 0.1) !important;
+            color: #2563eb !important;
+            transform: scale(1.1) !important;
+        }
+        .node-toolbar .toolbar-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.1) !important;
+            color: #ef4444 !important;
+        }
+        .node-toolbar .toolbar-btn svg {
+            width: 16px !important;
+            height: 16px !important;
+            stroke-width: 2.2 !important;
+        }
 
         /* 错误状态样式 */
         .node-error-container {
@@ -207,8 +262,9 @@ export const NodeFactory = {
             if (sidebarTime) sidebarTime.textContent = `${m}:${s}`;
 
             if (node._progressStage === 'generating') {
-                if (node._progressValue < 80) node._progressValue += 10;
-                else if (node._progressValue < 89) node._progressValue += 1;
+                // 显著减慢虚假进度步进，确保 API 真实进度占主导地位
+                if (node._progressValue < 80) node._progressValue += 0.5; 
+                else if (node._progressValue < 89) node._progressValue += 0.1;
             } else if (node._progressStage === 'saving') {
                 if (node._progressValue < 99) node._progressValue += 1;
             }
@@ -312,70 +368,52 @@ export const NodeFactory = {
         node.style.left = savedLeft;
         node.style.top = savedTop;
         node.style.width = `${nodeWidth}px`;
-        node.style.height = `${videoHeight}px`; // 恢复高度
+        node.style.height = `${videoHeight}px`;
         
-        // 模仿图片节点的页眉显示方式
+        // 1. 页眉 (Top)
         const dummyFileName = `video_${Date.now().toString().slice(-6)}.mp4`;
         node.appendChild(createNodeHeader('video', aspectRatio, dummyFileName));
 
-        // 补全四键工具栏
-        const toolbar = document.createElement('div');
-        toolbar.className = 'node-toolbar';
-        
-        const previewBtn = document.createElement('button');
-        previewBtn.className = 'toolbar-btn';
-        previewBtn.innerHTML = getIcon('eye', 14);
-        previewBtn.title = '全屏预览';
-        previewBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (typeof window.previewManager?.show === 'function') {
-                window.previewManager.show(videoUrl, 'video');
-            } else {
-                window.open(videoUrl, '_blank');
-            }
-        };
-
-        const editBtn = document.createElement('button');
-        editBtn.className = 'toolbar-btn';
-        editBtn.innerHTML = getIcon('pen', 14);
-        editBtn.title = '编辑视频';
-        editBtn.onclick = (e) => { e.stopPropagation(); DebugConsole.log('UI', '跳转至视频编辑器 (Mock)'); };
-
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'toolbar-btn';
-        copyBtn.innerHTML = getIcon('copy', 14);
-        copyBtn.title = '复制地址';
-        copyBtn.onclick = (e) => {
-            e.stopPropagation();
-            navigator.clipboard.writeText(videoUrl);
-        };
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'toolbar-btn';
-        deleteBtn.innerHTML = getIcon('trash', 14);
-        deleteBtn.title = '删除节点';
-        deleteBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (typeof window.deleteSelectedNode === 'function') window.deleteSelectedNode();
-        };
-
-        toolbar.appendChild(previewBtn);
-        toolbar.appendChild(editBtn); // 增加编辑按钮
-        toolbar.appendChild(copyBtn);
-        toolbar.appendChild(deleteBtn);
-        node.appendChild(toolbar);
-
+        // 2. 内容区 (Center)
         const contentArea = document.createElement('div');
         contentArea.className = 'node-content';
-        contentArea.style.background = '#000';
+        contentArea.style.cssText = 'position:relative; width:100%; height:100%; background:#000; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:12px;';
+        
         const video = document.createElement('video');
         video.src = videoUrl;
-        video.autoplay = true; video.loop = true; video.muted = true; video.playsInline = true;
-        video.controls = true; // 开启播放器控制条
-        video.style.width = '100%'; video.style.height = '100%'; video.style.objectFit = 'cover';
+        video.autoplay = true; 
+        video.loop = true; 
+        video.muted = true; 
+        video.playsInline = true;
+        video.controls = true;
+        video.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block;';
+        
         contentArea.appendChild(video);
         node.appendChild(contentArea);
 
+        // 3. 悬浮工具栏 (Right)
+        const toolbar = createNodeToolbar('video', {
+            onCopyPrompt: () => {
+                navigator.clipboard.writeText(prompt);
+                debugLog(`[复制] 提示词: ${prompt.slice(0, 20)}...`, 'info');
+            },
+            onInsertPrompt: () => {
+                if (window.insertImageToPrompt) {
+                    window.insertImageToPrompt(videoUrl, dummyFileName);
+                }
+            },
+            onCopyNode: () => {
+                if (typeof window.selectNode === 'function') window.selectNode(node);
+                if (typeof window.copySelectedNode === 'function') window.copySelectedNode();
+            },
+            onDelete: () => {
+                if (typeof window.selectNode === 'function') window.selectNode(node);
+                if (typeof window.deleteSelectedNode === 'function') window.deleteSelectedNode();
+            }
+        });
+        node.appendChild(toolbar);
+
+        // 4. 辅助面板 (Left & Bottom)
         node.appendChild(createNodeInfo(prompt));
         node.appendChild(createNodeSidebar(generationTime, savedModelName));
 
@@ -461,28 +499,27 @@ export const NodeFactory = {
         const dummyName = `audio_${Date.now().toString().slice(-4)}.${format}`;
         node.appendChild(createNodeHeader('audio', format.toUpperCase(), dummyName));
 
-        // 补全四键工具栏
-        const toolbar = document.createElement('div');
-        toolbar.className = 'node-toolbar';
-        
-        const previewBtn = document.createElement('button');
-        previewBtn.className = 'toolbar-btn';
-        previewBtn.innerHTML = getIcon('eye', 14);
-        previewBtn.onclick = (e) => { e.stopPropagation(); window.open(audioUrl, '_blank'); };
-
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'toolbar-btn';
-        copyBtn.innerHTML = getIcon('copy', 14);
-        copyBtn.onclick = (e) => { e.stopPropagation(); navigator.clipboard.writeText(audioUrl); };
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'toolbar-btn';
-        deleteBtn.innerHTML = getIcon('trash', 14);
-        deleteBtn.onclick = (e) => { e.stopPropagation(); if (typeof window.deleteSelectedNode === 'function') window.deleteSelectedNode(); };
-
-        toolbar.appendChild(previewBtn);
-        toolbar.appendChild(copyBtn);
-        toolbar.appendChild(deleteBtn);
+        // 统11致的工具栏
+        const toolbar = createNodeToolbar('audio', {
+            onCopyPrompt: () => {
+                navigator.clipboard.writeText(prompt);
+                debugLog(`[复制] 提示词: ${prompt.slice(0, 20)}...`, 'info');
+            },
+            onInsertPrompt: () => {
+                if (window.insertImageToPrompt) {
+                    const filename = `audio_${Date.now().toString().slice(-6)}.mp3`;
+                    window.insertImageToPrompt(audioUrl, filename);
+                }
+            },
+            onCopyNode: () => {
+                if (typeof window.selectNode === 'function') window.selectNode(node);
+                if (typeof window.copySelectedNode === 'function') window.copySelectedNode();
+            },
+            onDelete: () => {
+                if (typeof window.selectNode === 'function') window.selectNode(node);
+                if (typeof window.deleteSelectedNode === 'function') window.deleteSelectedNode();
+            }
+        });
         node.appendChild(toolbar);
 
         const contentArea = document.createElement('div');

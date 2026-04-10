@@ -1,7 +1,7 @@
 import { AppState, CanvasState } from './app-state.js';
 import { PinManager } from './pin-manager.js';
 import { DebugConsole } from './debug-console.js';
-import { debugLog, formatGenerationTime } from './utils.js';
+import { debugLog, formatGenerationTime, createNodeToolbar, createNodeHeader, createNodeSidebar, createNodeInfo } from './utils.js';
 import { updateMinimapWithImage, updateImageCenterCoordinates, getPanzoom, getImageResponseContainer } from './canvas-manager.js';
 import { getIcon } from './icons.js';
 import { addLinkerHandle } from './node-factory.js';
@@ -369,73 +369,32 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
     header.appendChild(filenameElement);
     header.appendChild(resolutionElement);
     
-    const toolbar = document.createElement('div');
-    toolbar.className = 'node-toolbar';
-    
-    const copyPromptBtn = document.createElement('button');
-    copyPromptBtn.className = 'toolbar-btn';
-    copyPromptBtn.innerHTML = getIcon('file-text', 16);
-    copyPromptBtn.title = '复制提示词';
-    copyPromptBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        navigator.clipboard.writeText(prompt || '').then(() => {
-            if (DebugConsole.showMouseLogs) {
-                debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
+    // 统一工具栏：使用已映射到本地 icons.js 的 createNodeToolbar
+    const toolbar = createNodeToolbar('image', {
+        onCopyPrompt: () => {
+            navigator.clipboard.writeText(prompt || '').then(() => {
+                if (DebugConsole.showMouseLogs) debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
+            });
+        },
+        onInsertPrompt: () => {
+            if (errorMessage) return;
+            const img = node.querySelector('img');
+            if (img && window.insertImageToPrompt) {
+                window.insertImageToPrompt(img.src, node.dataset.filename || 'Image');
             }
-        });
-    });
-    
-    const insertBtn = document.createElement('button');
-    insertBtn.className = 'toolbar-btn';
-    insertBtn.innerHTML = getIcon('edit', 16);
-    insertBtn.title = '插入到输入框';
-    insertBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (errorMessage) return;
-        const img = node.querySelector('img');
-        if (img) {
-            const imageUrl = img.src;
-            const filename = node.dataset.filename || 'Image';
-            if (window.insertImageToPrompt) {
-                window.insertImageToPrompt(imageUrl, filename);
-            }
-            debugLog(`[工具栏] 插入图片到输入框: node=${node.dataset.filename}`, 'info');
+        },
+        onCopyNode: () => {
+            if (errorMessage) return;
+            selectNode(node);
+            copySelectedNode();
+        },
+        onDelete: () => {
+            selectNode(node);
+            deleteSelectedNode();
         }
     });
-    if (errorMessage) {
-        insertBtn.style.opacity = '0.5';
-        insertBtn.disabled = true;
-    }
-    
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'toolbar-btn';
-    copyBtn.innerHTML = getIcon('clipboard', 16);
-    copyBtn.title = '复制图片';
-    copyBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (errorMessage) return;
-        selectNode(node);
-        copySelectedNode();
-    });
-    if (errorMessage) {
-        copyBtn.style.opacity = '0.5';
-        copyBtn.disabled = true;
-    }
-    
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'toolbar-btn';
-    deleteBtn.innerHTML = getIcon('trash', 16);
-    deleteBtn.title = '删除图片';
-    deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectNode(node);
-        deleteSelectedNode();
-    });
-    
-    toolbar.appendChild(copyPromptBtn);
-    toolbar.appendChild(insertBtn);
-    toolbar.appendChild(copyBtn);
-    toolbar.appendChild(deleteBtn);
+
+    node.appendChild(toolbar);
     
     const centerCoords = document.createElement('div');
     centerCoords.className = 'node-center-coords';

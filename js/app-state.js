@@ -20,6 +20,8 @@ export const AppState = {
     lastMouseY: 0,
     panX: 0,
     panY: 0,
+    panStartX: 0,
+    panStartY: 0,
     isResizingNode: false,
     resizeStart: { x: 0, y: 0, width: 0, height: 0 },
     resizeNode: null,

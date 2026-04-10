@@ -245,12 +245,18 @@ export function initCanvasEvents(options) {
             return;
         }
         
+        // 如果鼠标在侧边面板上，不执行缩放
+        const uiPanel = document.getElementById('uiPanel');
+        if (uiPanel && uiPanel.contains(e.target)) return;
+
         e.preventDefault();
         
         const currentScale = getPanzoom().getScale();
         const delta = e.deltaY > 0 ? -0.25 : 0.25;
         const newScale = Math.max(0.5, Math.min(2.5, currentScale + delta));
-        updateCanvasScale(newScale);
+        
+        // 关键：透传鼠标坐标
+        updateCanvasScale(newScale, e.clientX, e.clientY);
     }, { passive: false });
 
     document.addEventListener('keydown', (e) => {

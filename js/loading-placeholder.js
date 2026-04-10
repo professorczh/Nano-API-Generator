@@ -3,7 +3,7 @@ import { CanvasState } from './app-state.js';
 import { DebugConsole } from './debug-console.js';
 import { selectNode, deleteSelectedNode, copySelectedNode } from './node-manager.js';
 import { updateMinimapWithImage, updateImageCenterCoordinates } from './canvas-manager.js';
-import { formatGenerationTime, debugLog } from './utils.js';
+import { formatGenerationTime, debugLog, createNodeToolbar } from './utils.js';
 import { PinManager } from './pin-manager.js';
 import { getIcon } from './icons.js';
 
@@ -104,48 +104,22 @@ export function updateTextLoadingPlaceholder(node, text, prompt, generationTime 
     textContent.className = 'text-content';
     textContent.textContent = text;
     
-    const toolbar = document.createElement('div');
-    toolbar.className = 'node-toolbar';
-    
-    const copyPromptBtn = document.createElement('button');
-    copyPromptBtn.className = 'toolbar-btn';
-    copyPromptBtn.innerHTML = '📝';
-    copyPromptBtn.title = '复制提示词';
-    copyPromptBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        navigator.clipboard.writeText(prompt || '').then(() => {
-            if (DebugConsole.showMouseLogs) {
-                debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
-            }
-        });
+    const toolbar = createNodeToolbar('text', {
+        onCopyPrompt: () => {
+            navigator.clipboard.writeText(prompt || '').then(() => {
+                if (DebugConsole.showMouseLogs) debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
+            });
+        },
+        onCopyText: () => {
+            navigator.clipboard.writeText(text).then(() => {
+                if (DebugConsole.showMouseLogs) debugLog(`[复制] 文本节点: ${node.dataset.filename}`, 'info');
+            });
+        },
+        onDelete: () => {
+            selectNode(node);
+            deleteSelectedNode();
+        }
     });
-    
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'toolbar-btn';
-    copyBtn.innerHTML = '📋';
-    copyBtn.title = '复制文本';
-    copyBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        navigator.clipboard.writeText(text).then(() => {
-            if (DebugConsole.showMouseLogs) {
-                debugLog(`[复制] 文本节点: ${node.dataset.filename}`, 'info');
-            }
-        });
-    });
-    
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'toolbar-btn';
-    deleteBtn.innerHTML = '🗑️';
-    deleteBtn.title = '删除节点';
-    deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectNode(node);
-        deleteSelectedNode();
-    });
-    
-    toolbar.appendChild(copyPromptBtn);
-    toolbar.appendChild(copyBtn);
-    toolbar.appendChild(deleteBtn);
     
     node.appendChild(textContent);
     node.appendChild(toolbar);

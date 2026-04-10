@@ -372,3 +372,54 @@ export function createNodeInfo(prompt, fallbackText) {
     
     return info;
 }
+/**
+ * 统一创建节点工具栏
+ */
+export function createNodeToolbar(type, callbacks = {}) {
+    const toolbar = document.createElement('div');
+    toolbar.className = 'node-toolbar';
+    
+    // 基础配置：根据类型决定显示哪些按钮
+    const config = {
+        image: [
+            { id: 'copyPrompt', icon: 'clipboard', title: '复制提示词', action: callbacks.onCopyPrompt },
+            { id: 'insertPrompt', icon: 'edit', title: '插入到输入框', action: callbacks.onInsertPrompt },
+            { id: 'copyNode', icon: 'copy', title: '复制节点 (可粘贴)', action: callbacks.onCopyNode },
+            { id: 'delete', icon: 'trash', title: '删除图片', action: callbacks.onDelete, danger: true }
+        ],
+        video: [
+            { id: 'copyPrompt', icon: 'clipboard', title: '复制提示词', action: callbacks.onCopyPrompt },
+            { id: 'insertPrompt', icon: 'edit', title: '插入到输入框', action: callbacks.onInsertPrompt },
+            { id: 'copyNode', icon: 'copy', title: '复制节点 (可粘贴)', action: callbacks.onCopyNode },
+            { id: 'delete', icon: 'trash', title: '删除视频', action: callbacks.onDelete, danger: true }
+        ],
+        audio: [
+            { id: 'copyPrompt', icon: 'clipboard', title: '复制提示词', action: callbacks.onCopyPrompt },
+            { id: 'insertPrompt', icon: 'edit', title: '插入到输入框', action: callbacks.onInsertPrompt },
+            { id: 'copyNode', icon: 'copy', title: '复制节点 (可粘贴)', action: callbacks.onCopyNode },
+            { id: 'delete', icon: 'trash', title: '删除音频', action: callbacks.onDelete, danger: true }
+        ],
+        text: [
+            { id: 'copyText', icon: 'copy', title: '复制文本', action: callbacks.onCopyText },
+            { id: 'delete', icon: 'trash', title: '删除节点', action: callbacks.onDelete, danger: true }
+        ]
+    };
+
+    const buttons = config[type] || config.text;
+
+    buttons.forEach(btn => {
+        const button = document.createElement('button');
+        button.className = `toolbar-btn ${btn.danger ? 'danger' : ''}`;
+        button.title = btn.title;
+        button.innerHTML = getIcon(btn.icon, 14);
+        button.onclick = (e) => {
+            e.stopPropagation();
+            if (typeof btn.action === 'function') {
+                btn.action(e);
+            }
+        };
+        toolbar.appendChild(button);
+    });
+
+    return toolbar;
+}

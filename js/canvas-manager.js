@@ -108,12 +108,31 @@ export function initCanvas() {
             AppState.isMiddleMouseDown = true;
             AppState.lastMouseX = e.clientX;
             AppState.lastMouseY = e.clientY;
+            // 记录当前的平移量，用于增量计算
+            AppState.panStartX = AppState.panX;
+            AppState.panStartY = AppState.panY;
+            
             canvasViewport.style.cursor = 'grabbing';
             if (DebugConsole.showMouseLogs) {
                 debugLog(`[开始拖动] 画布: isMiddleMouseDown=${AppState.isMiddleMouseDown}`, 'info');
             }
         } else {
             canvasViewport.style.cursor = 'default';
+        }
+    });
+
+    // 补全中键拖拽逻辑
+    document.addEventListener('mousemove', (e) => {
+        if (AppState.isMiddleMouseDown) {
+            const deltaX = e.clientX - AppState.lastMouseX;
+            const deltaY = e.clientY - AppState.lastMouseY;
+            
+            // 抵消缩放带来的阻力，确保物理位移 1:1
+            // Panzoom 的 pan 方法接收的是最终绝对坐标
+            const newPanX = AppState.panStartX + deltaX;
+            const newPanY = AppState.panStartY + deltaY;
+            
+            CanvasState.panzoom.pan(newPanX, newPanY);
         }
     });
     
@@ -392,21 +411,34 @@ export function initMinimap() {
     });
 }
 
-export function updateCanvasScale(newScale) {
+export function updateCanvasScale(newScale, x, y) {
     const uiPanel = document.getElementById('uiPanel');
     const uiPanelWidth = uiPanel ? uiPanel.offsetWidth : 400;
     
-    const focalX = (window.innerWidth - uiPanelWidth) / 2;
-    const focalY = window.innerHeight / 2;
+    let focalPoint;
     
-    const focalPoint = { x: focalX, y: focalY };
+    // 如果传入了坐标（来自鼠标滚轮），则以鼠标为中心缩放
+    if (x !== undefined && y !== undefined) {
+        focalPoint = { x: x, y: y };
+    } else {
+        // 否则（来自快捷键等），以屏幕中心为中心缩放
+        const focalX = (window.innerWidth - uiPanelWidth) / 2;
+        const focalY = window.innerHeight / 2;
+        focalPoint = { x: focalX, y: focalY };
+    }
     
-    CanvasState.panzoom.zoom(newScale, { focalPoint, animate: true });
+    // 优化：给滚轮缩放一个极短的缓动（100ms），兼顾丝滑感和精准度
+    const isWheel = (x !== undefined);
+    CanvasState.panzoom.zoom(newScale, { 
+        focalPoint, 
+        animate: true,
+        duration: isWheel ? 100 : 200 // 滚轮更快，快捷键稍慢
+    });
     
     if (toolbarZoomValue) {
         toolbarZoomValue.textContent = `${Math.round(newScale * 100)}%`;
     }
-    debugLog(`[缩放] 新缩放: ${Math.round(newScale * 100)}%`, 'info');
+    debugLog(`[缩放] 新缩放: ${Math.round(newScale * 100)}% (原点: ${x !== undefined ? '鼠标' : '中心'})`, 'info');
 }
 
 export function updateToolbarPosition() {

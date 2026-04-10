@@ -270,8 +270,8 @@ export class GeminiProvider extends BaseProvider {
                         return;
                     }
 
-                    // 更新虚拟进度
-                    const progress = Math.min(Math.round((attempts / 60) * 100), 99);
+                    // 更新虚拟进度：调整分母为 15（约 150 秒跑完），更符合实际速度
+                    const progress = Math.min(Math.round((attempts / 15) * 100), 99);
                     if (onProgressUpdate && !isFinished) onProgressUpdate(progress);
 
                     const saveToDisk = document.getElementById('providerToggle')?.checked || false;

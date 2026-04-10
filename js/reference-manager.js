@@ -161,17 +161,37 @@ class ReferenceManager {
     render() {
         if (!this.shelfElement) return;
 
-        const isVideoMode = (window.currentMode === 'video');
+        // 获取当前模式和模型能力
+        const currentMode = window.currentMode || 'image';
         
+        // 强制显示货架容器
         this.shelfElement.classList.remove('hidden');
         this.shelfElement.innerHTML = '';
         
-        if (!isVideoMode) {
-            // --- 经典模式 (文本/图片/音频) ---
-            // 1. 直接渲染“添加”按钮
+        // 情况 A: 视频高级模式 (或者未来某个支持多帧的图片/文本模型)
+        const isAdvancedMode = (this.currentMode === 'start_end' || this.currentMode === 'multi_frame');
+        
+        if (currentMode === 'video' && isAdvancedMode) {
+            // 1. 渲染模式选择器
+            this.shelfElement.appendChild(this._renderModeSelector());
+
+            // 2. 渲染特定的插槽逻辑
+            if (this.currentMode === 'start_end') {
+                this._renderStartEndMode();
+            } else if (this.currentMode === 'multi_frame') {
+                this._renderMultiFrameMode();
+            }
+        } else {
+            // 情况 B: 经典模式 (文本/图片/音频/视频Omni)
+            // 1. 如果是视频模式，仍然可以显示模式切换器（用于切回高级模式）
+            if (currentMode === 'video') {
+                this.shelfElement.appendChild(this._renderModeSelector());
+            }
+
+            // 2. 渲染通用“添加参考”按钮
             this.shelfElement.appendChild(this._createUploadButton('REF', null));
 
-            // 2. 如果没有内容，显示占位符
+            // 3. 渲染占位符（如果没有内容且不是高级模式）
             if (this.references.length === 0) {
                 const label = document.createElement('div');
                 label.className = 'reference-placeholder-text';
@@ -179,23 +199,10 @@ class ReferenceManager {
                 this.shelfElement.appendChild(label);
             }
 
-            // 3. 渲染所有已有的引用项
+            // 4. 渲染已有素材
             this.references.forEach(ref => {
                 this.shelfElement.appendChild(this._createReferenceItem(ref));
             });
-        } else {
-            // --- 视频高级模式 ---
-            // 1. 渲染模式选择器
-            this.shelfElement.appendChild(this._renderModeSelector());
-
-            // 2. 根据高级模式渲染上传按钮和插槽
-            if (this.currentMode === 'omni') {
-                this._renderOmniMode();
-            } else if (this.currentMode === 'start_end') {
-                this._renderStartEndMode();
-            } else if (this.currentMode === 'multi_frame') {
-                this._renderMultiFrameMode();
-            }
         }
     }
 

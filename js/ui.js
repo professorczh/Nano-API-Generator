@@ -1,5 +1,6 @@
-// UI相关的逻辑和事件处理
 import { CanvasState } from './app-state.js';
+import { getIcon } from './icons.js';
+import { PersistenceManager } from './persistence-manager.js';
 
 class UIManager {
     constructor() {
@@ -9,6 +10,7 @@ class UIManager {
     init() {
         this.setupTabEvents();
         this.setupResizeListener();
+        this.setupCanvasManager();
     }
 
     setupTabEvents() {
@@ -116,6 +118,78 @@ class UIManager {
         });
     }
 
+    setupCanvasManager() {
+        const btn = document.getElementById('canvasManagerBtn');
+        const panel = document.getElementById('canvasManagerPanel');
+        const exportBtn = document.getElementById('exportCanvasBtn');
+        const importBtn = document.getElementById('importCanvasBtn');
+        
+        if (!btn || !panel) return;
+
+        // 注入图标
+        const icons = {
+            'canvasIconContainer': getIcon('maximize', 16, 'text-gray-400'),
+            'panelTitleIcon': getIcon('settings', 16),
+            'exportIcon': getIcon('download', 18),
+            'importIcon': getIcon('upload', 18)
+        };
+        
+        Object.entries(icons).forEach(([id, html]) => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = html;
+        });
+
+        // 切换面板显示
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const isHidden = panel.classList.toggle('hidden');
+            if (!isHidden) {
+                btn.classList.add('bg-blue-50', 'border-blue-200', 'text-blue-600');
+            } else {
+                btn.classList.remove('bg-blue-50', 'border-blue-200', 'text-blue-600');
+            }
+        };
+
+        // 点击外部关闭面板
+        document.addEventListener('click', (e) => {
+            if (panel && !panel.classList.contains('hidden')) {
+                if (!panel.contains(e.target) && !btn.contains(e.target)) {
+                    panel.classList.add('hidden');
+                    btn.classList.remove('bg-blue-50', 'border-blue-200', 'text-blue-600');
+                }
+            }
+        });
+
+        // 导出/导入功能逻辑挂载
+        if (exportBtn) {
+            exportBtn.onclick = (e) => {
+                e.stopPropagation();
+                panel.classList.add('hidden');
+                PersistenceManager.exportCanvas();
+            };
+        }
+
+        if (importBtn) {
+            const fileInput = document.getElementById('canvasImportInput');
+            importBtn.onclick = (e) => {
+                e.stopPropagation();
+                panel.classList.add('hidden');
+                if (fileInput) fileInput.click();
+            };
+
+            if (fileInput) {
+                fileInput.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        await PersistenceManager.importCanvas(file);
+                        // 清除 input 值以便下次触发相同文件的 onchange
+                        fileInput.value = '';
+                    }
+                };
+            }
+        }
+    }
+
     refreshUI() {
         // 这里可以添加窗口大小改变时需要执行的UI刷新逻辑
         console.log('UI refreshed');
@@ -203,7 +277,17 @@ export function switchToTextMode() {
     if (audioParams) audioParams.classList.add('hidden');
     
     window.modelSelectManager?.populateModelSelects();
-    window.referenceManager?.render();
+    
+    // 统11致的渲染时序：确保 DOM 已就绪
+    setTimeout(() => {
+        const textModelGroup = document.getElementById('textModelNameWrapper');
+        const currentModelValue = textModelGroup?.dataset.value;
+        const currentProviderId = textModelGroup?.dataset.provider;
+        if (currentModelValue && currentProviderId) {
+            window.modelSelectManager?.updateReferenceMode(currentModelValue, currentProviderId);
+        }
+        window.referenceManager?.render();
+    }, 0);
 }
 
 export function switchToImageMode() {
@@ -230,8 +314,20 @@ export function switchToImageMode() {
     if (audioParams) audioParams.classList.add('hidden');
     
     window.modelSelectManager?.populateModelSelects();
-    window.referenceManager?.render();
-}export function switchToVideoMode() {
+
+    // 统11致的渲染时序
+    setTimeout(() => {
+        const imageModelGroup = document.getElementById('imageModelNameWrapper');
+        const currentModelValue = imageModelGroup?.dataset.value;
+        const currentProviderId = imageModelGroup?.dataset.provider;
+        if (currentModelValue && currentProviderId) {
+            window.modelSelectManager?.updateReferenceMode(currentModelValue, currentProviderId);
+        }
+        window.referenceManager?.render();
+    }, 0);
+}
+
+export function switchToVideoMode() {
     currentMode = 'video';
     window.currentMode = 'video';
     CanvasState.currentMode = 'video';
@@ -256,8 +352,7 @@ export function switchToImageMode() {
     
     window.modelSelectManager?.populateModelSelects();
     
-    // Import CONFIG dynamically to avoid circular dependency if needed, 
-    // but here we just use the global variables set by ModelSelectManager
+    // 统11致的渲染时序
     setTimeout(() => {
         const videoModelGroup = document.getElementById('videoModelNameWrapper');
         const currentModelValue = videoModelGroup?.dataset.value;
@@ -293,7 +388,17 @@ export function switchToAudioMode() {
     if (audioParams) audioParams.classList.remove('hidden');
     
     window.modelSelectManager?.populateModelSelects();
-    window.referenceManager?.render();
+
+    // 统11致的渲染时序
+    setTimeout(() => {
+        const audioModelGroup = document.getElementById('audioModelNameWrapper');
+        const currentModelValue = audioModelGroup?.dataset.value;
+        const currentProviderId = audioModelGroup?.dataset.provider;
+        if (currentModelValue && currentProviderId) {
+            window.modelSelectManager?.updateReferenceMode(currentModelValue, currentProviderId);
+        }
+        window.referenceManager?.render();
+    }, 0);
 }
 
 export function getCurrentMode() {

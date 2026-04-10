@@ -20,7 +20,7 @@
     <!-- 全屏画布层 -->
     <div id="canvasLayer" class="fixed inset-0 z-0 pointer-events-auto">
         <div id="canvasViewport" class="w-full h-full">
-            <div id="canvas" class="absolute origin-center transition-transform duration-75 ease-out">
+            <div id="canvas" class="absolute origin-center">
                 <!-- 调试网格 -->
                 <div id="debugGrid" class="absolute inset-0 pointer-events-none hidden">
                     <svg width="10000" height="10000" viewBox="0 0 10000 10000" xmlns="http://www.w3.org/2000/svg" id="debugGridSvg">
@@ -78,7 +78,7 @@
                 </div>
                 <div id="promptPanel">
                     <!-- 引用内容货架 (Reference Shelf) -->
-                    <div id="referenceShelf" class="hidden mb-2 border-b border-gray-100">
+                    <div id="referenceShelf" class="mb-2 border-b border-gray-100">
                         <!-- 动态插入引用项 -->
                     </div>
                     <input type="file" id="shelfFileInput" class="hidden" accept="image/*,video/*,audio/*" multiple>
@@ -384,7 +384,8 @@
                 </div>
             </div>
         </div>
-        
+
+        </div>
         
         <!-- 画布中心标记 -->
         <div id="canvasCenterMarker" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none hidden">
@@ -471,5 +472,60 @@
         </path>
         <circle id="linkerEndCircle" r="5" fill="#3b82f6" style="display: none;" />
     </svg>
+    <!-- 终极硬化版：右上角管理面板 (不再依赖外部CSS类提供尺寸) -->
+    <div style="position: fixed !important; top: 20px !important; right: 20px !important; z-index: 999999 !important; font-family: sans-serif !important;" class="pointer-events-auto">
+        <div style="position: relative !important;" id="canvasManagerWrapper">
+            
+            <!-- 触发按钮：固定尺寸与样式 -->
+            <button id="canvasManagerBtn" style="display: flex !important; align-items: center !important; gap: 10px !important; padding: 10px 20px !important; background: white !important; border: 1px solid #e5e7eb !important; border-radius: 9999px !important; cursor: pointer !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important; outline: none !important;">
+                <span id="canvasIconContainer" style="display: flex !important; align-items: center !important;"></span>
+                <span style="font-size: 14px !important; font-weight: 700 !important; color: #374151 !important; white-space: nowrap !important;">画布快照管理</span>
+                <svg style="width: 14px !important; height: 14px !important; color: #9ca3af !important;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+            
+            <!-- 面板：强制 320px 宽度 -->
+            <div id="canvasManagerPanel" class="hidden" style="position: absolute !important; top: 100% !important; right: 0px !important; width: 320px !important; background: white !important; margin-top: 12px !important; border-radius: 16px !important; border: 1px solid #f3f4f6 !important; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04) !important; overflow: hidden !important; z-index: 1000000 !important;">
+                
+                <!-- 头部 -->
+                <div style="padding: 20px !important; border-bottom: 1px solid #f9fafb !important; display: flex !important; align-items: center !important; gap: 12px !important;">
+                    <div style="width: 4px !important; height: 24px !important; background: #2563eb !important; border-radius: 2px !important;"></div>
+                    <div style="display: flex !important; flex-direction: column !important; align-items: flex-start !important;">
+                        <span style="font-size: 15px !important; font-weight: 900 !important; color: #111827 !important; white-space: nowrap !important; line-height: 1 !important;">快照存档中心</span>
+                        <span style="font-size: 10px !important; color: #9ca3af !important; font-weight: 700 !important; text-transform: uppercase !important; letter-spacing: 1px !important; margin-top: 4px !important;">Canvas Snapshot Engine</span>
+                    </div>
+                </div>
+                
+                <!-- 列表区域 -->
+                <div style="padding: 8px !important; display: flex !important; flex-direction: column !important; gap: 4px !important;">
+                    
+                    <!-- 导出 -->
+                    <button id="exportCanvasBtn" style="width: 100% !important; display: flex !important; align-items: center !important; gap: 16px !important; padding: 12px 16px !important; background: transparent !important; border: none !important; border-radius: 12px !important; cursor: pointer !important; text-align: left !important; transition: background 0.2s !important;" onmouseover="this.style.background='#f0f7ff'" onmouseout="this.style.background='transparent'">
+                        <div style="width: 40px !important; height: 40px !important; background: #eff6ff !important; border-radius: 10px !important; display: flex !important; align-items: center !important; justify-content: center !important; color: #2563eb !important;" id="exportIcon"></div>
+                        <div style="display: flex !important; flex-direction: column !important; align-items: flex-start !important;">
+                            <span style="font-size: 14px !important; font-weight: 700 !important; color: #1f2937 !important; white-space: nowrap !important;">导出备份 (JSON)</span>
+                            <span style="font-size: 11px !important; color: #9ca3af !important; white-space: nowrap !important; margin-top: 2px !important;">将当前画布保存到本地</span>
+                        </div>
+                    </button>
+                    
+                    <!-- 导入 -->
+                    <button id="importCanvasBtn" style="width: 100% !important; display: flex !important; align-items: center !important; gap: 16px !important; padding: 12px 16px !important; background: transparent !important; border: none !important; border-radius: 12px !important; cursor: pointer !important; text-align: left !important; transition: background 0.2s !important;" onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='transparent'">
+                        <div style="width: 40px !important; height: 40px !important; background: #f5f3ff !important; border-radius: 10px !important; display: flex !important; align-items: center !important; justify-content: center !important; color: #7c3aed !important;" id="importIcon"></div>
+                        <div style="display: flex !important; flex-direction: column !important; align-items: flex-start !important;">
+                            <span style="font-size: 14px !important; font-weight: 700 !important; color: #1f2937 !important; white-space: nowrap !important;">导入镜像 (Restore)</span>
+                            <span style="font-size: 11px !important; color: #9ca3af !important; white-space: nowrap !important; margin-top: 2px !important;">从 JSON 文件恢复工作流</span>
+                        </div>
+                    </button>
+                </div>
+                
+                <!-- 页脚 -->
+                <div style="padding: 12px 20px !important; background: #f9fafb !important; border-top: 1px solid #f3f4f6 !important; display: flex !important; justify-content: space-between !important; align-items: center !important;">
+                    <span style="font-size: 10px !important; font-weight: 800 !important; color: #9ca3af !important; letter-spacing: 0.5px !important;">SYSTEM READY</span>
+                    <span id="lastActionStatus" style="font-size: 10px !important; color: #3b82f6 !important; font-weight: 800 !important;">v1.1.2</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 隐藏的导入触发器 -->
+    <input type="file" id="canvasImportInput" accept=".json" style="display: none;">
 </body>
 </html>
