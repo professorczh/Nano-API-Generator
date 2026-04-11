@@ -270,9 +270,8 @@ export class GeminiProvider extends BaseProvider {
                         return;
                     }
 
-                    // 更新虚拟进度：调整分母为 15（约 150 秒跑完），更符合实际速度
-                    const progress = Math.min(Math.round((attempts / 15) * 100), 99);
-                    if (onProgressUpdate && !isFinished) onProgressUpdate(progress);
+                    // 进度由 NodeFactory 的内部计时器平滑驱动，此处仅同步状态
+                    if (onProgressUpdate && !isFinished) onProgressUpdate(undefined); 
 
                     const saveToDisk = document.getElementById('providerToggle')?.checked || false;
                     const statusResponse = await fetch(`/api/google/video-status?operation=${encodeURIComponent(operationName)}&saveToDisk=${saveToDisk}`);

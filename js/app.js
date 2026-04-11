@@ -18,6 +18,7 @@ import { referenceManager } from './reference-manager.js';
 import { mentionManager } from './mention-manager.js';
 import { previewManager } from './preview-manager.js';
 import { LinkerManager } from './linker-manager.js';
+import { promptPanelManager } from './prompt-panel-manager.js';
 
 class GlobalLogger {
     constructor() {
@@ -419,6 +420,8 @@ const App = {
         previewManager.init();
 
         LinkerManager.init();
+
+        promptPanelManager.init(this.elements);
 
         this.initProviderToggle();
     },

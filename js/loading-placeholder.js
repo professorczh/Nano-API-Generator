@@ -15,68 +15,65 @@ export function createTextLoadingPlaceholder(prompt, x, y, modelName = '') {
     const node = document.createElement('div');
     node.className = 'canvas-node text-loading-placeholder';
     node.dataset.index = incrementNodeCounter();
-    node.dataset.filename = 'Loading...';
+    node.dataset.filename = 'Response';
     node.dataset.modelName = modelName;
     node.style.left = `${x}px`;
     node.style.top = `${y}px`;
+    node.style.width = '400px';
+    node.style.height = '200px';
+
+    // 1. 标准页眉
+    const header = document.createElement('div');
+    header.className = 'node-header';
+    header.innerHTML = `<div class="node-filename">${getIcon('message-square', 12)} Response</div><div class="node-resolution">Generating...</div>`;
     
-    const loadingText = document.createElement('div');
-    loadingText.className = 'loading-text';
-    loadingText.textContent = '正在生成回复...';
+    // 2. 统一内容容器
+    const contentArea = document.createElement('div');
+    contentArea.className = 'node-content';
+    contentArea.innerHTML = `<div class="loading-text">正在生成回复...</div>`;
     
-    node.appendChild(loadingText);
-    
+    // 3. 预制工具栏
+    const toolbar = createNodeToolbar('text', {
+        onCopyPrompt: () => navigator.clipboard.writeText(prompt || ''),
+        onCopyText: () => {}, // 待生成后激活
+        onDelete: () => { node.remove(); }
+    });
+    toolbar.querySelectorAll('.toolbar-btn').forEach(b => { 
+        if(!b.classList.contains('danger')) { b.disabled = true; b.style.opacity = '0.5'; }
+    });
+
+    // 4. 信息与侧边栏
+    const info = document.createElement('div');
+    info.className = 'node-info';
+    info.textContent = prompt || '文本回复';
+
     const sidebar = document.createElement('div');
     sidebar.className = 'node-sidebar';
     
-    const timeElement = document.createElement('div');
-    timeElement.className = 'node-generation-time';
-    timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
-    sidebar.appendChild(timeElement);
-    
+    // 标准化注入
+    node.appendChild(header);
+    node.appendChild(contentArea);
+    node.appendChild(toolbar);
+    node.appendChild(info);
+    node.appendChild(sidebar);
+
     if (modelName) {
+        const timeElement = document.createElement('div');
+        timeElement.className = 'node-generation-time';
+        sidebar.appendChild(timeElement);
+
         const modelTag = document.createElement('div');
         modelTag.className = 'node-model-tag';
-        modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
-                let _dn = modelName, _pn = '';
-        if (typeof modelName === 'object' && modelName && modelName.name) {
-            _dn = modelName.name; _pn = modelName.provider || '';
-        } else if (typeof modelName === 'string' && modelName.includes('(')) {
-            const _p = modelName.split('(');
-            _dn = _p[0].trim(); _pn = _p[1].replace(')', '').trim();
-        }
-        if (_pn) {
-            modelTag.innerHTML = `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>`;
-            modelTag.title = `${_dn} (${_pn})`;
-        } else {
-            modelTag.textContent = _dn;
-            modelTag.title = _dn;
-        }
+        modelTag.innerHTML = `<div class="model-name">${modelName}</div>`;
         sidebar.appendChild(modelTag);
     }
-    
-    node.appendChild(sidebar);
-    
-    const centerCoords = document.createElement('div');
-    centerCoords.className = 'node-center-coords';
-    centerCoords.textContent = '(0, 0)';
-    centerCoords.style.display = 'none';
-    node.appendChild(centerCoords);
-    
-    node.style.width = '400px';
-    node.style.height = '200px';
     
     node.addEventListener('mousedown', (e) => {
         if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
             e.stopPropagation();
             selectNode(node);
-            
-            AppState.isDraggingNode = true;
-            AppState.dragNode = node;
-            AppState.activeNode = node;
-            
-            AppState.dragStartX = e.clientX;
-            AppState.dragStartY = e.clientY;
+            AppState.isDraggingNode = true; AppState.dragNode = node; AppState.activeNode = node;
+            AppState.dragStartX = e.clientX; AppState.dragStartY = e.clientY;
             AppState.dragNodeStartLeft = parseInt(node.style.left || '0');
             AppState.dragNodeStartTop = parseInt(node.style.top || '0');
         }
@@ -88,127 +85,51 @@ export function createTextLoadingPlaceholder(prompt, x, y, modelName = '') {
 export function updateTextLoadingPlaceholder(node, text, prompt, generationTime = null, modelName = '') {
     node.classList.remove('text-loading-placeholder');
     node.classList.add('text-node');
-    node.dataset.filename = `Text ${node.dataset.index}`;
+    node.dataset.filename = `Response #${node.dataset.index}`;
     node.dataset.nodeType = 'text';
-    if (modelName) {
-        node.dataset.modelName = modelName;
+    node.style.height = ''; // 自适应高度
+    
+    // 1. 更新核心内容区
+    const contentArea = node.querySelector('.node-content');
+    if (contentArea) {
+        contentArea.innerHTML = '';
+        const textContent = document.createElement('div');
+        textContent.className = 'text-content';
+        textContent.textContent = text;
+        contentArea.appendChild(textContent);
     }
-    node.style.height = '';
     
-    const loadingText = node.querySelector('.loading-text');
-    if (loadingText) {
-        loadingText.remove();
-    }
-    
-    const textContent = document.createElement('div');
-    textContent.className = 'text-content';
-    textContent.textContent = text;
-    
-    const toolbar = createNodeToolbar('text', {
-        onCopyPrompt: () => {
-            navigator.clipboard.writeText(prompt || '').then(() => {
-                if (DebugConsole.showMouseLogs) debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
-            });
-        },
-        onCopyText: () => {
-            navigator.clipboard.writeText(text).then(() => {
-                if (DebugConsole.showMouseLogs) debugLog(`[复制] 文本节点: ${node.dataset.filename}`, 'info');
-            });
-        },
-        onDelete: () => {
-            selectNode(node);
-            deleteSelectedNode();
-        }
-    });
-    
-    node.appendChild(textContent);
-    node.appendChild(toolbar);
-    
-    const info = document.createElement('div');
-    info.className = 'node-info';
-    info.textContent = prompt || '文本回复';
-    info.title = '点击复制提示词';
-    info.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const textToCopy = prompt || info.textContent;
-        debugLog(`[node-info 点击] prompt: ${prompt}, textToCopy: ${textToCopy}`, 'info');
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            debugLog(`[复制成功] ${textToCopy}`, 'success');
-            info.classList.add('copied');
-            setTimeout(() => {
-                info.classList.remove('copied');
-            }, 500);
-        }).catch(err => {
-            debugLog(`[复制失败] ${err}`, 'error');
+    // 2. 激活工具栏按钮并绑定事件
+    const toolbar = node.querySelector('.node-toolbar');
+    if (toolbar) {
+        const buttons = toolbar.querySelectorAll('.toolbar-btn');
+        buttons.forEach(btn => {
+            btn.disabled = false;
+            btn.style.opacity = '1';
         });
-    });
-    node.appendChild(info);
-    
-    setTimeout(() => {
-        const left = parseInt(node.style.left) || 0;
-        const top = parseInt(node.style.top) || 0;
-        const width = node.offsetWidth || 400;
-        const height = node.offsetHeight || 200;
-        const centerX = Math.round(left + width / 2);
-        const centerY = Math.round(top + height / 2);
-        const coordsElement = node.querySelector('.node-center-coords');
-        if (coordsElement) {
-            coordsElement.textContent = `(${centerX}, ${centerY})`;
+        // 重新绑定复制文本的逻辑
+        const copyBtn = toolbar.querySelector('[title="复制内容"]');
+        if (copyBtn) {
+            copyBtn.onclick = (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(text);
+                debugLog(`[复制] 文本内容: ${node.dataset.filename}`, 'info');
+            };
         }
-    }, 0);
+    }
     
+    // 3. 更新页眉与侧边栏
+    const resolution = node.querySelector('.node-resolution');
+    if (resolution) resolution.textContent = `${text.length} chars`;
+
     const sidebar = node.querySelector('.node-sidebar');
     if (sidebar) {
         const timeElement = sidebar.querySelector('.node-generation-time');
-        if (timeElement) {
-            timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
-            if (generationTime !== null && generationTime !== undefined) {
-                timeElement.textContent = formatGenerationTime(generationTime);
-                timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
-            }
-        }
-        
-        if (modelName) {
-            const existingModelTag = sidebar.querySelector('.node-model-tag');
-            if (!existingModelTag) {
-                const modelTag = document.createElement('div');
-                modelTag.className = 'node-model-tag';
-                modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
-                        let _dn = modelName, _pn = '';
-        if (typeof modelName === 'object' && modelName && modelName.name) {
-            _dn = modelName.name; _pn = modelName.provider || '';
-        } else if (typeof modelName === 'string' && modelName.includes('(')) {
-            const _p = modelName.split('(');
-            _dn = _p[0].trim(); _pn = _p[1].replace(')', '').trim();
-        }
-        if (_pn) {
-            modelTag.innerHTML = `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>`;
-            modelTag.title = `${_dn} (${_pn})`;
-        } else {
-            modelTag.textContent = _dn;
-            modelTag.title = _dn;
-        }
-                sidebar.appendChild(modelTag);
-            }
+        if (timeElement && generationTime !== null) {
+            timeElement.style.display = 'flex';
+            timeElement.textContent = formatGenerationTime(generationTime);
         }
     }
-    
-    node.addEventListener('mousedown', (e) => {
-        if (e.button === 0 && !e.target.closest('.toolbar-btn')) {
-            if (DebugConsole.showMouseLogs) {
-                debugLog(`[开始拖动] 文本节点: ${node.dataset.filename}`, 'info');
-            }
-            selectNode(node);
-            AppState.isDraggingNode = true;
-            AppState.dragNode = node;
-            AppState.dragStartX = e.clientX;
-            AppState.dragStartY = e.clientY;
-            AppState.dragNodeStartLeft = parseInt(node.style.left) || 5000;
-            AppState.dragNodeStartTop = parseInt(node.style.top) || 5000;
-            node.style.cursor = 'grabbing';
-            e.preventDefault();
-        }
-    });
 }
 
 export function createLoadingPlaceholder(width, height, x, y, modelName = '', type = 'image') {
@@ -222,6 +143,23 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '', ty
     node.style.left = `${x}px`;
     node.style.top = `${y}px`;
     node.style.zIndex = '10';
+    const header = document.createElement('div');
+    header.className = 'node-header';
+    const filenameElement = document.createElement('div');
+    filenameElement.className = 'node-filename';
+    filenameElement.textContent = 'Loading...';
+    const resolutionElement = document.createElement('div');
+    resolutionElement.className = 'node-resolution';
+    resolutionElement.textContent = 'Generating...';
+    header.appendChild(filenameElement);
+    header.appendChild(resolutionElement);
+
+    const sidebar = document.createElement('div');
+    sidebar.className = 'node-sidebar';
+
+    // 引入统一的内容容器
+    const contentArea = document.createElement('div');
+    contentArea.className = 'node-content';
     
     const loadingContainer = document.createElement('div');
     loadingContainer.className = 'loading-container';
@@ -242,20 +180,7 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '', ty
     
     loadingContainer.appendChild(loadingIcon);
     loadingContainer.appendChild(loadingText);
-    
-    const header = document.createElement('div');
-    header.className = 'node-header';
-    
-    const filenameElement = document.createElement('div');
-    filenameElement.className = 'node-filename';
-    filenameElement.textContent = 'Loading...';
-    
-    const resolutionElement = document.createElement('div');
-    resolutionElement.className = 'node-resolution';
-    resolutionElement.textContent = 'Generating...';
-    
-    header.appendChild(filenameElement);
-    header.appendChild(resolutionElement);
+    contentArea.appendChild(loadingContainer);
     
     const toolbar = document.createElement('div');
     toolbar.className = 'node-toolbar';
@@ -280,11 +205,11 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '', ty
     copyBtn.title = '复制内容';
     copyBtn.disabled = true;
     copyBtn.style.opacity = '0.5';
-    
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'toolbar-btn';
     deleteBtn.innerHTML = getIcon('trash', 16);
     deleteBtn.title = '删除节点';
+    
     deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const confirmModal = document.getElementById('confirmModal');
@@ -301,16 +226,12 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '', ty
         const handleConfirm = () => {
             const minimapCanvas = document.getElementById('minimapCanvas');
             const minimapImage = minimapCanvas.querySelector(`[data-node-id="${node.dataset.index}"]`);
-            if (minimapImage) {
-                minimapImage.remove();
-            }
+            if (minimapImage) minimapImage.remove();
             node.remove();
             closeConfirmModal();
         };
         
-        const handleCancel = () => {
-            closeConfirmModal();
-        };
+        const handleCancel = () => closeConfirmModal();
         
         const closeConfirmModal = () => {
             confirmModal.classList.add('hidden');
@@ -332,42 +253,30 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '', ty
     const info = document.createElement('div');
     info.className = 'node-info';
     info.textContent = 'Loading...';
-    
-    node.appendChild(header);
-    node.appendChild(toolbar);
-    node.appendChild(loadingContainer);
-    node.appendChild(info);
-    
-    const sidebar = document.createElement('div');
-    sidebar.className = 'node-sidebar';
-    
-    const timeElement = document.createElement('div');
-    timeElement.className = 'node-generation-time';
-    timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
-    sidebar.appendChild(timeElement);
+
+    // 按标准骨架顺序注入
+    node.appendChild(header);      // 1
+    node.appendChild(contentArea);  // 2
+    node.appendChild(toolbar);      // 3
+    node.appendChild(info);         // 4
+    node.appendChild(sidebar);      // 5
     
     if (modelName) {
+        const timeElement = document.createElement('div');
+        timeElement.className = 'node-generation-time';
+        timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
+        sidebar.appendChild(timeElement);
+
         const modelTag = document.createElement('div');
         modelTag.className = 'node-model-tag';
         modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
-                let _dn = modelName, _pn = '';
+        let _dn = modelName, _pn = '';
         if (typeof modelName === 'object' && modelName && modelName.name) {
             _dn = modelName.name; _pn = modelName.provider || '';
-        } else if (typeof modelName === 'string' && modelName.includes('(')) {
-            const _p = modelName.split('(');
-            _dn = _p[0].trim(); _pn = _p[1].replace(')', '').trim();
         }
-        if (_pn) {
-            modelTag.innerHTML = `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>`;
-            modelTag.title = `${_dn} (${_pn})`;
-        } else {
-            modelTag.textContent = _dn;
-            modelTag.title = _dn;
-        }
+        modelTag.innerHTML = _pn ? `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>` : _dn;
         sidebar.appendChild(modelTag);
     }
-    
-    node.appendChild(sidebar);
     
     node.addEventListener('mousedown', (e) => {
         if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
@@ -399,9 +308,10 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
         node.dataset.revisedPrompt = revisedPrompt;
     }
     
-    const loadingContainer = node.querySelector('.loading-container');
-    if (loadingContainer) {
-        loadingContainer.remove();
+    // 1. 清理加载状态
+    const contentArea = node.querySelector('.node-content');
+    if (contentArea) {
+        contentArea.innerHTML = '';
     }
     
     const img = document.createElement('img');
@@ -416,124 +326,32 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
     centerCoords.className = 'node-center-coords';
     centerCoords.textContent = '(0, 0)';
     
-    const filenameElement = node.querySelector('.node-filename');
-    if (filenameElement) {
-        filenameElement.textContent = filename || `Image ${node.dataset.index}`;
+    // 2. 将正文内容注入到 Content 容器中
+    if (contentArea) {
+        contentArea.appendChild(img);
+        contentArea.appendChild(resizeHandle);
+        contentArea.appendChild(centerCoords);
     }
     
+    // 3. 更新页眉与信息
+    const filenameElement = node.querySelector('.node-filename');
+    if (filenameElement) filenameElement.textContent = filename || `Image ${node.dataset.index}`;
+    
     const resolutionElement = node.querySelector('.node-resolution');
-    if (resolutionElement) {
-        resolutionElement.textContent = resolution || 'Loading...';
-    }
+    if (resolutionElement) resolutionElement.textContent = resolution || 'Loading...';
     
     const info = node.querySelector('.node-info');
     if (info) {
         info.textContent = prompt || `Image ${node.dataset.index}`;
         info.title = '点击复制提示词';
-        info.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const textToCopy = prompt || info.textContent;
-            debugLog(`[node-info 点击] prompt: ${prompt}, textToCopy: ${textToCopy}`, 'info');
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                debugLog(`[复制成功] ${textToCopy}`, 'success');
-                info.classList.add('copied');
-                setTimeout(() => {
-                    info.classList.remove('copied');
-                }, 500);
-            }).catch(err => {
-                debugLog(`[复制失败] ${err}`, 'error');
-            });
-        });
     }
     
-    const toolbarButtons = node.querySelectorAll('.toolbar-btn');
+    // 4. 激活工具栏按钮状态 (无需重新 append)
+    const toolbarButtons = node.querySelectorAll('.node-toolbar .toolbar-btn');
     toolbarButtons.forEach((btn, index) => {
-        if (index < 3) {
-            btn.disabled = false;
-            btn.style.opacity = '1';
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (index === 0) {
-                    navigator.clipboard.writeText(prompt || '').then(() => {
-                        if (DebugConsole.showMouseLogs) {
-                            debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
-                        }
-                    });
-                } else if (index === 1) {
-                    const imgElement = node.querySelector('img');
-                    if (imgElement) {
-                        if (typeof window.insertImageToPrompt === 'function') {
-                            window.insertImageToPrompt(imgElement.src, node.dataset.filename || 'Image');
-                        }
-                        debugLog(`[工具栏] 插入图片到输入框: node=${node.dataset.filename}`, 'info');
-                    }
-                } else if (index === 2) {
-                    selectNode(node);
-                    copySelectedNode();
-                    debugLog(`[工具栏] 复制图片: node=${node.dataset.filename}`, 'info');
-                }
-            });
-        }
+        btn.disabled = false;
+        btn.style.opacity = '1';
     });
-    
-    img.onload = function() {
-        const actualWidth = this.naturalWidth || parseInt(this.style.width) || 500;
-        const actualHeight = this.naturalHeight || parseInt(this.style.height) || 500;
-        
-        const maxWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--canvas-node-max-width')) || 300;
-        const maxHeight = 300;
-        
-        let displayWidth = actualWidth;
-        let displayHeight = actualHeight;
-        
-        if (displayWidth > maxWidth) {
-            const ratio = maxWidth / displayWidth;
-            displayWidth = maxWidth;
-            displayHeight = Math.floor(displayHeight * ratio);
-        }
-        
-        if (displayHeight > maxHeight) {
-            const ratio = maxHeight / displayHeight;
-            displayHeight = maxHeight;
-            displayWidth = Math.floor(displayWidth * ratio);
-        }
-        
-        node.style.width = `${displayWidth}px`;
-        node.style.height = `${displayHeight}px`;
-        
-        this.style.width = '100%';
-        this.style.height = '100%';
-        this.style.objectFit = 'contain';
-        
-        const resolutionText = `${actualWidth}x${actualHeight}`;
-        const resolutionElement = node.querySelector('.node-resolution');
-        if (resolutionElement) {
-            resolutionElement.textContent = resolutionText;
-        }
-        
-        node.dataset.width = actualWidth;
-        node.dataset.height = actualHeight;
-        
-        updateImageCenterCoordinates(node);
-        updateMinimapWithImage(node);
-    };
-    
-    const header = node.querySelector('.node-header');
-    const toolbar = node.querySelector('.node-toolbar');
-    const infoElement = node.querySelector('.node-info');
-    const sidebar = node.querySelector('.node-sidebar');
-    
-    if (header && toolbar && infoElement) {
-        const children = [...node.children];
-        children.forEach(child => {
-            if (child !== header && child !== toolbar && child !== infoElement && child !== sidebar) {
-                child.remove();
-            }
-        });
-        
-        node.insertBefore(img, infoElement);
-        node.insertBefore(resizeHandle, infoElement);
-        node.insertBefore(centerCoords, infoElement);
         
         if (revisedPrompt) {
             const existingPromptContainer = node.querySelector('.revised-prompt-container');
@@ -591,38 +409,38 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
             promptContainer.appendChild(promptContent);
             node.appendChild(promptContainer);
         }
-    }
     
-    if (sidebar) {
-        const existingModelTag = sidebar.querySelector('.node-model-tag');
-        if (modelName && !existingModelTag) {
-            const modelTag = document.createElement('div');
-            modelTag.className = 'node-model-tag';
-            modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
-                    let _dn = modelName, _pn = '';
-        if (typeof modelName === 'object' && modelName && modelName.name) {
-            _dn = modelName.name; _pn = modelName.provider || '';
-        } else if (typeof modelName === 'string' && modelName.includes('(')) {
-            const _p = modelName.split('(');
-            _dn = _p[0].trim(); _pn = _p[1].replace(')', '').trim();
-        }
-        if (_pn) {
-            modelTag.innerHTML = `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>`;
-            modelTag.title = `${_dn} (${_pn})`;
-        } else {
-            modelTag.textContent = _dn;
-            modelTag.title = _dn;
-        }
-            sidebar.appendChild(modelTag);
-        }
-        
-        const timeElement = sidebar.querySelector('.node-generation-time');
-        if (timeElement && generationTime !== null) {
-            timeElement.textContent = formatGenerationTime(generationTime);
-            timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
+        const sidebar = node.querySelector('.node-sidebar');
+        if (sidebar) {
+            const existingModelTag = sidebar.querySelector('.node-model-tag');
+            if (modelName && !existingModelTag) {
+                const modelTag = document.createElement('div');
+                modelTag.className = 'node-model-tag';
+                modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
+                let _dn = modelName, _pn = '';
+                if (typeof modelName === 'object' && modelName && modelName.name) {
+                    _dn = modelName.name; _pn = modelName.provider || '';
+                } else if (typeof modelName === 'string' && modelName.includes('(')) {
+                    const _p = modelName.split('(');
+                    _dn = _p[0].trim(); _pn = _p[1].replace(')', '').trim();
+                }
+                if (_pn) {
+                    modelTag.innerHTML = `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>`;
+                    modelTag.title = `${_dn} (${_pn})`;
+                } else {
+                    modelTag.textContent = _dn;
+                    modelTag.title = _dn;
+                }
+                sidebar.appendChild(modelTag);
+            }
+            
+            const timeElement = sidebar.querySelector('.node-generation-time');
+            if (timeElement && generationTime !== null) {
+                timeElement.textContent = formatGenerationTime(generationTime);
+                timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
         }
     }
-    
+
     resizeHandle.addEventListener('mousedown', (e) => {
         e.stopPropagation();
         AppState.isResizingNode = true;

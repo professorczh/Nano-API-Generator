@@ -51,7 +51,9 @@ const mimeTypes = {
     '.jpg': 'image/jpg',
     '.gif': 'image/gif',
     '.svg': 'image/svg+xml',
-    '.ico': 'image/x-icon'
+    '.ico': 'image/x-icon',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm'
 };
 
 function ensureDirectoryExists(dirPath) {
@@ -883,12 +885,19 @@ const server = http.createServer((req, res) => {
                 if (operation.done) {
                     if (operation.error) {
                         response.error = operation.error;
-                    } else if (operation.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri) {
-                        const videoUri = operation.response.generateVideoResponse.generatedSamples[0].video.uri;
-                        response.videoUrl = `${videoUri}&key=${apiKey}`;
-                    } else if (operation.response?.generatedVideos?.[0]?.video?.uri) {
-                        const videoUri = operation.response.generatedVideos[0].video.uri;
-                        response.videoUrl = `${videoUri}&key=${apiKey}`;
+                    } else {
+                        // 尝试所有的 Google 视频路径可能
+                        const candidateUri = 
+                            operation.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri ||
+                            operation.response?.generatedVideos?.[0]?.video?.uri ||
+                            operation.response?.videos?.[0]?.uri ||
+                            (operation.response?.generateVideoResponse?.generatedSamples?.[0]?.uri); // 某些版本可能在这里
+                            
+                        if (candidateUri) {
+                            response.videoUrl = candidateUri.includes('?') ? `${candidateUri}&key=${apiKey}` : `${candidateUri}?key=${apiKey}`;
+                        } else {
+                            console.error('[Google Veo] 完成但无法在响应中找到视频 URI. 完整响应:', JSON.stringify(operation.response, null, 2));
+                        }
                     }
                 }
 
@@ -896,29 +905,28 @@ const server = http.createServer((req, res) => {
                 const urlObj = new URL(req.url, `http://localhost:${PORT}`);
                 const saveToDisk = urlObj.searchParams.get('saveToDisk') === 'true';
                 
-                console.log(`🧪 [DEBUG] saveToDisk 为 ${saveToDisk}，${saveToDisk ? '执行存盘' : '跳过存盘'}`);
-                
                 if (saveToDisk && response.videoUrl) {
                     try {
                         const timestamp = Date.now();
                         const videoFileName = `video_${timestamp}.mp4`;
                         const videoFilePath = path.join(GENERATED_VIDEOS_DIR, videoFileName);
                         
-                        // 确保目录存在
                         if (!fs.existsSync(GENERATED_VIDEOS_DIR)) {
                             fs.mkdirSync(GENERATED_VIDEOS_DIR, { recursive: true });
                         }
                         
-                        // 下载视频
                         const videoResponse = await fetch(response.videoUrl);
-                        const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
-                        fs.writeFileSync(videoFilePath, videoBuffer);
-                        
-                        response.savedPath = `/DL/videos/${videoFileName}`;
-                        console.log(`[Video] 视频已保存到: ${videoFilePath}`);
+                        if (videoResponse.ok) {
+                            const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+                            fs.writeFileSync(videoFilePath, videoBuffer);
+                            
+                            response.savedPath = `/DL/videos/${videoFileName}`;
+                            // 重要：如果存盘成功，直接让 videoUrl 指向本地，避免前端重复存盘
+                            response.videoUrl = response.savedPath;
+                            console.log(`[Video] 自动存盘成功: ${videoFilePath}`);
+                        }
                     } catch (writeError) {
-                        console.error('[Video] 保存失败:', writeError.message);
-                        response.warn = 'write_failed';
+                        console.error('[Video] 自动存盘异常:', writeError.message);
                     }
                 }
                 
@@ -1138,7 +1146,14 @@ const server = http.createServer((req, res) => {
     }
     
     
-    let filePath = '.' + req.url;
+    let decodedUrl = req.url;
+    try {
+        decodedUrl = decodeURIComponent(req.url);
+    } catch (e) {
+        console.error('[Server] URL Decode failed:', e);
+    }
+    
+    let filePath = '.' + decodedUrl;
     if (filePath === './') {
         filePath = './index.html';
     }

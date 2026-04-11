@@ -92,7 +92,8 @@ export const PersistenceManager = {
             metadata: {
                 generationTime: node.querySelector('.node-generation-time span')?.textContent || '',
                 isError: node.classList.contains('error-state'),
-                textContent: type === 'text' ? (node.querySelector('.text-content')?.textContent || '') : ''
+                textContent: type === 'text' ? (node.querySelector('.text-content')?.textContent || '') : '',
+                snapshot: node.dataset.snapshot // 核心增加：抓取快照
             }
         };
     },
@@ -139,6 +140,8 @@ export const PersistenceManager = {
                     for (let i = 0; i < data.nodes.length; i++) {
                         const n = data.nodes[i];
                         console.log(`[持久化/RECONSTRUCT] 处理第 ${i+1} 个节点: [${n.type}]`, n);
+                        // 为还原的节点分配一个新的 Index (避免重复)
+                        n.id = Date.now() + "_" + i; 
                         const result = this.reconstructNode(n, container);
                         if (result) successCount++;
                     }
@@ -208,6 +211,18 @@ export const PersistenceManager = {
             node.dataset.filename = filename;
             node.dataset.prompt = prompt;
             node.dataset.modelName = modelName;
+            node.dataset.index = data.id || Date.now();
+            
+            // 还原快照逻辑
+            if (data.metadata?.snapshot) {
+                node.dataset.snapshot = data.metadata.snapshot;
+                try {
+                    const snapObj = JSON.parse(data.metadata.snapshot);
+                    if (window.promptPanelManager) {
+                        window.promptPanelManager.nodeSnapshots.set(node.dataset.index, snapObj);
+                    }
+                } catch(e) {}
+            }
         }
         return node;
     },
@@ -235,6 +250,18 @@ export const PersistenceManager = {
         node.dataset.prompt = prompt;
         node.dataset.modelName = modelName;
         node.dataset.filename = filename;
+        node.dataset.index = data.id || Date.now();
+
+        // 还原快照逻辑
+        if (metadata?.snapshot) {
+            node.dataset.snapshot = metadata.snapshot;
+            try {
+                const snapObj = JSON.parse(metadata.snapshot);
+                if (window.promptPanelManager) {
+                    window.promptPanelManager.nodeSnapshots.set(node.dataset.index, snapObj);
+                }
+            } catch(e) {}
+        }
 
         // 组装内部结构
         node.appendChild(PersistenceManager.utils.createNodeHeader('video', '16:9', filename));
@@ -279,6 +306,18 @@ export const PersistenceManager = {
         node.dataset.modelName = modelName;
         node.dataset.filename = filename;
         node.dataset.audioUrl = resourceUrl;
+        node.dataset.index = data.id || Date.now();
+
+        // 还原快照逻辑
+        if (metadata?.snapshot) {
+            node.dataset.snapshot = metadata.snapshot;
+            try {
+                const snapObj = JSON.parse(metadata.snapshot);
+                if (window.promptPanelManager) {
+                    window.promptPanelManager.nodeSnapshots.set(node.dataset.index, snapObj);
+                }
+            } catch(e) {}
+        }
 
         node.appendChild(PersistenceManager.utils.createNodeHeader('audio', 'MP3', filename));
         
@@ -319,6 +358,18 @@ export const PersistenceManager = {
             node.style.top = `${rect.y}px`;
             node.style.width = `${rect.width}px`;
             node.style.height = `${rect.height}px`;
+            node.dataset.index = data.id || Date.now();
+
+            // 还原快照逻辑
+            if (metadata?.snapshot) {
+                node.dataset.snapshot = metadata.snapshot;
+                try {
+                    const snapObj = JSON.parse(metadata.snapshot);
+                    if (window.promptPanelManager) {
+                        window.promptPanelManager.nodeSnapshots.set(node.dataset.index, snapObj);
+                    }
+                } catch(e) {}
+            }
         }
         
         return node;

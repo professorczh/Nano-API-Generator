@@ -34,21 +34,42 @@ if (!document.getElementById('loading-animation-style')) {
             box-shadow: 0 2px 6px rgba(0,0,0,0.05) !important; border: 1px solid rgba(0,0,0,0.05) !important;
         }
 
-        /* 侧边栏与模型标签纠偏：挪到左侧，避免与右侧工具栏冲突 */
-        .node-sidebar { position: absolute !important; right: calc(100% + 14px) !important; top: 0 !important; display: flex !important; flex-direction: column !important; align-items: flex-end !important; gap: 6px !important; z-index: 1001 !important; transform-origin: right; }
+        /* 侧边栏与模型标签纠偏：挪到右侧外部 (对应红框位置) */
+        .node-sidebar { 
+            position: absolute !important; 
+            left: calc(100% + 12px) !important; 
+            top: 0 !important; 
+            display: flex !important; 
+            flex-direction: column !important; 
+            align-items: flex-start !important; 
+            gap: 8px !important; 
+            z-index: 1001 !important; 
+            width: auto !important;
+            max-width: 200px !important;
+            pointer-events: none;
+        }
         .node-model-tag { 
-            background: #1e293b !important; color: #f1f5f9 !important; 
-            padding: 4px 10px !important; border-radius: 8px !important; 
-            font-size: 11px !important; font-weight: 600 !important; border: 1px solid rgba(255,255,255,0.1) !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; text-align: right !important;
-            white-space: nowrap !important;
+            background: rgba(15, 23, 42, 0.85) !important; 
+            color: #f1f5f9 !important; 
+            padding: 6px 10px !important; 
+            border-radius: 8px !important; 
+            font-size: 11px !important; 
+            font-weight: 600 !important; 
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important; 
+            text-align: left !important;
+            white-space: normal !important; /* 允许折行防止撑太宽 */
+            word-break: break-all;
+            backdrop-filter: blur(12px);
+            pointer-events: auto;
         }
         .node-generation-time { 
             background: #3b82f6 !important; color: #fff !important; 
-            padding: 2px 8px !important; border-radius: 6px !important; 
-            font-size: 10px !important; font-weight: 700 !important; 
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
-            display: flex !important; align-items: center !important; gap: 4px !important;
+            padding: 4px 10px !important; border-radius: 6px !important; 
+            font-size: 11px !important; font-weight: 700 !important; 
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+            display: flex !important; align-items: center !important; gap: 6px !important;
+            pointer-events: auto;
         }
 
         .canvas-node .node-info { 
@@ -153,49 +174,6 @@ export function addLinkerHandle(node) {
 }
 
 export const NodeFactory = {
-    // --- 图片占位符 ---
-    createImagePlaceholder(x, y, prompt, modelName) {
-        const node = document.createElement('div');
-        node.className = 'canvas-node image-node loading-placeholder';
-        node.style.left = `${x}px`;
-        node.style.top = `${y}px`;
-        node.style.width = '300px';
-        node.style.height = '300px';
-        node.dataset.nodeType = 'image';
-        
-        const dummyName = `image_${Date.now().toString().slice(-4)}.png`;
-        node.appendChild(createNodeHeader('image', '', dummyName));
-        const contentArea = document.createElement('div');
-        contentArea.className = 'node-content';
-        
-        const loader = document.createElement('div');
-        loader.className = 'loading-container';
-        loader.innerHTML = `<div class="progress-ring-wrapper">${getIcon('loader', 32, 'animate-spin')}</div><div class="loading-text">正在生成图片...</div>`;
-        contentArea.appendChild(loader);
-        node.appendChild(contentArea);
-        
-        node.appendChild(createNodeInfo(prompt, '图片生成中...'));
-        node.appendChild(createNodeSidebar(null, modelName));
-        
-        // 添加拖拽支持
-        node.addEventListener('mousedown', (e) => {
-            if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
-                e.stopPropagation();
-                if (typeof window.selectNode === 'function') window.selectNode(node);
-                AppState.isDraggingNode = true;
-                AppState.dragNode = node;
-                AppState.activeNode = node;
-                AppState.dragStartX = e.clientX;
-                AppState.dragStartY = e.clientY;
-                AppState.dragNodeStartLeft = parseInt(node.style.left) || 0;
-                AppState.dragNodeStartTop = parseInt(node.style.top) || 0;
-            }
-        });
-        
-        if (typeof addLinkerHandle === 'function') addLinkerHandle(node);
-        return node;
-    },
-
     // --- 视频占位符 (带状态机) ---
     createVideoPlaceholder(x, y, prompt = '', modelName = '', aspectRatio = '16:9') {
         let videoHeight = 169, nodeWidth = 300;
@@ -262,9 +240,9 @@ export const NodeFactory = {
             if (sidebarTime) sidebarTime.textContent = `${m}:${s}`;
 
             if (node._progressStage === 'generating') {
-                // 显著减慢虚假进度步进，确保 API 真实进度占主导地位
-                if (node._progressValue < 80) node._progressValue += 0.5; 
-                else if (node._progressValue < 89) node._progressValue += 0.1;
+                // 每秒增长 1%，确保在 10s 轮询周期时刚好对齐 10% 的步进
+                if (node._progressValue < 80) node._progressValue += 1.0; 
+                else if (node._progressValue < 99) node._progressValue += 0.1;
             } else if (node._progressStage === 'saving') {
                 if (node._progressValue < 99) node._progressValue += 1;
             }
@@ -272,17 +250,26 @@ export const NodeFactory = {
         }, 1000);
         node._loadingInterval = interval;
 
-        // 绑定拖拽逻辑
+        // 绑定拖拽逻辑 (使用捕获模式，确保在视频控件响应前先选中节点)
         node.addEventListener('mousedown', (e) => {
+            const targetEl = e.target;
             if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
-                e.stopPropagation();
-                if (typeof window.selectNode === 'function') window.selectNode(node);
-                AppState.isDraggingNode = true; AppState.dragNode = node; AppState.activeNode = node;
-                AppState.dragStartX = e.clientX; AppState.dragStartY = e.clientY;
+                // 如果不是点击了工具栏按钮，则执行选中
+                if (!targetEl.closest('.node-sidebar') && !targetEl.closest('.node-toolbar')) {
+                    if (typeof window.selectNode === 'function') {
+                        window.selectNode(node);
+                    }
+                }
+                
+                AppState.isDraggingNode = true; 
+                AppState.dragNode = node; 
+                AppState.activeNode = node;
+                AppState.dragStartX = e.clientX; 
+                AppState.dragStartY = e.clientY;
                 AppState.dragNodeStartLeft = parseInt(node.style.left) || 0;
                 AppState.dragNodeStartTop = parseInt(node.style.top) || 0;
             }
-        });
+        }, { capture: true });
 
         if (typeof addLinkerHandle === 'function') addLinkerHandle(node);
         return node;
@@ -341,7 +328,7 @@ export const NodeFactory = {
         }
     },
 
-    // --- 最终视频替换 ---
+    // --- 最终视频替换 (重构为非破坏性更新) ---
     replaceWithVideo(node, videoUrl, prompt = '', modelName = '', generationTime = null, aspectRatio = '16:9') {
         const ring = node.querySelector('.progress-ring');
         const percentText = node.querySelector('.loading-progress-text');
@@ -350,48 +337,33 @@ export const NodeFactory = {
 
         if (node._loadingInterval) { clearInterval(node._loadingInterval); delete node._loadingInterval; }
 
+        // 1. 仅移除加载遮罩，不干扰外壳
         const container = node.querySelector('.loading-container');
         if (container) {
             container.classList.add('fade-out');
             setTimeout(() => { if (container.parentNode) container.remove(); }, 800);
         }
 
-        const savedLeft = node.style.left;
-        const savedTop = node.style.top;
         const savedModelName = modelName || node.dataset.modelName;
         
-        let videoHeight = 169, nodeWidth = 300;
-        if (aspectRatio === '9:16') { videoHeight = 320; nodeWidth = 180; }
+        // 2. 更新内容区核心组件
+        const contentArea = node.querySelector('.node-content');
+        if (contentArea) {
+            contentArea.innerHTML = '';
+            contentArea.style.cssText = 'position:relative; width:100%; height:100%; background:#000; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:12px; border: 1px solid rgba(255,255,255,0.1);';
+            
+            const video = document.createElement('video');
+            video.src = videoUrl;
+            video.autoplay = true; video.loop = true; video.muted = true; 
+            video.playsInline = true; video.controls = true;
+            video.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block;';
+            contentArea.appendChild(video);
+        }
 
-        node.innerHTML = '';
-        node.className = 'canvas-node video-node';
-        node.style.left = savedLeft;
-        node.style.top = savedTop;
-        node.style.width = `${nodeWidth}px`;
-        node.style.height = `${videoHeight}px`;
+        // 3. 动态注入/激活工具栏
+        const existingToolbar = node.querySelector('.node-toolbar');
+        if (existingToolbar) existingToolbar.remove();
         
-        // 1. 页眉 (Top)
-        const dummyFileName = `video_${Date.now().toString().slice(-6)}.mp4`;
-        node.appendChild(createNodeHeader('video', aspectRatio, dummyFileName));
-
-        // 2. 内容区 (Center)
-        const contentArea = document.createElement('div');
-        contentArea.className = 'node-content';
-        contentArea.style.cssText = 'position:relative; width:100%; height:100%; background:#000; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:12px;';
-        
-        const video = document.createElement('video');
-        video.src = videoUrl;
-        video.autoplay = true; 
-        video.loop = true; 
-        video.muted = true; 
-        video.playsInline = true;
-        video.controls = true;
-        video.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block;';
-        
-        contentArea.appendChild(video);
-        node.appendChild(contentArea);
-
-        // 3. 悬浮工具栏 (Right)
         const toolbar = createNodeToolbar('video', {
             onCopyPrompt: () => {
                 navigator.clipboard.writeText(prompt);
@@ -399,7 +371,7 @@ export const NodeFactory = {
             },
             onInsertPrompt: () => {
                 if (window.insertImageToPrompt) {
-                    window.insertImageToPrompt(videoUrl, dummyFileName);
+                    window.insertImageToPrompt(videoUrl, `video_${Date.now()}.mp4`);
                 }
             },
             onCopyNode: () => {
@@ -411,29 +383,86 @@ export const NodeFactory = {
                 if (typeof window.deleteSelectedNode === 'function') window.deleteSelectedNode();
             }
         });
-        node.appendChild(toolbar);
+        
+        // 物理对齐：插入到 Content 之后，Info 之前
+        const info = node.querySelector('.node-info');
+        node.insertBefore(toolbar, info);
 
-        // 4. 辅助面板 (Left & Bottom)
-        node.appendChild(createNodeInfo(prompt));
-        node.appendChild(createNodeSidebar(generationTime, savedModelName));
-
-        // 绑定拖拽逻辑
-        node.addEventListener('mousedown', (e) => {
-            if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
-                e.stopPropagation();
-                if (typeof window.selectNode === 'function') window.selectNode(node);
-                AppState.isDraggingNode = true; AppState.dragNode = node; AppState.activeNode = node;
-                AppState.dragStartX = e.clientX; AppState.dragStartY = e.clientY;
-                AppState.dragNodeStartLeft = parseInt(node.style.left) || 0;
-                AppState.dragNodeStartTop = parseInt(node.style.top) || 0;
+        // 4. 更新侧边栏状态
+        const sidebar = node.querySelector('.node-sidebar');
+        if (sidebar) {
+            const timeTag = sidebar.querySelector('.node-generation-time');
+            if (timeTag && generationTime !== null) {
+                const span = timeTag.querySelector('span') || timeTag;
+                span.textContent = `${generationTime.toFixed(1)}s`;
             }
-        });
+        }
 
-        if (typeof addLinkerHandle === 'function') addLinkerHandle(node);
+        node.dataset.prompt = prompt;
         if (typeof updateMinimapWithImage === 'function') updateMinimapWithImage(node);
         return node;
     },
 
+    // --- 音频替换 (重构为非破坏性更新) ---
+    replaceWithAudio(node, audioUrl, prompt = '', modelName = '', generationTime = null, format = 'mp3') {
+        if (node._loadingInterval) { clearInterval(node._loadingInterval); delete node._loadingInterval; }
+        
+        // 1. 更新内容区
+        const contentArea = node.querySelector('.node-content');
+        if (contentArea) {
+            contentArea.innerHTML = '';
+            contentArea.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f172a;position:relative;';
+            
+            const wave = document.createElement('div');
+            wave.className = 'audio-wave-anim';
+            wave.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:4px;opacity:0.25;pointer-events:none;';
+            for(let i=0;i<20;i++) {
+                const b = document.createElement('div');
+                b.style.cssText = `width:3px;background:#60a5fa;height:${15+Math.random()*45}px;border-radius:2px;`;
+                wave.appendChild(b);
+            }
+            contentArea.appendChild(wave);
+            
+            const audio = document.createElement('audio');
+            audio.src = audioUrl;
+            audio.controls = true;
+            audio.style.cssText = 'width:85%; height:40px; z-index:10;';
+            contentArea.appendChild(audio);
+        }
+
+        // 2. 注入工具栏
+        const existingToolbar = node.querySelector('.node-toolbar');
+        if (existingToolbar) existingToolbar.remove();
+
+        const toolbar = createNodeToolbar('audio', {
+            onCopyPrompt: () => navigator.clipboard.writeText(prompt),
+            onInsertPrompt: () => {
+                if (window.insertImageToPrompt) window.insertImageToPrompt(audioUrl, `audio_${Date.now()}.${format}`);
+            },
+            onCopyNode: () => {
+                if (window.selectNode) window.selectNode(node);
+                if (window.copySelectedNode) window.copySelectedNode();
+            },
+            onDelete: () => {
+                if (window.selectNode) window.selectNode(node);
+                if (window.deleteSelectedNode) window.deleteSelectedNode();
+            }
+        });
+        
+        const info = node.querySelector('.node-info');
+        node.insertBefore(toolbar, info);
+
+        // 3. 更新辅助信息
+        const sidebar = node.querySelector('.node-sidebar');
+        if (sidebar && generationTime !== null) {
+            const timeTag = sidebar.querySelector('.node-generation-time span') || sidebar.querySelector('.node-generation-time');
+            if (timeTag) timeTag.textContent = `${generationTime.toFixed(1)}s`;
+        }
+
+        node.dataset.audioUrl = audioUrl;
+        node.dataset.prompt = prompt;
+        return node;
+    },
     // --- 音频占位符 (同构版) ---
     createAudioPlaceholder(x, y, prompt = '', modelName = '') {
         const node = document.createElement('div');
@@ -441,7 +470,7 @@ export const NodeFactory = {
         node.style.left = `${x}px`;
         node.style.top = `${y}px`;
         node.style.width = '300px';
-        node.style.height = '169px'; // 16:9 黄金比例
+        node.style.height = '169px'; 
         node.dataset.nodeType = 'audio';
         node.dataset.startTime = Date.now();
 
@@ -467,97 +496,21 @@ export const NodeFactory = {
         }, 1000);
         node._loadingInterval = interval;
 
-        // 绑定拖拽逻辑
+        // 绑定拖拽逻辑 (捕获模式对齐)
         node.addEventListener('mousedown', (e) => {
+            const targetEl = e.target;
             if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
-                e.stopPropagation();
-                if (typeof window.selectNode === 'function') window.selectNode(node);
-                AppState.isDraggingNode = true; AppState.dragNode = node; AppState.activeNode = node;
-                AppState.dragStartX = e.clientX; AppState.dragStartY = e.clientY;
-                AppState.dragNodeStartLeft = parseInt(node.style.left) || 0;
-                AppState.dragNodeStartTop = parseInt(node.style.top) || 0;
-            }
-        });
-
-        if (typeof addLinkerHandle === 'function') addLinkerHandle(node);
-        return node;
-    },
-
-    replaceWithAudio(node, audioUrl, prompt = '', modelName = '', generationTime = null, format = 'mp3') {
-        if (node._loadingInterval) { clearInterval(node._loadingInterval); delete node._loadingInterval; }
-        const savedLeft = node.style.left;
-        const savedTop = node.style.top;
-        node.innerHTML = '';
-        node.className = 'canvas-node audio-node';
-        node.style.left = savedLeft;
-        node.style.top = savedTop;
-        node.style.width = '300px';
-        node.style.height = '169px'; // 16:9 黄金比例
-        node.dataset.nodeType = 'audio';
-        node.dataset.audioUrl = audioUrl;
-
-        const dummyName = `audio_${Date.now().toString().slice(-4)}.${format}`;
-        node.appendChild(createNodeHeader('audio', format.toUpperCase(), dummyName));
-
-        // 统11致的工具栏
-        const toolbar = createNodeToolbar('audio', {
-            onCopyPrompt: () => {
-                navigator.clipboard.writeText(prompt);
-                debugLog(`[复制] 提示词: ${prompt.slice(0, 20)}...`, 'info');
-            },
-            onInsertPrompt: () => {
-                if (window.insertImageToPrompt) {
-                    const filename = `audio_${Date.now().toString().slice(-6)}.mp3`;
-                    window.insertImageToPrompt(audioUrl, filename);
+                if (!targetEl.closest('.node-sidebar') && !targetEl.closest('.node-toolbar')) {
+                    if (typeof window.selectNode === 'function') {
+                        window.selectNode(node);
+                    }
                 }
-            },
-            onCopyNode: () => {
-                if (typeof window.selectNode === 'function') window.selectNode(node);
-                if (typeof window.copySelectedNode === 'function') window.copySelectedNode();
-            },
-            onDelete: () => {
-                if (typeof window.selectNode === 'function') window.selectNode(node);
-                if (typeof window.deleteSelectedNode === 'function') window.deleteSelectedNode();
-            }
-        });
-        node.appendChild(toolbar);
-
-        const contentArea = document.createElement('div');
-        contentArea.className = 'node-content';
-        contentArea.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f172a;';
-        
-        const wave = document.createElement('div');
-        wave.className = 'audio-wave-anim';
-        wave.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:4px;opacity:0.25;pointer-events:none;';
-        for(let i=0;i<20;i++) {
-            const b = document.createElement('div');
-            b.style.cssText = `width:3px;background:#60a5fa;height:${15+Math.random()*45}px;border-radius:2px;`;
-            wave.appendChild(b);
-        }
-        contentArea.appendChild(wave);
-        
-        const audio = document.createElement('audio');
-        audio.src = audioUrl;
-        audio.controls = true;
-        audio.style.width = '85%';
-        audio.style.height = '40px';
-        audio.style.zIndex = '10';
-        contentArea.appendChild(audio);
-        node.appendChild(contentArea);
-        node.appendChild(createNodeInfo(prompt));
-        node.appendChild(createNodeSidebar(generationTime, modelName));
-        
-        // 绑定拖拽逻辑
-        node.addEventListener('mousedown', (e) => {
-            if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
-                e.stopPropagation();
-                if (typeof window.selectNode === 'function') window.selectNode(node);
                 AppState.isDraggingNode = true; AppState.dragNode = node; AppState.activeNode = node;
                 AppState.dragStartX = e.clientX; AppState.dragStartY = e.clientY;
                 AppState.dragNodeStartLeft = parseInt(node.style.left) || 0;
                 AppState.dragNodeStartTop = parseInt(node.style.top) || 0;
             }
-        });
+        }, { capture: true }); 
 
         if (typeof addLinkerHandle === 'function') addLinkerHandle(node);
         return node;

@@ -296,10 +296,13 @@ export function renderModelTag(container, modelName) {
     }
     
     if (providerName) {
-        modelTag.innerHTML = `<div class="model-name">${displayName}</div><div class="model-provider">${providerName}</div>`;
+        modelTag.innerHTML = `
+            <div class="model-name">${displayName}</div>
+            <div class="model-provider">${providerName.toUpperCase()}</div>
+        `;
         modelTag.title = `${displayName} (${providerName})`;
     } else {
-        modelTag.textContent = displayName;
+        modelTag.innerHTML = `<div class="model-name">${displayName}</div>`;
         modelTag.title = displayName;
     }
     
@@ -336,14 +339,16 @@ export function createNodeSidebar(generationTime, modelName) {
     const sidebar = document.createElement('div');
     sidebar.className = 'node-sidebar';
     
-    if (generationTime !== null && generationTime !== undefined) {
-        const timeElement = document.createElement('div');
-        timeElement.className = 'node-generation-time';
-        timeElement.style.display = (typeof DebugConsole !== 'undefined' && DebugConsole.showGenerationTime) ? 'flex' : 'none';
-        timeElement.innerHTML = `${getIcon('clock', 12)} <span>${formatGenerationTime(generationTime).replace('⏱️', '').trim()}</span>`;
-        timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
-        sidebar.appendChild(timeElement);
-    }
+    // 计时器 - 确保在生成中和完成后都以一致的 UI 显示
+    const timeElement = document.createElement('div');
+    timeElement.className = 'node-generation-time';
+    // 默认可见，除非 DEBUG 模式明确关闭
+    timeElement.style.display = (typeof DebugConsole !== 'undefined' && DebugConsole.showGenerationTime === false) ? 'none' : 'flex';
+    
+    const displayTime = generationTime ? formatGenerationTime(generationTime).replace('⏱️', '').trim() : '0.0s';
+    timeElement.innerHTML = `${getIcon('clock', 12)} <span>${displayTime}</span>`;
+    timeElement.title = generationTime ? `生成耗时: ${generationTime.toFixed(2)}秒` : '计时中...';
+    sidebar.appendChild(timeElement);
     
     if (modelName) {
         renderModelTag(sidebar, modelName);

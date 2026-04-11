@@ -5,6 +5,7 @@ import { debugLog, formatGenerationTime, createNodeToolbar, createNodeHeader, cr
 import { updateMinimapWithImage, updateImageCenterCoordinates, getPanzoom, getImageResponseContainer } from './canvas-manager.js';
 import { getIcon } from './icons.js';
 import { addLinkerHandle } from './node-factory.js';
+import { promptPanelManager } from './prompt-panel-manager.js';
 
 let clipboardNode = null;
 let minimapCanvas;
@@ -14,19 +15,31 @@ export function initNodeManager() {
 }
 
 export function selectNode(node) {
+    if (CanvasState.selectedNode === node) return;
+
     if (CanvasState.selectedNode) {
         CanvasState.selectedNode.classList.remove('selected');
         CanvasState.selectedNode.style.zIndex = '10';
+    } else {
+        // 如果是从无选中状态进入选中状态，保存当前面板内容为草稿
+        promptPanelManager.saveDraft();
     }
+    
     CanvasState.selectedNode = node;
     node.classList.add('selected');
     node.style.zIndex = '100';
+
+    // 载入选中节点的溯源参数
+    promptPanelManager.loadFromNode(node);
 }
 
 export function deselectAllNodes() {
     if (CanvasState.selectedNode) {
         CanvasState.selectedNode.classList.remove('selected');
         CanvasState.selectedNode = null;
+        
+        // 恢复之前保存的草稿
+        promptPanelManager.restoreDraft();
     }
 }
 
@@ -138,13 +151,23 @@ export function deleteSelectedNode(skipConfirm = false) {
     };
     
     const performDelete = () => {
-        const minimapImage = minimapCanvas?.querySelector(`[data-node-id="${CanvasState.selectedNode.dataset.index}"]`);
+        const nodeId = CanvasState.selectedNode.dataset.index;
+        const minimapImage = minimapCanvas?.querySelector(`[data-node-id="${nodeId}"]`);
         if (minimapImage) {
             minimapImage.remove();
         }
+        
+        // 清理状态快照
+        if (nodeId !== undefined) {
+            promptPanelManager.nodeSnapshots.delete(nodeId);
+        }
+
         CanvasState.selectedNode.remove();
         CanvasState.selectedNode = null;
         debugLog(`[删除] 图片完成`, 'info');
+        
+        // 恢复草稿
+        promptPanelManager.restoreDraft();
     };
     
     const dontShowConfirm = localStorage.getItem('dontShowDeleteConfirm') === 'true';
