@@ -102,7 +102,8 @@ if (!document.getElementById('loading-animation-style')) {
             opacity: 0 !important;
             pointer-events: none !important;
         }
-        .canvas-node.selected .node-toolbar { 
+        .canvas-node.selected .node-toolbar,
+        .always-show-toolbar .node-toolbar { 
             display: flex !important; 
             transform: translateY(-50%) translateX(0) !important;
             opacity: 1 !important;
@@ -370,8 +371,8 @@ export const NodeFactory = {
                 debugLog(`[复制] 提示词: ${prompt.slice(0, 20)}...`, 'info');
             },
             onInsertPrompt: () => {
-                if (window.insertImageToPrompt) {
-                    window.insertImageToPrompt(videoUrl, `video_${Date.now()}.mp4`);
+                if (window.PinManager && window.PinManager.addCanvasImageToPrompt) {
+                    window.PinManager.addCanvasImageToPrompt(node);
                 }
             },
             onCopyNode: () => {
@@ -437,7 +438,9 @@ export const NodeFactory = {
         const toolbar = createNodeToolbar('audio', {
             onCopyPrompt: () => navigator.clipboard.writeText(prompt),
             onInsertPrompt: () => {
-                if (window.insertImageToPrompt) window.insertImageToPrompt(audioUrl, `audio_${Date.now()}.${format}`);
+                if (window.PinManager && window.PinManager.addCanvasImageToPrompt) {
+                    window.PinManager.addCanvasImageToPrompt(node);
+                }
             },
             onCopyNode: () => {
                 if (window.selectNode) window.selectNode(node);

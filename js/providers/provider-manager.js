@@ -548,21 +548,30 @@ class DynamicProviderManager {
             return '';
         }
         
-        return models.map(model => `
-            <div class="flex gap-1 items-center model-row">
-                <select class="w-10 px-1 py-1 text-xs rounded border border-gray-200 bg-white model-format-select">
-                    <option value="openai" ${model.protocol === 'openai' ? 'selected' : ''}>O</option>
-                    <option value="gemini" ${model.protocol === 'gemini' ? 'selected' : ''}>G</option>
-                    <option value="volces" ${model.protocol === 'volces' ? 'selected' : ''}>V</option>
-                </select>
-                <input type="text" value="${model.name || ''}" 
-                    class="flex-1 px-2 py-1 text-xs rounded border border-gray-200" 
-                    placeholder="模型名称" data-provider-id="${providerId}" data-model-name="${model.name || ''}">
-                <button type="button" class="text-red-500 hover:text-red-700 text-xs model-delete-btn" 
-                    data-provider-id="${providerId}" data-model-name="${model.name || ''}"
-                    onclick="this.closest('.model-row').remove(); window.dynamicProviderManager.markDirty(); console.log('[UI] User clicked: deleteModelBtn | Provider: ${providerId} | Model: ${model.name || 'unnamed'}');">×</button>
-            </div>
-        `).join('');
+        const isMix = defaultProtocol === 'mix';
+        
+        return models.map(model => {
+            // 如果不是混合模式，强制使用主协议
+            const protocolToShow = isMix ? (model.protocol || 'openai') : defaultProtocol;
+            const isDisabled = isMix ? '' : 'disabled';
+            const disabledClass = isMix ? '' : 'opacity-50 cursor-not-allowed';
+
+            return `
+                <div class="flex gap-1 items-center model-row">
+                    <select class="w-10 px-1 py-1 text-xs rounded border border-gray-200 bg-white model-format-select ${disabledClass}" ${isDisabled}>
+                        <option value="openai" ${protocolToShow === 'openai' ? 'selected' : ''}>O</option>
+                        <option value="gemini" ${protocolToShow === 'gemini' ? 'selected' : ''}>G</option>
+                        <option value="volces" ${protocolToShow === 'volces' ? 'selected' : ''}>V</option>
+                    </select>
+                    <input type="text" value="${model.name || ''}" 
+                        class="flex-1 px-2 py-1 text-xs rounded border border-gray-200" 
+                        placeholder="模型名称" data-provider-id="${providerId}" data-model-name="${model.name || ''}">
+                    <button type="button" class="text-red-500 hover:text-red-700 text-xs model-delete-btn" 
+                        data-provider-id="${providerId}" data-model-name="${model.name || ''}"
+                        onclick="this.closest('.model-row').remove(); window.dynamicProviderManager.markDirty(); console.log('[UI] User clicked: deleteModelBtn | Provider: ${providerId} | Model: ${model.name || 'unnamed'}');">×</button>
+                </div>
+            `;
+        }).join('');
     }
 
     // 添加模型输入框
@@ -624,6 +633,9 @@ class DynamicProviderManager {
                 }
             });
         });
+        
+        // 当状态改变时，需要让管理器感知到模型列表发生了变化（因为协议变了）
+        this.refreshModelSelects();
     }
 
     // 获取Provider实例

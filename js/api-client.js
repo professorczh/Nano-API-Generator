@@ -122,14 +122,16 @@ export class APIClient {
                 throw new Error(`Provider "${providerId}" 未找到，请检查设置面板配置`);
             }
             
+            // 强制使用动态供应商派发的生成方法
             const result = await dynamicProvider.generateVideo({
                 ...requestConfig,
                 modelName: videoModel,
+                protocol: dynamicProvider.protocol, // 明确传递协议
                 onProgressUpdate: (progress) => {
                     if (onVideoProgress) onVideoProgress(progress);
                 },
                 onVideoGenerated: (url) => {
-                    if (onVideoGenerated) onVideoGenerated(url);
+                    if (onVideoGenerated) onVideoGenerated(url, dynamicProvider.protocol);
                 },
                 debugLog
             });

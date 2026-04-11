@@ -1,4 +1,5 @@
 import { BaseProvider } from './base-provider.js';
+import { CONFIG } from '../../config.js';
 
 /**
  * 火山方舟 (Volcengine Ark) Provider
@@ -150,14 +151,14 @@ export class VolcesProvider extends BaseProvider {
         const imageRefs = images.map((url, index) => ({
             type: "image_url",
             image_url: { url },
-            role: index === 0 ? "reference_image" : "image_reference" // 第一个默认为首帧参考
+            role: "reference_image" // 2.0 规范：所有参考图角色必须统一为 reference_image
         }));
 
         // 2. 处理视频参考 (运动参考)
         const videoRefs = videos.map((url, index) => ({
             type: "video_url",
             video_url: { url },
-            role: index === 0 ? "reference_video" : "video_reference" // 第一个默认为运动视频参考
+            role: "reference_video" // 2.0 规范：所有参考视频角色必须统一为 reference_video
         }));
 
         // 3. 提示词增强：Seedance 2.0 需要显式引用别名
@@ -214,8 +215,8 @@ export class VolcesProvider extends BaseProvider {
                     const saveToDisk = document.getElementById('providerToggle')?.checked || false;
                     const response = await fetch(`${this.ENDPOINTS.STATUS}?taskId=${taskId}&saveToDisk=${saveToDisk}`);
                     if (!response.ok) {
-                        // 出错后 5 秒重试
-                        setTimeout(poll, 5000);
+                        // 出错后遵循全局轮询间隔重试
+                        setTimeout(poll, CONFIG.VIDEO_POLLING_INTERVAL || 30000);
                         return;
                     }
 
@@ -229,7 +230,7 @@ export class VolcesProvider extends BaseProvider {
                         if (status === 'succeeded') {
                             const videoUrl = statusData.savedPath || statusData.videoUrl || statusData.video_url;
                             if (videoUrl) {
-                                if (onVideoGenerated) onVideoGenerated(videoUrl);
+                                if (onVideoGenerated) onVideoGenerated(videoUrl, this.id);
                                 resolve(videoUrl);
                             } else {
                                 reject(new Error('视频生成成功但未找到有效的视频 URL'));
@@ -241,9 +242,8 @@ export class VolcesProvider extends BaseProvider {
                             reject(new Error(`未知任务状态: ${status}`));
                         }
                     } else if (!isFinished) {
-                        // 任务未完成，3秒后下一轮
-                        const interval = status === 'queued' ? 5000 : 3000;
-                        setTimeout(poll, interval);
+                        // 使用全局轮询间隔
+                        setTimeout(poll, CONFIG.VIDEO_POLLING_INTERVAL || 30000);
                         
                         if (onProgressUpdate && statusData.progress !== undefined) {
                             onProgressUpdate(statusData.progress);
@@ -257,8 +257,8 @@ export class VolcesProvider extends BaseProvider {
                 }
             };
 
-            // 启动轮询
-            setTimeout(poll, 2000);
+            // 启动轮询，初始延时也遵循全局配置
+            setTimeout(poll, CONFIG.VIDEO_POLLING_INTERVAL || 30000);
         });
     }
 

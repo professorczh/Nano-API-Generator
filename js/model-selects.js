@@ -1,5 +1,4 @@
 // 模型选择相关逻辑
-
 import { CONFIG, TEXT_MODELS, IMAGE_MODELS, VIDEO_MODELS, AUDIO_MODELS, VIDEO_RATIOS, IMAGE_RATIOS, IMAGE_SIZES, AUDIO_DURATIONS, AUDIO_FORMATS } from "../config.js";
 
 export class ModelSelectManager {
@@ -15,10 +14,6 @@ export class ModelSelectManager {
         this.audioModelNameWrapper = document.getElementById('audioModelNameWrapper');
         this.audioDurationWrapper = document.getElementById('audioDurationWrapper');
         this.audioFormatWrapper = document.getElementById('audioFormatWrapper');
-        this.settingsDefaultTextModelWrapper = document.getElementById('settingsDefaultTextModelWrapper');
-        this.settingsDefaultImageModelWrapper = document.getElementById('settingsDefaultImageModelWrapper');
-        this.settingsDefaultVideoModelWrapper = document.getElementById('settingsDefaultVideoModelWrapper');
-        this.settingsDefaultAudioModelWrapper = document.getElementById('settingsDefaultAudioModelWrapper');
 
         this.isSyncingModels = false;
 
@@ -53,6 +48,30 @@ export class ModelSelectManager {
         this.initVideoRatios();
     }
 
+    /**
+     * 私有方法：根据屏幕空间智能定位下拉菜单
+     */
+    _repositionDropdown(trigger, dropdown) {
+        const rect = trigger.getBoundingClientRect();
+        const dropdownHeight = 220; // 预估含 padding 的最大高度
+        const spaceBelow = window.innerHeight - rect.bottom;
+        
+        // 如果下方空间不足 且 上方空间充裕，则向上弹出
+        if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
+            dropdown.style.top = 'auto';
+            dropdown.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+        } else {
+            dropdown.style.top = (rect.bottom + 4) + 'px';
+            dropdown.style.bottom = 'auto';
+        }
+        
+        dropdown.style.left = rect.left + 'px';
+        dropdown.style.width = rect.width + 'px';
+    }
+
+    /**
+     * 初始化/创建简单的自定义下拉框
+     */
     initSimpleDropdown(wrapper, options, defaultKey, onSelect) {
         if (!wrapper) return;
 
@@ -63,39 +82,20 @@ export class ModelSelectManager {
         if (!dropdown) {
             dropdown = document.createElement('div');
             dropdown.className = 'custom-select-dropdown';
+            dropdown.id = wrapper.id + '-dropdown'; // 统一由 wrapper ID 派生
             document.body.appendChild(dropdown);
             wrapper._fixedDropdown = dropdown;
+            dropdown._ownerWrapper = wrapper; // 绑定回溯
         }
 
-        dropdown.innerHTML = '';
+        this._renderDropdownContent(dropdown, options, onSelect);
 
-        let defaultValue = null;
-        options.forEach((opt, index) => {
-            const value = typeof opt === 'string' ? opt : opt.value;
-            const name = typeof opt === 'string' ? opt : opt.name;
-
-            const option = document.createElement('div');
-            option.className = 'custom-option';
-            option.dataset.value = value;
-            option.textContent = name;
-            option.addEventListener('click', () => {
-                selectedText.textContent = name;
-                wrapper.dataset.value = value;
-                dropdown.classList.remove('open');
-                wrapper.classList.remove('open');
-                console.log(`[UI] User selected: ${wrapper.id} | Value: ${value}`);
-                if (onSelect) onSelect(value);
-            });
-            dropdown.appendChild(option);
-
-            if (index === 0 || value === defaultKey) {
-                defaultValue = { value, name };
-            }
-        });
-
+        const defaultValue = options.find(opt => (typeof opt === 'string' ? opt : opt.value) === defaultKey) || options[0];
         if (defaultValue) {
-            wrapper.dataset.value = defaultValue.value;
-            selectedText.textContent = defaultValue.name;
+            const val = typeof defaultValue === 'string' ? defaultValue : defaultValue.value;
+            const name = typeof defaultValue === 'string' ? defaultValue : defaultValue.name;
+            wrapper.dataset.value = val;
+            selectedText.textContent = name;
         }
 
         if (wrapper.dataset.listening) return;
@@ -103,27 +103,54 @@ export class ModelSelectManager {
 
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
-
-            document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
-                if (w !== wrapper) w.classList.remove('open');
-            });
-            document.querySelectorAll('.custom-select-dropdown.open').forEach(d => {
-                if (d !== dropdown) d.classList.remove('open');
-            });
-
             const isOpen = dropdown.classList.contains('open');
-            if (isOpen) {
-                dropdown.classList.remove('open');
-                wrapper.classList.remove('open');
-            } else {
-                const rect = trigger.getBoundingClientRect();
-                dropdown.style.top = (rect.bottom + 4) + 'px';
-                dropdown.style.left = rect.left + 'px';
-                dropdown.style.width = rect.width + 'px';
+            
+            // 关闭其它
+            document.querySelectorAll('.custom-select-dropdown.open').forEach(d => d.classList.remove('open'));
+            document.querySelectorAll('.custom-select-wrapper.open').forEach(w => w.classList.remove('open'));
+
+            if (!isOpen) {
+                this._repositionDropdown(trigger, dropdown);
                 dropdown.classList.add('open');
                 wrapper.classList.add('open');
             }
         });
+    }
+
+    /**
+     * 内部方法：渲染下拉内容
+     */
+    _renderDropdownContent(dropdown, options, onSelect) {
+        const wrapper = dropdown._ownerWrapper;
+        const selectedText = wrapper ? wrapper.querySelector('.selected-text') : null;
+
+        dropdown.innerHTML = '';
+        options.forEach(opt => {
+            const value = typeof opt === 'string' ? opt : opt.value;
+            const name = typeof opt === 'string' ? opt : opt.name;
+
+            const option = document.createElement('div');
+            option.className = 'custom-option';
+            option.dataset.value = value;
+            option.textContent = name;
+            option.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (selectedText) selectedText.textContent = name;
+                if (wrapper) wrapper.dataset.value = value;
+                dropdown.classList.remove('open');
+                if (wrapper) wrapper.classList.remove('open');
+                if (onSelect) onSelect(value);
+            });
+            dropdown.appendChild(option);
+        });
+    }
+
+    /**
+     * 对外暴露的动态填充方法
+     */
+    populateDropdown(wrapper, options, onSelect) {
+        if (!wrapper || !wrapper._fixedDropdown) return;
+        this._renderDropdownContent(wrapper._fixedDropdown, options, onSelect);
     }
 
     updateResolutionOptions() {
@@ -133,14 +160,14 @@ export class ModelSelectManager {
         const filteredRatios = IMAGE_RATIOS.filter(ratio =>
             isFirstGroup || !['8:1', '4:1', '1:4', '1:8'].includes(ratio.value)
         );
-        this.initSimpleDropdown(this.aspectRatioWrapper, filteredRatios, '1:1', (value) => {
+        this.initSimpleDropdown(this.aspectRatioWrapper, filteredRatios, CONFIG.ASPECT_RATIO, (value) => {
             CONFIG.ASPECT_RATIO = value;
         });
 
         const filteredSizes = IMAGE_SIZES.filter(size =>
             isFirstGroup || size.value !== '512px'
         );
-        this.initSimpleDropdown(this.imageSizeWrapper, filteredSizes, '1K', (value) => {
+        this.initSimpleDropdown(this.imageSizeWrapper, filteredSizes, CONFIG.IMAGE_SIZE, (value) => {
             CONFIG.IMAGE_SIZE = value;
         });
     }
@@ -151,8 +178,12 @@ export class ModelSelectManager {
             const allModels = window.dynamicProviderManager.getAllModels();
             model = (allModels.video || []).find(m => m.value === modelValue);
         }
-        if (!model) {
-            model = VIDEO_MODELS.find(m => m.value === modelValue);
+        
+        const configModel = VIDEO_MODELS.find(m => m.value === modelValue);
+        if (configModel && configModel.params) {
+            model = { ...model, params: configModel.params };
+        } else if (!model) {
+            model = configModel;
         }
 
         let durations = ['4', '6', '8'];
@@ -161,13 +192,46 @@ export class ModelSelectManager {
         }
 
         const durationOptions = durations.map(d => ({ value: d, name: d + ' 秒' }));
-        this.initSimpleDropdown(this.videoDurationWrapper, durationOptions, durations[0], (value) => {
-            CONFIG.VIDEO_DURATION = value;
-            this.updateVideoResolutionOptions(modelValue, value);
-        });
+        
+        // --- 核心重用逻辑 ---
+        if (!this.videoDurationWrapper._fixedDropdown) {
+            this.initSimpleDropdown(this.videoDurationWrapper, durationOptions, durations[0], (value) => {
+                CONFIG.VIDEO_DURATION = value;
+                this.updateVideoResolutionOptions(modelValue, value);
+            });
+        } else {
+            this.populateDropdown(this.videoDurationWrapper, durationOptions, (value) => {
+                CONFIG.VIDEO_DURATION = value;
+                this.updateVideoResolutionOptions(modelValue, value);
+            });
+        }
 
-        CONFIG.VIDEO_DURATION = durations[0];
-        this.updateVideoResolutionOptions(modelValue, durations[0]);
+        let resolutions = ['480p', '720p', '1080p', '4k'];
+        if (model && model.params && model.params.resolutions) {
+            resolutions = Array.isArray(model.params.resolutions) ? model.params.resolutions : (model.params.resolutions[durations[0]] || resolutions);
+        }
+
+        const resolutionOptions = resolutions.map(r => ({ value: r, name: r }));
+        this.populateDropdown(this.videoResolutionWrapper, resolutionOptions, (val) => {
+            CONFIG.VIDEO_RESOLUTION = val;
+        });
+        
+        // 智能保持选中值
+        const currentDuration = this.videoDurationWrapper.dataset.value;
+        if (!durations.includes(currentDuration)) {
+            const defaultDuration = durations.includes("5") ? "5" : durations[0];
+            this.videoDurationWrapper.dataset.value = defaultDuration;
+            this.videoDurationWrapper.querySelector('.selected-text').textContent = defaultDuration + ' 秒';
+            CONFIG.VIDEO_DURATION = defaultDuration;
+        }
+
+        const currentResolution = this.videoResolutionWrapper.dataset.value;
+        if (!resolutions.includes(currentResolution)) {
+            const defaultRes = resolutions.includes("720p") ? "720p" : resolutions[0];
+            this.videoResolutionWrapper.dataset.value = defaultRes;
+            this.videoResolutionWrapper.querySelector('.selected-text').textContent = defaultRes;
+            CONFIG.VIDEO_RESOLUTION = defaultRes;
+        }
     }
 
     updateVideoResolutionOptions(modelValue, durationValue) {
@@ -176,20 +240,33 @@ export class ModelSelectManager {
             const allModels = window.dynamicProviderManager.getAllModels();
             model = (allModels.video || []).find(m => m.value === modelValue);
         }
-        if (!model) {
-            model = VIDEO_MODELS.find(m => m.value === modelValue);
+
+        const configModel = VIDEO_MODELS.find(m => m.value === modelValue);
+        if (configModel && configModel.params) {
+            model = { ...model, params: configModel.params };
+        } else if (!model) {
+            model = configModel;
         }
 
         let resolutions = ['480p', '720p', '1080p', '4k'];
-        if (model && model.params && model.params.resolutions && model.params.resolutions[durationValue]) {
-            resolutions = model.params.resolutions[durationValue];
+        if (model && model.params && model.params.resolutions) {
+            if (Array.isArray(model.params.resolutions)) {
+                resolutions = model.params.resolutions;
+            } else if (model.params.resolutions[durationValue]) {
+                resolutions = model.params.resolutions[durationValue];
+            }
         }
 
         const resolutionOptions = resolutions.map(r => ({ value: r, name: r }));
-        this.initSimpleDropdown(this.videoResolutionWrapper, resolutionOptions, resolutions[0], (value) => {
-            CONFIG.VIDEO_RESOLUTION = value;
-        });
-        CONFIG.VIDEO_RESOLUTION = resolutions[0];
+        if (!this.videoResolutionWrapper._fixedDropdown) {
+             this.initSimpleDropdown(this.videoResolutionWrapper, resolutionOptions, resolutions[0], (value) => {
+                CONFIG.VIDEO_RESOLUTION = value;
+            });
+        } else {
+             this.populateDropdown(this.videoResolutionWrapper, resolutionOptions, (value) => {
+                CONFIG.VIDEO_RESOLUTION = value;
+            });
+        }
     }
 
     initVideoOptions() {
@@ -299,7 +376,6 @@ export class ModelSelectManager {
                 this.updateAudioOptions(value);
             }
         );
-        this.populateSettingsModelSelects();
     }
 
     updateReferenceMode(modelValue, providerId) {
@@ -333,6 +409,7 @@ export class ModelSelectManager {
             dropdown.className = 'custom-select-dropdown';
             document.body.appendChild(dropdown);
             wrapper._fixedDropdown = dropdown;
+            dropdown._ownerWrapper = wrapper;
         }
         const trigger = wrapper.querySelector('.custom-select-trigger');
         const selectedText = trigger.querySelector('.selected-text');
@@ -429,10 +506,7 @@ export class ModelSelectManager {
                 dropdown.classList.remove('open');
                 wrapper.classList.remove('open');
             } else {
-                const rect = trigger.getBoundingClientRect();
-                dropdown.style.top = (rect.bottom + 4) + 'px';
-                dropdown.style.left = rect.left + 'px';
-                dropdown.style.width = rect.width + 'px';
+                this._repositionDropdown(trigger, dropdown);
                 dropdown.classList.add('open');
                 wrapper.classList.add('open');
             }
@@ -462,6 +536,7 @@ export class ModelSelectManager {
             dropdown.className = 'custom-select-dropdown';
             document.body.appendChild(dropdown);
             wrapper._fixedDropdown = dropdown;
+            dropdown._ownerWrapper = wrapper;
         }
         const trigger = wrapper.querySelector('.custom-select-trigger');
         const selectedText = trigger.querySelector('.selected-text');
@@ -570,10 +645,7 @@ export class ModelSelectManager {
                 dropdown.classList.remove('open');
                 wrapper.classList.remove('open');
             } else {
-                const rect = trigger.getBoundingClientRect();
-                dropdown.style.top = (rect.bottom + 4) + 'px';
-                dropdown.style.left = rect.left + 'px';
-                dropdown.style.width = rect.width + 'px';
+                this._repositionDropdown(trigger, dropdown);
                 dropdown.classList.add('open');
                 wrapper.classList.add('open');
             }
@@ -621,9 +693,11 @@ export class ModelSelectManager {
         if (model) {
             selectedText.textContent = model.name;
 
-            dropdown.querySelectorAll('.custom-option').forEach(opt => {
-                opt.classList.toggle('current', opt.dataset.value === value && opt.dataset.provider === provider);
-            });
+            if (dropdown) {
+                dropdown.querySelectorAll('.custom-option').forEach(opt => {
+                    opt.classList.toggle('current', opt.dataset.value === value && opt.dataset.provider === provider);
+                });
+            }
         }
     }
 

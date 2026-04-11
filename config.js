@@ -12,7 +12,9 @@ export const CONFIG = {
         OMNI: { id: 'omni', name: '全能参考', icon: '🪄' },
         START_END: { id: 'start_end', name: '首尾帧', icon: '🎞️' },
         MULTI_FRAME: { id: 'multi_frame', name: '智能多帧', icon: '🧠' }
-    }
+    },
+    CANVAS_ZOOM: 1,
+    VIDEO_POLLING_INTERVAL: 30000, // 官方建议间隔，防止 Rate Limit (ms)
 };
 
 
@@ -73,9 +75,15 @@ export const VIDEO_MODELS = [
     },
     { name: "Seedance-2.0(Volces)", value: "doubao-seedance-2-0-260128", provider: "volces", group: "Volces",
       params: {
-        durations: ["5", "11"],
+        durations: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"],
         aspectRatios: ["16:9", "9:16", "3:4", "4:3", "1:1", "21:9", "adaptive"],
-        resolutions: { "5": ["720p", "1080p"], "11": ["720p", "1080p"] },
+        resolutions: { 
+          "1": ["480p", "720p", "1080p"], "2": ["480p", "720p", "1080p"], "3": ["480p", "720p", "1080p"],
+          "4": ["480p", "720p", "1080p"], "5": ["480p", "720p", "1080p"], "6": ["480p", "720p", "1080p"],
+          "7": ["480p", "720p", "1080p"], "8": ["480p", "720p", "1080p"], "9": ["480p", "720p", "1080p"],
+          "10": ["480p", "720p", "1080p"], "11": ["480p", "720p", "1080p"], "12": ["480p", "720p", "1080p"],
+          "13": ["480p", "720p", "1080p"], "14": ["480p", "720p", "1080p"], "15": ["480p", "720p", "1080p"]
+        },
         supportsReferenceImages: true,
         supportsVideoExtension: true,
         referenceModes: ['omni', 'start_end', 'multi_frame']
@@ -83,9 +91,15 @@ export const VIDEO_MODELS = [
     },
     { name: "Seedance-2.0-Fast(Volces)", value: "doubao-seedance-2-0-fast-260128", provider: "volces", group: "Volces",
       params: {
-        durations: ["5", "10"],
+        durations: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"],
         aspectRatios: ["16:9", "9:16", "3:4", "4:3", "1:1", "21:9", "adaptive"],
-        resolutions: { "5": ["720p", "1080p"], "10": ["720p"] },
+        resolutions: { 
+          "1": ["480p", "720p", "1080p"], "2": ["480p", "720p", "1080p"], "3": ["480p", "720p", "1080p"],
+          "4": ["480p", "720p", "1080p"], "5": ["480p", "720p", "1080p"], "6": ["480p", "720p", "1080p"],
+          "7": ["480p", "720p", "1080p"], "8": ["480p", "720p", "1080p"], "9": ["480p", "720p", "1080p"],
+          "10": ["480p", "720p", "1080p"], "11": ["480p", "720p", "1080p"], "12": ["480p", "720p", "1080p"],
+          "13": ["480p", "720p", "1080p"], "14": ["480p", "720p", "1080p"], "15": ["480p", "720p", "1080p"]
+        },
         supportsReferenceImages: true,
         supportsVideoExtension: true,
         referenceModes: ['omni', 'start_end', 'multi_frame']

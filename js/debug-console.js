@@ -67,6 +67,7 @@ export class DebugConsole {
         this.setupToggleTime();
         this.setupToggleModelTag();
         this.setupToggleMouse();
+        this.setupToggleToolbar();
     }
     
     static setupToggleMarkers() {
@@ -175,6 +176,27 @@ export class DebugConsole {
         }
     }
     
+    static setupToggleToolbar() {
+        const toggleToolbar = document.getElementById('debugConsoleToggleToolbar');
+        if (toggleToolbar && this.imageResponseContainer) {
+            // 默认初始化状态
+            if (toggleToolbar.checked) {
+                this.imageResponseContainer.classList.add('always-show-toolbar');
+            }
+            
+            toggleToolbar.addEventListener('change', (e) => {
+                const checked = e.target.checked;
+                if (checked) {
+                    this.imageResponseContainer.classList.add('always-show-toolbar');
+                } else {
+                    this.imageResponseContainer.classList.remove('always-show-toolbar');
+                }
+                localStorage.setItem('alwaysShowToolbar', checked);
+                this.log(`[工具栏] ${checked ? '始终显示' : '选中显示'}`, 'info');
+            });
+        }
+    }
+    
     static loadSavedSettings() {
         const savedShowTime = localStorage.getItem('showGenerationTime');
         if (savedShowTime !== null) {
@@ -190,6 +212,16 @@ export class DebugConsole {
             window.showModelTag = this.showModelTag;
             const toggleModelTag = document.getElementById('debugConsoleToggleModelTag');
             if (toggleModelTag) toggleModelTag.checked = this.showModelTag;
+        }
+
+        const savedAlwaysShowToolbar = localStorage.getItem('alwaysShowToolbar');
+        if (savedAlwaysShowToolbar !== null) {
+            const checked = savedAlwaysShowToolbar === 'true';
+            const toggleToolbar = document.getElementById('debugConsoleToggleToolbar');
+            if (toggleToolbar) toggleToolbar.checked = checked;
+            if (this.imageResponseContainer) {
+                this.imageResponseContainer.classList.toggle('always-show-toolbar', checked);
+            }
         }
     }
     

@@ -141,14 +141,18 @@ export class EventHandler {
         
         this.uiPanel.addEventListener('mousedown', (e) => {
             const target = e.target;
-            const isInteractiveElement = target.closest('button') || 
-                                       target.closest('input') || 
-                                       target.closest('select') || 
-                                       target.closest('textarea') ||
-                                       target.closest('[contenteditable="true"]') ||
-                                       target.closest('.debug-console-content');
+            // 改进判定：如果点击的是文本节点，取其父元素进行判定
+            const element = target.nodeType === 3 ? target.parentElement : target;
             
-            if (target.closest('.pointer-events-auto') && !isInteractiveElement) {
+            const isInteractiveElement = element.closest('button') || 
+                                       element.closest('input') || 
+                                       element.closest('select') || 
+                                       element.closest('textarea') ||
+                                       element.closest('[contenteditable="true"]') ||
+                                       element.closest('.debug-console-content') ||
+                                       element.closest('.node-reference-item'); // 允许点击货架图片
+            
+            if (element.closest('.pointer-events-auto') && !isInteractiveElement) {
                 this.isDraggingUIPanel = true;
                 this.uiPanelStartX = e.clientX;
                 this.uiPanelStartY = e.clientY;
@@ -164,12 +168,13 @@ export class EventHandler {
         if (!this.togglePromptPanel || !this.promptPanel) return;
         
         this.togglePromptPanel.addEventListener('click', () => {
-            if (this.promptPanel.classList.contains('hidden')) {
-                this.promptPanel.classList.remove('hidden');
-                this.togglePromptPanel.textContent = '折叠';
-            } else {
-                this.promptPanel.classList.add('hidden');
-                this.togglePromptPanel.textContent = '展开';
+            const isHidden = this.promptPanel.classList.toggle('hidden');
+            const collapseIcon = document.getElementById('collapseIcon');
+            const expandIcon = document.getElementById('expandPanelIcon');
+            
+            if (collapseIcon && expandIcon) {
+                collapseIcon.classList.toggle('hidden', isHidden);
+                expandIcon.classList.toggle('hidden', !isHidden);
             }
         });
 
@@ -177,7 +182,9 @@ export class EventHandler {
         const promptInput = document.getElementById('promptInput');
         if (promptContainer && promptInput) {
             promptContainer.addEventListener('click', (e) => {
-                if (e.target !== promptInput) {
+                // 只有当点击的是容器边缘或其他非输入区域时，才执行补救聚焦
+                // 如果点击的是输入框本身或其内部的任何图片标签、文字，则不干预浏览器默认的光标定位行为
+                if (!promptInput.contains(e.target)) {
                     promptInput.focus();
                     const range = document.createRange();
                     const sel = window.getSelection();

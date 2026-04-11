@@ -141,7 +141,7 @@ function getNextVideoNumber(dateFolder) {
     return maxNumber + 1;
 }
 
-async function saveVideo(videoUrl, prompt, aspectRatio, duration, modelName) {
+async function saveVideo(videoUrl, prompt, aspectRatio, duration, modelName, protocol = 'google') {
     const dateFolder = getDateFolder();
     const videoNumber = getNextVideoNumber(dateFolder);
     
@@ -166,7 +166,7 @@ async function saveVideo(videoUrl, prompt, aspectRatio, duration, modelName) {
     
     const txtFileName = fileName.replace('.mp4', '.txt');
     const txtFilePath = path.join(folderPath, txtFileName);
-    const txtContent = `提示词: ${prompt}\n宽高比: ${aspectRatio}\n时长: ${duration}秒\n模型: ${modelName}\n生成时间: ${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`;
+    const txtContent = `提示词: ${prompt}\n宽高比: ${aspectRatio}\n时长: ${duration}秒\n模型: ${modelName}\n协议: ${protocol}\n生成时间: ${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`;
     fs.writeFileSync(txtFilePath, txtContent, 'utf-8');
     
     return {
@@ -410,7 +410,7 @@ const server = http.createServer((req, res) => {
         req.on('end', async () => {
             try {
                 const data = JSON.parse(body);
-                const { videoUrl, prompt, aspectRatio, duration, modelName } = data;
+                const { videoUrl, prompt, aspectRatio, duration, modelName, protocol } = data;
                 
                 if (!videoUrl) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -418,7 +418,7 @@ const server = http.createServer((req, res) => {
                     return;
                 }
                 
-                const result = await saveVideo(videoUrl, prompt, aspectRatio, duration, modelName);
+                const result = await saveVideo(videoUrl, prompt, aspectRatio, duration, modelName, protocol);
                 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ 

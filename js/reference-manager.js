@@ -5,7 +5,7 @@ class ReferenceManager {
     constructor() {
         this.references = [];
         this.shelfElement = null;
-        this.onUpdate = null;
+        this.updateListeners = [];
         this.maxImageSize = 50 * 1024 * 1024;
         this.maxVideoSize = 100 * 1024 * 1024;
         this.maxAudioSize = 20 * 1024 * 1024;
@@ -14,10 +14,27 @@ class ReferenceManager {
         this.currentMode = 'omni'; // 'omni', 'start_end', 'multi_frame'
     }
 
+    addUpdateListener(fn) {
+        if (typeof fn === 'function') {
+            this.updateListeners.push(fn);
+        }
+    }
+
+    _notifyUpdate() {
+        this.updateListeners.forEach(fn => {
+            try {
+                fn(this.references);
+            } catch (e) {
+                console.warn('[货架] 监听器回调失败:', e);
+            }
+        });
+    }
+
     setMode(mode) {
         if (this.currentMode !== mode) {
             this.currentMode = mode;
             this.render();
+            this._notifyUpdate();
         }
     }
 
@@ -33,10 +50,6 @@ class ReferenceManager {
         const type = typeOverride || this._getMediaType(fileOrBlob.type);
         const size = fileOrBlob.size;
 
-        this.counts[type]++;
-        const labelType = type === 'image' ? '图片' : type === 'video' ? '视频' : '音频';
-        const friendlyName = `${labelType}${this.counts[type]}`;
-
         if (!this._validateSize(type, size)) {
             alert(`文件过大: ${name}. 限制为 ${this._getSizeLimitLabel(type)}`);
             return null;
@@ -48,6 +61,17 @@ class ReferenceManager {
         } else {
             dataUrl = URL.createObjectURL(fileOrBlob);
         }
+
+        // 核心改进：货架去重逻辑
+        const existingRef = this.references.find(r => r.data === dataUrl);
+        if (existingRef) {
+            debugLog(`[货架] 素材已存在，重用引用: ${existingRef.name}`, 'info');
+            return existingRef;
+        }
+
+        this.counts[type]++;
+        const labelType = type === 'image' ? '图片' : type === 'video' ? '视频' : '音频';
+        const friendlyName = `${labelType}${this.counts[type]}`;
 
         const ref = {
             id: 'ref_' + Date.now() + Math.random().toString(36).substr(2, 5),
@@ -74,7 +98,7 @@ class ReferenceManager {
         
         debugLog(`[货架] 成功添加${labelType}: ${name}`, 'success');
         
-        if (this.onUpdate) this.onUpdate(this.references);
+        this._notifyUpdate();
         return ref;
     }
 
@@ -82,12 +106,20 @@ class ReferenceManager {
         const index = this.references.findIndex(r => r.id === id);
         if (index !== -1) {
             const ref = this.references[index];
+            const dataUrlToRemove = ref.data;
+            
             if (ref.data && ref.data.startsWith('blob:')) {
                 URL.revokeObjectURL(ref.data);
             }
             this.references.splice(index, 1);
             this.render();
-            if (this.onUpdate) this.onUpdate(this.references);
+            
+            // 核心补充：通知 PinManager 同步删除提示词中的对应标签
+            if (window.PinManager && typeof window.PinManager.syncRemoveFromPrompt === 'function') {
+                window.PinManager.syncRemoveFromPrompt(dataUrlToRemove);
+            }
+
+            this._notifyUpdate();
         }
     }
 

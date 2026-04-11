@@ -8,8 +8,11 @@ class PromptPanelManager {
         this.draft = null;
         this.elements = {};
         this.isSwapping = false;
+        this.isRawMode = false;
+        this.richTextBackup = '';
         // 内存中存储节点的完整状态（包含 File 对象）
         this.nodeSnapshots = new Map();
+
     }
 
     init(elements) {
@@ -23,7 +26,7 @@ class PromptPanelManager {
     captureState() {
         const el = this.elements;
         return {
-            prompt: el.promptInput.innerHTML,
+            prompt: this.isRawMode ? this.richTextBackup : el.promptInput.innerHTML,
             mode: CanvasState.currentMode,
             modelName: this._getCurrentModelName(),
             modelProvider: this._getCurrentModelProvider(),
@@ -245,6 +248,129 @@ class PromptPanelManager {
         this.elements.promptInput.innerHTML = '';
         referenceManager.references = []; // 不调用 clear 以防误伤
         referenceManager.render();
+    }
+
+    /**
+     * 切换 RAW 模式：将富文本标签解析为 API 纯文本
+     */
+    toggleRawMode() {
+        const el = this.elements;
+        const input = el.promptInput;
+        const rawBtn = document.getElementById('toggleRawMode');
+        
+        if (!this.isRawMode) {
+            // --- 进入 RAW 模式 ---
+            this.isRawMode = true;
+            this.richTextBackup = input.innerHTML; // 备份富文本
+            
+            const rawText = this.parsePromptToRawText(input);
+            
+            // UI 更新 (全容器柔和染色)
+            input.textContent = rawText;
+            input.contentEditable = 'false';
+            input.style.cursor = 'not-allowed';
+            input.classList.add('text-gray-400');
+            
+            // 整个容器变灰，模拟“冷冻”质感 (采用更直观的灰度)
+            el.promptContainer.style.backgroundColor = '#f3f4f6';
+            el.promptContainer.style.borderColor = '#d1d5db';
+            el.promptContainer.classList.add('shadow-inner');
+            
+            if (rawBtn) {
+                rawBtn.classList.remove('text-gray-400', 'bg-gray-50');
+                rawBtn.classList.add('text-white', 'bg-blue-600', 'border-blue-700', 'opacity-100');
+            }
+            
+            console.log('%c[Prompt] 已进入 RAW 预览模式 (不可编辑)', 'color: #3b82f6; font-weight: bold');
+        } else {
+            // --- 退出 RAW 模式 ---
+            this.isRawMode = false;
+            
+            // UI 还原
+            input.innerHTML = this.richTextBackup;
+            input.contentEditable = 'true';
+            input.style.cursor = '';
+            input.classList.remove('text-gray-400');
+            
+            el.promptContainer.style.backgroundColor = '';
+            el.promptContainer.style.borderColor = '';
+            el.promptContainer.classList.remove('shadow-inner');
+            
+            if (rawBtn) {
+                rawBtn.classList.remove('text-white', 'bg-blue-600', 'border-blue-700');
+                rawBtn.classList.add('text-gray-400', 'bg-gray-50');
+            }
+            
+            input.focus();
+            console.log('%c[Prompt] 已回到富文本编辑模式', 'color: #10b981; font-weight: bold');
+        }
+    }
+
+    /**
+     * 将富文本内容解析为即将发送给 API 的纯文本格式
+     */
+    parsePromptToRawText(container) {
+        const lines = [];
+        let currentLine = "";
+
+        const traverse = (node) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                currentLine += node.textContent;
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const tagName = node.tagName.toLowerCase();
+                
+                if (node.classList.contains('node-reference-mention-tag')) {
+                    const filename = node.dataset.filename || "unknown";
+                    const refId = node.dataset.refId || "0";
+                    currentLine += `[image_ref_${refId}: ${filename}]`;
+                } else if (node.classList.contains('node-pin-reference-tag') || node.classList.contains('pinned-image-tag')) {
+                    const refId = node.dataset.refId || "0";
+                    const pinNum = node.dataset.pinNumber || "1";
+                    
+                    // 获取像素坐标
+                    let pxX = parseFloat(node.dataset.x);
+                    let pxY = parseFloat(node.dataset.y);
+
+                    // 核心归一化逻辑 (Normalized to 0-1000)
+                    // 需要获取原图尺寸，如果获取不到，则使用解析出的像素值
+                    let normX = Math.round(pxX);
+                    let normY = Math.round(pxY);
+
+                    const sourceNode = window.PinManager?.findNodeByImageUrl(node.dataset.imageUrl, refId);
+                    if (sourceNode) {
+                        const img = sourceNode.querySelector('img');
+                        if (img && img.naturalWidth && img.naturalHeight) {
+                            normX = Math.round((pxX / img.naturalWidth) * 1000);
+                            normY = Math.round((pxY / img.naturalHeight) * 1000);
+                        }
+                    }
+                    
+                    // 维持极致精确：[image_ref_ID: point_# at (x:xxx, y:yyy)]
+                    currentLine += `[image_ref_${refId}: point_${pinNum} at (x:${normX}, y:${normY})]`;
+                } else if (tagName === 'br') {
+                    lines.push(currentLine);
+                    currentLine = "";
+                } else if (tagName === 'div' || tagName === 'p') {
+                    if (currentLine.length > 0) {
+                        lines.push(currentLine);
+                        currentLine = "";
+                    }
+                    Array.from(node.childNodes).forEach(traverse);
+                    if (currentLine.length > 0) {
+                        lines.push(currentLine);
+                        currentLine = "";
+                    }
+                } else {
+                    Array.from(node.childNodes).forEach(traverse);
+                }
+            }
+        };
+
+        Array.from(container.childNodes).forEach(traverse);
+        if (currentLine.length > 0) lines.push(currentLine);
+
+        // 过滤空行并合并，确保不出现开头换行
+        return lines.map(line => line.trim()).filter(line => line.length > 0).join('\n');
     }
 }
 

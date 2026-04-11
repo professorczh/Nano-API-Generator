@@ -388,21 +388,21 @@ export function createNodeToolbar(type, callbacks = {}) {
     const config = {
         image: [
             { id: 'copyPrompt', icon: 'clipboard', title: '复制提示词', action: callbacks.onCopyPrompt },
-            { id: 'insertPrompt', icon: 'edit', title: '插入到输入框', action: callbacks.onInsertPrompt },
+            { id: 'insertPrompt', icon: 'at-sign', title: '引用到输入框', action: callbacks.onInsertPrompt },
             { id: 'copyNode', icon: 'copy', title: '复制节点 (可粘贴)', action: callbacks.onCopyNode },
             { id: 'delete', icon: 'trash', title: '删除图片', action: callbacks.onDelete, danger: true }
         ],
         video: [
             { id: 'copyPrompt', icon: 'clipboard', title: '复制提示词', action: callbacks.onCopyPrompt },
-            { id: 'insertPrompt', icon: 'edit', title: '插入到输入框', action: callbacks.onInsertPrompt },
+            { id: 'insertPrompt', icon: 'at-sign', title: '引用到输入框', action: callbacks.onInsertPrompt },
             { id: 'copyNode', icon: 'copy', title: '复制节点 (可粘贴)', action: callbacks.onCopyNode },
             { id: 'delete', icon: 'trash', title: '删除视频', action: callbacks.onDelete, danger: true }
         ],
         audio: [
             { id: 'copyPrompt', icon: 'clipboard', title: '复制提示词', action: callbacks.onCopyPrompt },
-            { id: 'insertPrompt', icon: 'edit', title: '插入到输入框', action: callbacks.onInsertPrompt },
+            { id: 'insertPrompt', icon: 'at-sign', title: '引用到输入框', action: callbacks.onInsertPrompt },
             { id: 'copyNode', icon: 'copy', title: '复制节点 (可粘贴)', action: callbacks.onCopyNode },
-            { id: 'delete', icon: 'trash', title: '删除音频', action: callbacks.onDelete, danger: true }
+            { id: 'delete', icon: 'trash', title: '删除文件', action: callbacks.onDelete, danger: true }
         ],
         text: [
             { id: 'copyText', icon: 'copy', title: '复制文本', action: callbacks.onCopyText },
@@ -416,13 +416,22 @@ export function createNodeToolbar(type, callbacks = {}) {
         const button = document.createElement('button');
         button.className = `toolbar-btn ${btn.danger ? 'danger' : ''}`;
         button.title = btn.title;
-        button.innerHTML = getIcon(btn.icon, 14);
-        button.onclick = (e) => {
+        // 核心修正：所有按钮使用统一的图标路径和大小
+        button.innerHTML = getIcon(btn.icon, 14); 
+        // 终极加固：改用 addEventListener 提高兼容性，并增加底层探测
+        button.addEventListener('mousedown', (e) => {
+            console.log(`[Toolbar] Mousedown detected on ${btn.id}`);
+            e.stopPropagation(); // 绝对禁止穿透给画布
+        }, { capture: true });
+
+        button.addEventListener('click', (e) => {
+            console.log(`[Toolbar] Click Fired on ${btn.id}`);
             e.stopPropagation();
             if (typeof btn.action === 'function') {
                 btn.action(e);
             }
-        };
+        });
+        
         toolbar.appendChild(button);
     });
 

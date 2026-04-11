@@ -6,6 +6,7 @@
 import { AppState, CanvasState } from './app-state.js';
 import { NodeFactory } from './node-factory.js';
 import { debugLog, createNodeHeader, createNodeToolbar, createNodeSidebar, createNodeInfo } from './utils.js';
+import { createImageNode, createTextNode } from './node-manager.js';
 
 export const PersistenceManager = {
     /**
@@ -199,25 +200,33 @@ export const PersistenceManager = {
     },
 
     createFinalImageNode(data) {
-        const { rect, prompt, modelName, resourceUrl, filename } = data;
-        console.log(`[持久化/CREATE] 正在通过 NodeFactory 创建图片节点... 来源: ${resourceUrl?.slice(0,30)}...`);
-        const node = NodeFactory.createImagePlaceholder(rect.x, rect.y, prompt, modelName);
+        const { rect, prompt, modelName, resourceUrl, filename, metadata } = data;
+        const genTime = this.parseTimeToSeconds(metadata?.generationTime);
         
-        const content = node.querySelector('.node-content');
-        if (content) {
-            content.innerHTML = `<img src="${resourceUrl}" style="width:100%; height:100%; object-fit:contain; display:block;">`;
-            node.classList.remove('loading-placeholder');
-            node.dataset.imageUrl = resourceUrl;
-            node.dataset.filename = filename;
-            node.dataset.prompt = prompt;
-            node.dataset.modelName = modelName;
+        console.log(`[持久化/CREATE] 正在重建图片节点... 来源: ${resourceUrl?.slice(0,30)}...`);
+        
+        // 直接使用标准的创建函数，确保 UI 组件一致
+        const node = createImageNode(
+            resourceUrl, 
+            prompt, 
+            0, 
+            filename, 
+            `${rect.width}x${rect.height}`, 
+            genTime, 
+            modelName, 
+            null, 
+            rect.x, 
+            rect.y
+        );
+        
+        if (node) {
             node.dataset.index = data.id || Date.now();
             
             // 还原快照逻辑
-            if (data.metadata?.snapshot) {
-                node.dataset.snapshot = data.metadata.snapshot;
+            if (metadata?.snapshot) {
+                node.dataset.snapshot = metadata.snapshot;
                 try {
-                    const snapObj = JSON.parse(data.metadata.snapshot);
+                    const snapObj = JSON.parse(metadata.snapshot);
                     if (window.promptPanelManager) {
                         window.promptPanelManager.nodeSnapshots.set(node.dataset.index, snapObj);
                     }
@@ -345,13 +354,11 @@ export const PersistenceManager = {
     createFinalTextNode(data) {
         const { rect, prompt, modelName, metadata } = data;
         const textStr = metadata?.textContent || prompt || '';
-        
-        console.log(`[持久化/CREATE] 正在通过 NodeManager 创建文本节点... 内容: ${textStr.slice(0, 20)}...`);
-        
         const timeValue = this.parseTimeToSeconds(metadata?.generationTime);
 
-        const createFn = window.createTextNode || PersistenceManager.utils.createTextNodeFallback;
-        const node = createFn(textStr, prompt, 0, data.filename, '', timeValue, modelName);
+        console.log(`[持久化/CREATE] 正在通过 NodeManager 重建文本节点...`);
+        
+        const node = createTextNode(textStr, prompt, 0, data.filename, '', timeValue, modelName);
         
         if (node) {
             node.style.left = `${rect.x}px`;

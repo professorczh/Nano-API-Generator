@@ -307,6 +307,7 @@ const App = {
     cacheElements() {
         this.elements = {
             sendBtn: document.getElementById('sendBtn'),
+            promptContainer: document.getElementById('promptContainer'),
             promptInput: document.getElementById('promptInput'),
             loader: document.getElementById('loader'),
             statusTag: document.getElementById('statusTag'),

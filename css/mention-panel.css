@@ -256,8 +256,53 @@
     transform: scale(1.1);
 }
 
+
+/* 音频时间信息 */
 .audio-time-info {
     font-size: 12px;
     color: rgba(255, 255, 255, 0.6);
     font-family: inherit;
+}
+
+/**
+ * @ 状态指示器样式
+ */
+.at-status-icon {
+    position: absolute;
+    bottom: 8px;
+    right: 12px;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    pointer-events: auto; /* 允许悬停显示 title */
+    cursor: help;
+}
+
+.at-status-icon.active {
+    color: #2563eb;
+    background: #eff6ff;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.05);
+    opacity: 1;
+    animation: atPulse 2s infinite;
+}
+
+.at-status-icon.inactive {
+    color: #94a3b8;
+    background: #f1f5f9;
+    opacity: 0.6;
+    box-shadow: none;
+}
+
+@keyframes atPulse {
+    0% { box-shadow: 0 0 0 0px rgba(37, 99, 235, 0.2); }
+    70% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
+    100% { box-shadow: 0 0 0 0px rgba(37, 99, 235, 0); }
 }

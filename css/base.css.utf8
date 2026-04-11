@@ -68,13 +68,8 @@
     width: 900px !important;
     max-width: 95vw !important;
     max-height: 85vh !important;
-    /* 核心修复：强制右下角锚点，确保向左上方扩展 */
-    right: 30px !important;
-    bottom: 30px !important;
-    top: auto !important;
-    left: auto !important;
+    /* 閰嶅悎鎷旈珮鏁堟灉锛岀‘淇濆簳閮ㄦ湁瓒冲闂磋窛 */
     transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    z-index: 10002;
 }
 
 .prompt-panel-expanded #modelParams {

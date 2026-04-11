@@ -35,7 +35,11 @@ export function createTextLoadingPlaceholder(prompt, x, y, modelName = '') {
     // 3. 预制工具栏
     const toolbar = createNodeToolbar('text', {
         onCopyPrompt: () => navigator.clipboard.writeText(prompt || ''),
-        onCopyText: () => {}, // 待生成后激活
+        onCopyNode: () => { 
+            selectNode(node); 
+            copySelectedNode(); 
+            console.log(`%c[Copy] Node #${node.dataset.index} copied to clipboard buffer.`, 'color: #10b981; font-weight: bold');
+        },
         onDelete: () => { node.remove(); }
     });
     toolbar.querySelectorAll('.toolbar-btn').forEach(b => { 
@@ -182,73 +186,50 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '', ty
     loadingContainer.appendChild(loadingText);
     contentArea.appendChild(loadingContainer);
     
-    const toolbar = document.createElement('div');
-    toolbar.className = 'node-toolbar';
-    
-    const copyPromptBtn = document.createElement('button');
-    copyPromptBtn.className = 'toolbar-btn';
-    copyPromptBtn.innerHTML = getIcon('file-text', 16);
-    copyPromptBtn.title = '复制提示词';
-    copyPromptBtn.disabled = true;
-    copyPromptBtn.style.opacity = '0.5';
-    
-    const insertBtn = document.createElement('button');
-    insertBtn.className = 'toolbar-btn';
-    insertBtn.innerHTML = getIcon('edit', 16);
-    insertBtn.title = '插入到输入框';
-    insertBtn.disabled = true;
-    insertBtn.style.opacity = '0.5';
-    
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'toolbar-btn';
-    copyBtn.innerHTML = getIcon('clipboard', 16);
-    copyBtn.title = '复制内容';
-    copyBtn.disabled = true;
-    copyBtn.style.opacity = '0.5';
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'toolbar-btn';
-    deleteBtn.innerHTML = getIcon('trash', 16);
-    deleteBtn.title = '删除节点';
-    
-    deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const confirmModal = document.getElementById('confirmModal');
-        const confirmModalMessage = document.getElementById('confirmModalMessage');
-        const confirmModalCheckbox = document.getElementById('confirmModalCheckbox');
-        const confirmModalCancel = document.getElementById('confirmModalCancel');
-        const confirmModalOk = document.getElementById('confirmModalOk');
-        
-        confirmModalMessage.textContent = '确定要取消生成吗？';
-        confirmModalCheckbox.parentElement.style.display = 'none';
-        confirmModal.classList.remove('hidden');
-        confirmModal.classList.add('flex');
-        
-        const handleConfirm = () => {
-            const minimapCanvas = document.getElementById('minimapCanvas');
-            const minimapImage = minimapCanvas.querySelector(`[data-node-id="${node.dataset.index}"]`);
-            if (minimapImage) minimapImage.remove();
-            node.remove();
-            closeConfirmModal();
-        };
-        
-        const handleCancel = () => closeConfirmModal();
-        
-        const closeConfirmModal = () => {
-            confirmModal.classList.add('hidden');
-            confirmModal.classList.remove('flex');
-            confirmModalCheckbox.parentElement.style.display = 'flex';
-            confirmModalOk.removeEventListener('click', handleConfirm);
-            confirmModalCancel.removeEventListener('click', handleCancel);
-        };
-        
-        confirmModalOk.addEventListener('click', handleConfirm);
-        confirmModalCancel.addEventListener('click', handleCancel);
+    // 3. 统一使用工厂函数创建预制工具栏
+    const toolbar = createNodeToolbar('image', {
+        onCopyPrompt: () => {}, // 待生成后激活
+        onInsertPrompt: () => {}, 
+        onCopyNode: () => {}, 
+        onDelete: (e) => {
+            const confirmModal = document.getElementById('confirmModal');
+            const confirmModalMessage = document.getElementById('confirmModalMessage');
+            const confirmModalCheckbox = document.getElementById('confirmModalCheckbox');
+            const confirmModalCancel = document.getElementById('confirmModalCancel');
+            const confirmModalOk = document.getElementById('confirmModalOk');
+            
+            confirmModalMessage.textContent = '确定要取消生成吗？';
+            confirmModalCheckbox.parentElement.style.display = 'none';
+            confirmModal.classList.remove('hidden');
+            confirmModal.classList.add('flex');
+            
+            const closeConfirmModal = () => {
+                confirmModal.classList.add('hidden');
+                confirmModal.classList.remove('flex');
+                confirmModalCheckbox.parentElement.style.display = 'flex';
+                confirmModalOk.onclick = null;
+                confirmModalCancel.onclick = null;
+            };
+
+            confirmModalOk.onclick = () => {
+                const minimapCanvas = document.getElementById('minimapCanvas');
+                const minimapImage = minimapCanvas.querySelector(`[data-node-id="${node.dataset.index}"]`);
+                if (minimapImage) minimapImage.remove();
+                node.remove();
+                closeConfirmModal();
+            };
+            
+            confirmModalCancel.onclick = () => closeConfirmModal();
+        }
     });
-    
-    toolbar.appendChild(copyPromptBtn);
-    toolbar.appendChild(insertBtn);
-    toolbar.appendChild(copyBtn);
-    toolbar.appendChild(deleteBtn);
+
+    // 加载中状态，禁用除删除外的所有按钮
+    toolbar.querySelectorAll('.toolbar-btn').forEach(btn => {
+        if (!btn.title.includes('删除')) {
+            btn.disabled = true;
+            btn.style.opacity = '0.4';
+        }
+    });
     
     const info = document.createElement('div');
     info.className = 'node-info';
@@ -346,12 +327,26 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
         info.title = '点击复制提示词';
     }
     
-    // 4. 激活工具栏按钮状态 (无需重新 append)
-    const toolbarButtons = node.querySelectorAll('.node-toolbar .toolbar-btn');
-    toolbarButtons.forEach((btn, index) => {
-        btn.disabled = false;
-        btn.style.opacity = '1';
-    });
+    // 4. 重建并注入真实的工具栏 (核心修复：替换掉占位阶段的空函数工具栏)
+    const oldToolbar = node.querySelector('.node-toolbar');
+    if (oldToolbar) {
+        const newToolbar = createNodeToolbar('image', {
+            onCopyPrompt: () => navigator.clipboard.writeText(prompt || ''),
+            onInsertPrompt: () => {
+                console.log(`[Referencing] Citation from generated node:`, node.dataset.index);
+                if (typeof PinManager !== 'undefined' && PinManager.addCanvasImageToPrompt) {
+                    PinManager.addCanvasImageToPrompt(node);
+                }
+            },
+            onCopyNode: () => { 
+                selectNode(node); 
+                copySelectedNode();
+                console.log(`%c[Copy] Generated Node #${node.dataset.index} copied.`, 'color: #10b981; font-weight: bold');
+            },
+            onDelete: () => { selectNode(node); deleteSelectedNode(); }
+        });
+        oldToolbar.replaceWith(newToolbar);
+    }
         
         if (revisedPrompt) {
             const existingPromptContainer = node.querySelector('.revised-prompt-container');
@@ -524,59 +519,54 @@ export function createErrorNode(errorMessage, x, y, modelName = '') {
     header.appendChild(filenameElement);
     header.appendChild(resolutionElement);
     
-    const toolbar = document.createElement('div');
-    toolbar.className = 'node-toolbar';
-    
-    const copyErrorBtn = document.createElement('button');
-    copyErrorBtn.className = 'toolbar-btn';
-    copyErrorBtn.innerHTML = '📋';
-    copyErrorBtn.title = '复制错误信息';
-    copyErrorBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        navigator.clipboard.writeText(errorMessage).then(() => {
-            const originalTitle = copyErrorBtn.title;
-            copyErrorBtn.title = '已复制!';
-            setTimeout(() => copyErrorBtn.title = originalTitle, 1500);
-        });
+    // 统一工具栏
+    const toolbar = createNodeToolbar('image', {
+        onCopyPrompt: () => {
+            navigator.clipboard.writeText(errorMessage);
+            debugLog(`[复制] 错误信息`, 'info');
+        },
+        onDelete: (e) => {
+            const confirmModal = document.getElementById('confirmModal');
+            const confirmModalMessage = document.getElementById('confirmModalMessage');
+            const confirmModalCheckbox = document.getElementById('confirmModalCheckbox');
+            const confirmModalCancel = document.getElementById('confirmModalCancel');
+            const confirmModalOk = document.getElementById('confirmModalOk');
+            
+            confirmModalMessage.textContent = '确定要删除这个错误节点吗？';
+            confirmModalCheckbox.parentElement.style.display = 'none';
+            confirmModal.classList.remove('hidden');
+            confirmModal.classList.add('flex');
+            
+            const handleConfirm = () => {
+                const minimapCanvas = document.getElementById('minimapCanvas');
+                if (minimapCanvas) {
+                    const minimapImage = minimapCanvas.querySelector(`[data-node-id="${node.dataset.index}"]`);
+                    if (minimapImage) minimapImage.remove();
+                }
+                node.remove();
+                closeConfirmModal();
+            };
+            
+            const closeConfirmModal = () => {
+                confirmModal.classList.add('hidden');
+                confirmModal.classList.remove('flex');
+                confirmModalCheckbox.parentElement.style.display = 'flex';
+                confirmModalOk.removeEventListener('click', handleConfirm);
+                confirmModalCancel.removeEventListener('click', handleCancel);
+            };
+            
+            confirmModalOk.onclick = handleConfirm;
+            confirmModalCancel.onclick = () => closeConfirmModal();
+        }
     });
-    
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'toolbar-btn';
-    deleteBtn.innerHTML = '🗑️';
-    deleteBtn.title = '删除';
-    deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const confirmModal = document.getElementById('confirmModal');
-        const confirmModalMessage = document.getElementById('confirmModalMessage');
-        const confirmModalCheckbox = document.getElementById('confirmModalCheckbox');
-        const confirmModalCancel = document.getElementById('confirmModalCancel');
-        const confirmModalOk = document.getElementById('confirmModalOk');
-        
-        confirmModalMessage.textContent = '确定要删除这个错误节点吗？';
-        confirmModalCheckbox.parentElement.style.display = 'none';
-        confirmModal.classList.remove('hidden');
-        confirmModal.classList.add('flex');
-        
-        const handleConfirm = () => {
-            const minimapCanvas = document.getElementById('minimapCanvas');
-            if (minimapCanvas) {
-                const minimapImage = minimapCanvas.querySelector(`[data-node-id="${node.dataset.index}"]`);
-                if (minimapImage) minimapImage.remove();
-            }
-            node.remove();
-            closeConfirmModal();
-        };
-        
-        const handleCancel = () => {
-            closeConfirmModal();
-        };
-        
-        confirmModalOk.onclick = handleConfirm;
-        confirmModalCancel.onclick = handleCancel;
+
+    // 错误节点，禁用部分功能
+    toolbar.querySelectorAll('.toolbar-btn').forEach(btn => {
+        if (!btn.title.includes('删除') && !btn.title.includes('复制提示词')) {
+            btn.disabled = true;
+            btn.style.opacity = '0.4';
+        }
     });
-    
-    toolbar.appendChild(copyErrorBtn);
-    toolbar.appendChild(deleteBtn);
     
     const infoElement = document.createElement('div');
     infoElement.className = 'node-info';

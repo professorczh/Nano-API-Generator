@@ -1,6 +1,6 @@
 import { CONFIG, getModelDisplayName } from '../config.js';
 import { AppState, CanvasState } from './app-state.js';
-import { PinManager, drawPinsOnImage, updateImageDataList } from './pin-manager.js';
+import { PinManager, updateImageDataList } from './pin-manager.js';
 import { apiClient } from './api-client.js';
 import { debugLog } from './utils.js';
 import { NodeFactory } from './node-factory.js';
@@ -37,56 +37,33 @@ export async function handleAPICall(params) {
     
     updateImageDataList();
     
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = promptInput.innerHTML;
-
-    // 1. 处理旧版的粘贴图片 (pasted-image-item)
-    const imageTags = tempDiv.querySelectorAll('.pasted-image-item');
-    imageTags.forEach(tag => tag.remove());
+    // 核心转换：使用统一的 RAW 解析器确保“所见即所发”
+    // 如果当前处于 RAW 模式，输入框里已经是解析好的文本；
+    // 如果处于富文本模式，parsePromptToRawText 会执行实时解析。
+    let prompt = promptPanelManager.parsePromptToRawText(promptInput);
     
-    // 2. 处理新的提及标签 (Mention Tags)
-    const mentionTags = tempDiv.querySelectorAll('.node-reference-mention-tag');
+    // 提及项采集 (由于我们改用了统一解析器，这里主要为了搜集 mentionedRefs 列表供后续可能逻辑使用)
     const mentionedRefs = [];
-    
-    mentionTags.forEach(tag => {
+    promptInput.querySelectorAll('.node-reference-mention-tag').forEach(tag => {
         const refId = tag.dataset.refId;
-        if (refId) {
-            const ref = window.referenceManager?.getReference(refId);
-            if (ref) {
-                mentionedRefs.push(ref);
-                const textLabel = document.createTextNode(`[${ref.name}]`);
-                tag.parentNode.replaceChild(textLabel, tag);
-            }
-        }
+        const ref = window.referenceManager?.getReference(refId);
+        if (ref) mentionedRefs.push(ref);
     });
 
-    const pinnedImageTags = tempDiv.querySelectorAll('.pinned-image-tag');
-    let processedPrompt = tempDiv.textContent.trim();
-    
+    // 标记点采集
     const pinInfo = [];
-    pinnedImageTags.forEach(tag => {
+    promptInput.querySelectorAll('.pinned-image-tag').forEach(tag => {
         const imageUrl = tag.dataset.imageUrl;
         const pinNumber = tag.dataset.pinNumber;
-        const filename = tag.querySelector('.pin-filename').textContent;
+        const filename = tag.querySelector('.pin-filename')?.textContent || "unknown";
+        const x = tag.dataset.x;
+        const y = tag.dataset.y;
         
-        const node = PinManager.findNodeByImageUrl(imageUrl);
-        if (node) {
-            const pins = JSON.parse(node.dataset.pins || '[]');
-            const pin = pins.find(p => p.number == pinNumber);
-            if (pin) {
-                pinInfo.push({
-                    imageUrl: imageUrl,
-                    pinNumber: pinNumber,
-                    filename: filename,
-                    x: pin.x,
-                    y: pin.y
-                });
-            }
+        if (x !== undefined && y !== undefined) {
+            pinInfo.push({ imageUrl, pinNumber, filename, x, y });
         }
     });
-    
-    // PIN 标签的文本替换已移至下方循环处理
-    const prompt = processedPrompt;
+
     const currentMode = CanvasState.currentMode;
     const isImageGenMode = currentMode === 'image';
     const imageDataList = PinManager.getImageDataList();
@@ -136,83 +113,64 @@ export async function handleAPICall(params) {
     
     if (!isGeminiVeo && window.referenceManager) {
         shelfRefs = window.referenceManager.getAllReferences();
-        debugLog(`[全能参考] 从货架采集了 ${shelfRefs.length} 个素材`, 'info');
+        debugLog(`[全能参考] 货架中包含 ${shelfRefs.length} 个素材`, 'info');
     }
 
-    let allMediaData = [...imageDataList];
+    // 12. 统一媒体去重与采集逻辑 (基于 refId)
+    const allMediaData = [];
+    const processedRefIds = new Set();
 
-    const combinedRefs = [...mentionedRefs, ...shelfRefs];
-    combinedRefs.forEach(ref => {
-        const existing = allMediaData.find(m => m.refId === ref.id);
-        if (!existing) {
-            allMediaData.push({
-                data: ref.data,
-                name: ref.name,
-                type: ref.type,
-                refId: ref.id,
-                originalFile: ref.originalFile
-            });
+    // 辅助函数：将图片资源安全打入发送列表
+    const addMediaToPayload = async (ref) => {
+        if (!ref || processedRefIds.has(ref.id)) return;
+        
+        let finalData = ref.data;
+        // 如果是 blob，预先转为 base64 以便后续精准处理 (Gemini 必须 base64)
+        if (finalData.startsWith('blob:')) {
+            try {
+                const resp = await fetch(finalData);
+                const arrayBuffer = await resp.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+                let binary = '';
+                for (let j = 0; j < bytes.length; j++) binary += String.fromCharCode(bytes[j]);
+                finalData = `data:image/png;base64,${btoa(binary)}`;
+            } catch (e) {
+                console.error('[采集] Blob 转换失败:', e);
+            }
         }
-    });
-
-    // 十二象限/九宫格语义方位判定函数
-    const getSemanticLocation = (xPercent, yPercent) => {
-        const xNum = parseFloat(xPercent);
-        const yNum = parseFloat(yPercent);
-        let horizontal = xNum < 33.3 ? '左侧' : (xNum < 66.6 ? '中间' : '右侧');
-        let vertical = yNum < 33.3 ? '上方' : (yNum < 66.6 ? '中心' : '下方');
-        if (horizontal === '中间' && vertical === '中心') return '图片正中央';
-        return `图片${vertical}${horizontal}`;
+        
+        allMediaData.push({
+            data: finalData,
+            name: ref.originalName || ref.name || `image_${allMediaData.length}.png`,
+            type: ref.type || 'image',
+            refId: ref.id
+        });
+        processedRefIds.add(ref.id);
     };
 
-    for (const info of pinInfo) {
-        const node = PinManager.findNodeByImageUrl(info.imageUrl);
-        if (node) {
-            const img = node.querySelector('img');
-            const pins = JSON.parse(node.dataset.pins || '[]');
-            
-            let base64Data;
-            if (img.src.startsWith('data:')) {
-                base64Data = img.src;
-            } else {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = img.naturalWidth || img.width;
-                canvas.height = img.naturalHeight || img.height;
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                base64Data = canvas.toDataURL('image/png');
-            }
-            
-            // --- 核心改变：不再将 PIN 绘制到发送给模型的图片上，保持原图洁净 ---
-            /* 
-            if (pins.length > 0) {
-                debugLog(`[PIN标记] 保持原图洁净，不再绘制红色标记点`, 'info');
-                // base64Data = await drawPinsOnImage(base64Data, pins);
-            }
-            */
-            
-            // 构建增强型语义描述
-            const pin = pins.find(p => p.number == info.pinNumber);
-            if (pin) {
-                const width = parseInt(node.dataset.width) || img.naturalWidth;
-                const height = parseInt(node.dataset.height) || img.naturalHeight;
-                const relX = ((pin.x / width) * 100).toFixed(1);
-                const relY = ((pin.y / height) * 100).toFixed(1);
-                const locationLabel = getSemanticLocation(relX, relY);
-                
-                const pinTag = `[${info.pinNumber}]`;
-                const enhancedDesc = `图片中 PIN ${info.pinNumber} 标记的内容（该点位于${locationLabel}，相对参考坐标为 ${relX}%, ${relY}%）`;
-                processedPrompt = processedPrompt.replace(pinTag, enhancedDesc);
-            }
+    // 采集阶段 1: 处理货架与提及项
+    const combinedRefs = [...mentionedRefs, ...shelfRefs];
+    for (const ref of combinedRefs) {
+        await addMediaToPayload(ref);
+    }
 
-            const existing = allMediaData.find(data => data.data === base64Data);
-            if (!existing) {
-                allMediaData.push({
-                    data: base64Data,
-                    name: info.filename,
-                    type: 'image'
-                });
-            }
+    // 采集阶段 2: 处理 PIN 标记项 (仅采集资源，语义替换已在 RAW 解析器中统一完成)
+    for (const info of pinInfo) {
+        if (info.refId && !processedRefIds.has(info.refId)) {
+            const ref = window.referenceManager?.getReference(info.refId);
+            if (ref) await addMediaToPayload(ref);
+        }
+    }
+
+    // 采集阶段 3: 兜底逻辑 (image_0.png)
+    if (allMediaData.length === 0 && (prompt.includes('image_0.png') || prompt.includes('image_0'))) {
+        const selectedNode = AppState.selectedNode;
+        if (selectedNode && selectedNode.dataset.imageUrl) {
+            allMediaData.push({
+                data: selectedNode.dataset.imageUrl,
+                name: selectedNode.dataset.filename || 'image_0.png',
+                type: 'image'
+            });
         }
     }
 
@@ -402,6 +360,9 @@ export async function handleAPICall(params) {
             const videoGenStartTime = Date.now();
             videoPlaceholder._startTime = videoGenStartTime;
             
+            // 重要：在发送请求前捕获当前面板的全量快照 (Prompt, 参数, 参考图等)
+            const snapshot = promptPanelManager.captureState();
+            
             const allReferences = window.referenceManager?.getAllReferences ? window.referenceManager.getAllReferences() : [];
             const referenceMode = window.referenceManager?.currentMode || 'omni';
             
@@ -421,7 +382,7 @@ export async function handleAPICall(params) {
                         NodeFactory.updateVideoLoadingStatus(videoPlaceholder, 'generating', progress);
                     }
                 },
-                onVideoGenerated: async (videoUrl) => {
+                onVideoGenerated: async (videoUrl, protocol) => {
                     if (!videoPlaceholder || !videoPlaceholder.parentNode || !videoPlaceholder.classList.contains('loading-placeholder')) {
                         return;
                     }
@@ -449,7 +410,8 @@ export async function handleAPICall(params) {
                                     prompt: prompt,
                                     aspectRatio: videoRatioWrapper.dataset.value,
                                     duration: videoDurationWrapper.dataset.value,
-                                    modelName: modelDisplayName.name
+                                    modelName: modelDisplayName.name,
+                                    protocol: protocol || 'gemini'
                                 })
                             });
                             const saveResult = await saveResponse.json();
@@ -546,6 +508,8 @@ export async function handleAPICall(params) {
             selectNode(audioPlaceholder);
             
             const audioGenStartTime = Date.now();
+            // 捕获快照
+            const snapshot = promptPanelManager.captureState();
 
             try {
                 await apiClient.request({

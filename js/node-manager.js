@@ -245,409 +245,120 @@ export function pasteNode() {
 }
 
 export function createImageNode(imageUrl, prompt = '', index = 0, filename = '', resolution = '', generationTime = null, modelName = '', errorMessage = null, x = null, y = null, revisedPrompt = null) {
-    console.log('Creating image node...');
-    
     const node = document.createElement('div');
     node.className = 'canvas-node' + (errorMessage ? ' error-node' : '');
     node.dataset.index = index;
     node.dataset.imageUrl = imageUrl;
     node.dataset.filename = filename || (errorMessage ? 'Error' : `Image ${index + 1}`);
     node.dataset.prompt = prompt || '';
+    if (errorMessage) node.dataset.errorMessage = errorMessage;
+    if (revisedPrompt) node.dataset.revisedPrompt = revisedPrompt;
+
+    const contentArea = document.createElement('div');
+    contentArea.className = 'node-content';
+    node.appendChild(contentArea);
+
     if (errorMessage) {
-        node.dataset.errorMessage = errorMessage;
-    }
-    if (revisedPrompt) {
-        node.dataset.revisedPrompt = revisedPrompt;
-    }
-    
-    if (errorMessage) {
-        const errorContainer = document.createElement('div');
-        errorContainer.className = 'error-container';
-        errorContainer.style.width = '100%';
-        errorContainer.style.height = '100%';
-        errorContainer.style.display = 'flex';
-        errorContainer.style.flexDirection = 'column';
-        errorContainer.style.justifyContent = 'center';
-        errorContainer.style.alignItems = 'center';
-        errorContainer.style.padding = '16px';
-        errorContainer.style.boxSizing = 'border-box';
-        errorContainer.style.backgroundColor = '#fef2f2';
-        errorContainer.style.borderRadius = '8px';
-        
-        const errorIcon = document.createElement('div');
-        errorIcon.innerHTML = getIcon('trash', 32);
-        errorIcon.style.color = '#dc2626';
-        errorIcon.style.marginBottom = '8px';
-        
-        const errorText = document.createElement('div');
-        errorText.textContent = errorMessage.length > 60 ? errorMessage.substring(0, 60) + '...' : errorMessage;
-        errorText.style.fontSize = '11px';
-        errorText.style.color = '#dc2626';
-        errorText.style.textAlign = 'center';
-        errorText.style.wordBreak = 'break-word';
-        errorText.style.maxHeight = '80px';
-        errorText.style.overflow = 'hidden';
-        errorText.title = errorMessage;
-        
-        errorContainer.appendChild(errorText);
-        node.appendChild(errorContainer);
-        
-        // 即使是错误节点也允许连线（虽然通常不需要，但为了代码一致性）
-        addLinkerHandle(node);
+        contentArea.innerHTML = `
+            <div class="node-error-container">
+                <div class="error-title">${getIcon('alert-triangle', 14)} 生成失败</div>
+                <div class="error-msg">${errorMessage}</div>
+            </div>
+        `;
     } else {
         const img = document.createElement('img');
         img.src = imageUrl;
-        img.alt = `Generated image ${index + 1}`;
+        img.alt = filename;
         img.draggable = false;
         
         img.onload = function() {
             const width = this.naturalWidth;
             const height = this.naturalHeight;
-            const resolutionText = `${width}x${height}`;
-            const resolutionElement = node.querySelector('.node-resolution');
-            if (resolutionElement) {
-                resolutionElement.textContent = resolutionText;
-            }
             node.dataset.width = width;
             node.dataset.height = height;
+            
+            const resolutionElement = node.querySelector('.node-resolution');
+            if (resolutionElement) resolutionElement.textContent = `${width}x${height}`;
+            
+            // 修复：只有在最初创建且没有指定明确坐标时才居中。加载完成后不再强行重置，避免位移。
             updateImageCenterCoordinates(node);
         };
-        
-        node.appendChild(img);
-        
-        if (revisedPrompt) {
-            const promptContainer = document.createElement('div');
-            promptContainer.className = 'revised-prompt-container';
-            promptContainer.style.marginTop = '4px';
-            promptContainer.style.borderTop = '1px solid #e5e7eb';
-            promptContainer.style.paddingTop = '4px';
-            
-            const promptHeader = document.createElement('div');
-            promptHeader.className = 'revised-prompt-header';
-            promptHeader.style.display = 'flex';
-            promptHeader.style.alignItems = 'center';
-            promptHeader.style.cursor = 'pointer';
-            promptHeader.style.fontSize = '11px';
-            promptHeader.style.color = '#6b7280';
-            promptHeader.style.userSelect = 'none';
-            
-            const promptIcon = document.createElement('span');
-            promptIcon.innerHTML = getIcon('file-text', 12);
-            promptIcon.style.marginRight = '4px';
-            promptIcon.style.display = 'flex';
-            promptIcon.style.alignItems = 'center';
-            
-            const promptTitle = document.createElement('span');
-            promptTitle.textContent = 'Revised Prompt';
-            promptTitle.style.fontWeight = '500';
-            
-            const promptArrow = document.createElement('span');
-            promptArrow.textContent = ' ▼';
-            promptArrow.style.marginLeft = 'auto';
-            promptArrow.style.fontSize = '8px';
-            
-            promptHeader.appendChild(promptIcon);
-            promptHeader.appendChild(promptTitle);
-            promptHeader.appendChild(promptArrow);
-            
-            const promptContent = document.createElement('div');
-            promptContent.className = 'revised-prompt-content';
-            promptContent.style.display = 'none';
-            promptContent.style.fontSize = '10px';
-            promptContent.style.color = '#4b5563';
-            promptContent.style.marginTop = '4px';
-            promptContent.style.lineHeight = '1.4';
-            promptContent.style.wordBreak = 'break-word';
-            promptContent.style.maxHeight = '80px';
-            promptContent.style.overflowY = 'auto';
-            promptContent.textContent = revisedPrompt;
-            
-            promptHeader.addEventListener('click', () => {
-                const isExpanded = promptContent.style.display !== 'none';
-                promptContent.style.display = isExpanded ? 'none' : 'block';
-                promptArrow.textContent = isExpanded ? ' ▼' : ' ▲';
-                console.log(`%c[UI] User clicked: revisedPromptToggle | Provider: ${modelName || 'unknown'} | Expanded: ${!isExpanded}`, 'color: #3b82f6; font-weight: bold');
-            });
-            
-            promptContainer.appendChild(promptHeader);
-            promptContainer.appendChild(promptContent);
-            node.appendChild(promptContainer);
-        }
-
-        // 添加连线引用手柄
-        addLinkerHandle(node);
+        contentArea.appendChild(img);
     }
+
+    // 使用统一组件构建 UI
+    node.appendChild(createNodeHeader('image', resolution || (errorMessage ? 'Failed' : 'Loading...'), node.dataset.filename));
     
-    const header = document.createElement('div');
-    header.className = 'node-header';
-    
-    const filenameElement = document.createElement('div');
-    filenameElement.className = 'node-filename';
-    filenameElement.textContent = filename || (errorMessage ? 'Error' : `Image ${index + 1}`);
-    
-    const resolutionElement = document.createElement('div');
-    resolutionElement.className = 'node-resolution';
-    resolutionElement.textContent = errorMessage ? 'Failed' : (resolution || 'Loading...');
-    
-    header.appendChild(filenameElement);
-    header.appendChild(resolutionElement);
-    
-    // 统一工具栏：使用已映射到本地 icons.js 的 createNodeToolbar
     const toolbar = createNodeToolbar('image', {
-        onCopyPrompt: () => {
-            navigator.clipboard.writeText(prompt || '').then(() => {
-                if (DebugConsole.showMouseLogs) debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
-            });
-        },
+        onCopyPrompt: () => navigator.clipboard.writeText(prompt || ''),
         onInsertPrompt: () => {
+            console.log(`[Referencing] Pure citation for node:`, node.dataset.index);
             if (errorMessage) return;
-            const img = node.querySelector('img');
-            if (img && window.insertImageToPrompt) {
-                window.insertImageToPrompt(img.src, node.dataset.filename || 'Image');
+            
+            // 核心：仅执行“引用”动作 (上架货架 + 插入标签)
+            if (typeof PinManager !== 'undefined' && PinManager.addCanvasImageToPrompt) {
+                PinManager.addCanvasImageToPrompt(node);
             }
         },
-        onCopyNode: () => {
-            if (errorMessage) return;
-            selectNode(node);
-            copySelectedNode();
+        onCopyNode: () => { 
+            if (!errorMessage) { 
+                selectNode(node); 
+                copySelectedNode(); 
+                console.log(`%c[Copy] Node #${node.dataset.index} copied to clipboard buffer.`, 'color: #10b981; font-weight: bold');
+            } 
         },
-        onDelete: () => {
-            selectNode(node);
-            deleteSelectedNode();
-        }
+        onDelete: () => { selectNode(node); deleteSelectedNode(); }
     });
-
     node.appendChild(toolbar);
-    
-    const centerCoords = document.createElement('div');
-    centerCoords.className = 'node-center-coords';
-    centerCoords.textContent = '(0, 0)';
-    
+
+    const info = createNodeInfo(prompt, errorMessage ? 'Error' : `Image ${index + 1}`);
+    node.appendChild(info);
+
+    const sidebar = createNodeSidebar(generationTime, modelName);
+    node.appendChild(sidebar);
+
+    // 调整尺寸手柄
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'resize-handle';
-    
-    const info = document.createElement('div');
-    info.className = 'node-info';
-    info.textContent = prompt || `Image ${index + 1}`;
-    info.title = '点击复制提示词';
-    info.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const textToCopy = prompt || info.textContent;
-        debugLog(`[node-info 点击] prompt: ${prompt}, infoText: ${info.textContent}, textToCopy: ${textToCopy}`, 'info');
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            debugLog(`[复制成功] ${textToCopy}`, 'success');
-            info.classList.add('copied');
-            setTimeout(() => {
-                info.classList.remove('copied');
-            }, 500);
-        }).catch(err => {
-            debugLog(`[复制失败] ${err}`, 'error');
-        });
-    });
-    
-    node.appendChild(header);
-    node.appendChild(toolbar);
-    if (!errorMessage) {
-        const img = node.querySelector('img');
-        if (img) node.appendChild(img);
-    }
-    node.appendChild(resizeHandle);
-    node.appendChild(info);
-    node.appendChild(centerCoords);
-    
-    const sidebar = document.createElement('div');
-    sidebar.className = 'node-sidebar';
-    
-    if (generationTime !== null && generationTime !== undefined) {
-        const timeElement = document.createElement('div');
-        timeElement.className = 'node-generation-time';
-        timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
-        timeElement.textContent = formatGenerationTime(generationTime);
-        timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
-        sidebar.appendChild(timeElement);
-    }
-    
-    if (modelName) {
-        const modelTag = document.createElement('div');
-        modelTag.className = 'node-model-tag';
-        modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
-                let _dn = modelName, _pn = '';
-        if (typeof modelName === 'object' && modelName && modelName.name) {
-            _dn = modelName.name; _pn = modelName.provider || '';
-        } else if (typeof modelName === 'string' && modelName.includes('(')) {
-            const _p = modelName.split('(');
-            _dn = _p[0].trim(); _pn = _p[1].replace(')', '').trim();
-        }
-        if (_pn) {
-            modelTag.innerHTML = `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>`;
-            modelTag.title = `${_dn} (${_pn})`;
-        } else {
-            modelTag.textContent = _dn;
-            modelTag.title = _dn;
-        }
-        sidebar.appendChild(modelTag);
-    }
-    
-    if (sidebar.children.length > 0) {
-        node.appendChild(sidebar);
-    }
-    
-    node.dataset.pins = JSON.stringify([]);
-    
-    if (errorMessage) {
-        node.style.width = '320px';
-        node.style.height = '180px';
-    }
-    
-    const width = errorMessage ? (parseInt(node.style.width) || 320) : (parseInt(resolution?.split('x')[0]) || 500);
-    const height = errorMessage ? (parseInt(node.style.height) || 180) : (parseInt(resolution?.split('x')[1]) || 500);
-    node.style.left = x !== null ? `${x}px` : `${5000 - width / 2}px`;
-    node.style.top = y !== null ? `${y}px` : `${5000 - height / 2}px`;
-    node.style.zIndex = '10';
-    
-    if (!errorMessage) {
-        node.style.width = `${width}px`;
-        node.style.height = `${height}px`;
-    }
-    
-    if (!errorMessage) {
-        const img = node.querySelector('img');
-        if (img) {
-            img.onload = function() {
-                const actualWidth = this.naturalWidth || parseInt(this.style.width) || 500;
-                const actualHeight = this.naturalHeight || parseInt(this.style.height) || 500;
-                
-                if (x !== null) {
-                    node.style.left = `${x}px`;
-                } else {
-                    node.style.left = `${5000 - actualWidth / 2}px`;
-                }
-                if (y !== null) {
-                    node.style.top = `${y}px`;
-                } else {
-                    node.style.top = `${5000 - actualHeight / 2}px`;
-                }
-                
-                const resolutionText = `${actualWidth}x${actualHeight}`;
-                const resolutionElement = node.querySelector('.node-resolution');
-                if (resolutionElement) {
-                    resolutionElement.textContent = resolutionText;
-                }
-                
-                node.dataset.width = actualWidth;
-                node.dataset.height = actualHeight;
-                
-                updateImageCenterCoordinates(node);
-                updateMinimapWithImage(node);
-            };
-        }
-    }
-    
-    if (!errorMessage) {
-        const img = node.querySelector('img');
-        if (img) {
-            img.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (DebugConsole.showMouseLogs) {
-                    debugLog(`图片点击: button=${e.button}, ctrlKey=${e.ctrlKey}, metaKey=${e.metaKey}, selected=${node.classList.contains('selected')}`, 'event');
-                }
-                if (e.ctrlKey || e.metaKey) {
-                    if (node.classList.contains('selected')) {
-                        if (DebugConsole.showMouseLogs) {
-                            debugLog(`添加 PIN: 图片已选中`, 'info');
-                        }
-                        PinManager.addPinToImage(node, e);
-                    } else {
-                        if (DebugConsole.showMouseLogs) {
-                            debugLog(`选中图片: 未选中，按住 Ctrl/Meta`, 'info');
-                        }
-                        selectNode(node);
-                    }
-                } else {
-                    if (DebugConsole.showMouseLogs) {
-                        debugLog(`选中图片: 左键点击`, 'info');
-                    }
-                    selectNode(node);
-                }
-            });
-        }
-    }
-    
-    if (!errorMessage) {
-        const img = node.querySelector('img');
-        if (img) {
-            node.addEventListener('mousedown', (e) => {
-                if (e.target.closest('.node-info')) return;
-                if (DebugConsole.showMouseLogs) {
-                    debugLog(`[鼠标按下] 节点: button=${e.button}, clientX=${e.clientX}, clientY=${e.clientY}, selected=${node.classList.contains('selected')}, ctrlKey=${e.ctrlKey}, metaKey=${e.metaKey}`, 'event');
-                }
-                if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
-                    e.stopPropagation();
-                    selectNode(node);
-                    
-                    AppState.isDraggingNode = true;
-                    AppState.dragNode = node;
-                    AppState.activeNode = node;
-                    
-                    AppState.dragStartX = e.clientX;
-                    AppState.dragStartY = e.clientY;
-                    AppState.dragNodeStartLeft = parseInt(node.style.left || '0');
-                    AppState.dragNodeStartTop = parseInt(node.style.top || '0');
-                    
-                    if (DebugConsole.showMouseLogs) {
-                        debugLog(`[开始拖动] 图片: node=${node.dataset.filename}`, 'info');
-                    }
-                }
-            });
-        }
-    } else {
-        node.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.node-info')) return;
-            if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
-                e.stopPropagation();
-                selectNode(node);
-                
-                AppState.isDraggingNode = true;
-                AppState.dragNode = node;
-                AppState.activeNode = node;
-                
-                AppState.dragStartX = e.clientX;
-                AppState.dragStartY = e.clientY;
-                AppState.dragNodeStartLeft = parseInt(node.style.left || '0');
-                AppState.dragNodeStartTop = parseInt(node.style.top || '0');
-            }
-        });
-    }
-    
-    node.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        if (!errorMessage) {
-            const img = node.querySelector('img');
-            showImageContextMenu(e, node, img);
-        } else {
-            selectNode(node);
-        }
-    });
-    
-    if (!errorMessage) {
-        const img = node.querySelector('img');
-        if (img) {
-            img.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                showImageContextMenu(e, node, img);
-            });
-        }
-    }
-    
     resizeHandle.addEventListener('mousedown', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
+        e.stopPropagation(); e.preventDefault();
         startResizeNode(e, node);
     });
-    
-    console.log('Node created:', node);
+    node.appendChild(resizeHandle);
+
+    // 初始化位置
+    const initialWidth = parseInt(resolution?.split('x')[0]) || 500;
+    const initialHeight = parseInt(resolution?.split('x')[1]) || 500;
+    node.style.width = `${initialWidth}px`;
+    node.style.height = `${initialHeight}px`;
+    node.style.left = x !== null ? `${x}px` : `${5000 - initialWidth / 2}px`;
+    node.style.top = y !== null ? `${y}px` : `${5000 - initialHeight / 2}px`;
+    node.style.zIndex = '10';
+
+    // 交互逻辑
+    node.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.node-info') || e.target.closest('.node-toolbar') || e.target.closest('.node-sidebar')) return;
+        if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
+            e.stopPropagation();
+            selectNode(node);
+            AppState.isDraggingNode = true; AppState.dragNode = node; AppState.activeNode = node;
+            AppState.dragStartX = e.clientX; AppState.dragStartY = e.clientY;
+            AppState.dragNodeStartLeft = parseInt(node.style.left);
+            AppState.dragNodeStartTop = parseInt(node.style.top);
+        }
+    });
+
+    node.addEventListener('click', (e) => {
+        if (!errorMessage && (e.ctrlKey || e.metaKey)) {
+            e.stopPropagation();
+            if (node.classList.contains('selected')) PinManager.addPinToImage(node, e);
+            else selectNode(node);
+        }
+    });
+
     return node;
 }
+
 
 export function createTextNode(text, prompt = '', index = 0, filename = '', resolution = '', generationTime = null, modelName = '') {
     const node = document.createElement('div');
@@ -655,138 +366,50 @@ export function createTextNode(text, prompt = '', index = 0, filename = '', reso
     node.dataset.index = index;
     node.dataset.filename = filename || `Text ${index + 1}`;
     node.dataset.nodeType = 'text';
-    if (modelName) {
-        node.dataset.modelName = modelName;
-    }
-    
+
+    const contentArea = document.createElement('div');
+    contentArea.className = 'node-content';
     const textContent = document.createElement('div');
     textContent.className = 'text-content';
     textContent.textContent = text;
-    
-    const toolbar = document.createElement('div');
-    toolbar.className = 'node-toolbar';
-    
-    const copyPromptBtn = document.createElement('button');
-    copyPromptBtn.className = 'toolbar-btn';
-    copyPromptBtn.innerHTML = getIcon('file-text', 16);
-    copyPromptBtn.title = '复制提示词';
-    copyPromptBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        navigator.clipboard.writeText(prompt || '').then(() => {
-            if (DebugConsole.showMouseLogs) {
-                debugLog(`[复制] 提示词: ${node.dataset.filename}`, 'info');
-            }
-        });
-    });
-    
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'toolbar-btn';
-    copyBtn.innerHTML = getIcon('clipboard', 16);
-    copyBtn.title = '复制文本';
-    copyBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        navigator.clipboard.writeText(text).then(() => {
-            if (DebugConsole.showMouseLogs) {
-                debugLog(`[复制] 文本节点: ${node.dataset.filename}`, 'info');
-            }
-        });
-    });
-    
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'toolbar-btn';
-    deleteBtn.innerHTML = getIcon('trash', 16);
-    deleteBtn.title = '删除节点';
-    deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectNode(node);
-        deleteSelectedNode();
-    });
-    
-    toolbar.appendChild(copyPromptBtn);
-    toolbar.appendChild(copyBtn);
-    toolbar.appendChild(deleteBtn);
-    
-    node.appendChild(textContent);
-    node.appendChild(toolbar);
-    
-    const sidebar = document.createElement('div');
-    sidebar.className = 'node-sidebar';
-    
-    const timeElement = document.createElement('div');
-    timeElement.className = 'node-generation-time';
-    timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
-    if (generationTime !== null && generationTime !== undefined) {
-        timeElement.textContent = formatGenerationTime(generationTime);
-        timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
-    }
-    sidebar.appendChild(timeElement);
-    
-    if (modelName) {
-        const modelTag = document.createElement('div');
-        modelTag.className = 'node-model-tag';
-        modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
-                let _dn = modelName, _pn = '';
-        if (typeof modelName === 'object' && modelName && modelName.name) {
-            _dn = modelName.name; _pn = modelName.provider || '';
-        } else if (typeof modelName === 'string' && modelName.includes('(')) {
-            const _p = modelName.split('(');
-            _dn = _p[0].trim(); _pn = _p[1].replace(')', '').trim();
-        }
-        if (_pn) {
-            modelTag.innerHTML = `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>`;
-            modelTag.title = `${_dn} (${_pn})`;
-        } else {
-            modelTag.textContent = _dn;
-            modelTag.title = _dn;
-        }
-        sidebar.appendChild(modelTag);
-    }
-    node.appendChild(sidebar);
-    
-    const info = document.createElement('div');
-    info.className = 'node-info';
-    info.textContent = prompt || '文本回复';
-    info.title = '点击复制提示词';
-    info.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const textToCopy = prompt || info.textContent;
-        debugLog(`[node-info 点击] prompt: ${prompt}, textToCopy: ${textToCopy}`, 'info');
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            debugLog(`[复制成功] ${textToCopy}`, 'success');
-            info.classList.add('copied');
-            setTimeout(() => {
-                info.classList.remove('copied');
-            }, 500);
-        }).catch(err => {
-            debugLog(`[复制失败] ${err}`, 'error');
-        });
-    });
-    node.appendChild(info);
-    
-    // 添加连线引用手柄
-    addLinkerHandle(node);
+    contentArea.appendChild(textContent);
+    node.appendChild(contentArea);
 
+    // 标准页眉
+    node.appendChild(createNodeHeader('text', `${text.length} chars`, node.dataset.filename));
+
+    // 统一工具栏
+    const toolbar = createNodeToolbar('text', {
+        onCopyPrompt: () => navigator.clipboard.writeText(prompt || ''),
+        onCopyText: () => navigator.clipboard.writeText(text),
+        onDelete: () => { selectNode(node); deleteSelectedNode(); }
+    });
+    node.appendChild(toolbar);
+
+    // 提示词信息
+    node.appendChild(createNodeInfo(prompt, `Text ${index + 1}`));
+
+    // 侧边栏（耗时、模型）
+    node.appendChild(createNodeSidebar(generationTime, modelName));
+
+    // 初始化位置与连线
+    addLinkerHandle(node);
     node.style.left = '5000px';
     node.style.top = '5000px';
     node.style.zIndex = '10';
-    
+
     node.addEventListener('mousedown', (e) => {
-        if (e.button === 0 && !e.target.closest('.toolbar-btn')) {
-            if (DebugConsole.showMouseLogs) {
-                debugLog(`[开始拖动] 文本节点: ${node.dataset.filename}`, 'info');
-            }
+        if (e.target.closest('.node-info') || e.target.closest('.node-toolbar') || e.target.closest('.node-sidebar')) return;
+        if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
+            e.stopPropagation();
             selectNode(node);
-            AppState.isDraggingNode = true;
-            AppState.dragNode = node;
-            AppState.dragStartX = e.clientX;
-            AppState.dragStartY = e.clientY;
+            AppState.isDraggingNode = true; AppState.dragNode = node; AppState.activeNode = node;
+            AppState.dragStartX = e.clientX; AppState.dragStartY = e.clientY;
             AppState.dragNodeStartLeft = parseInt(node.style.left) || 5000;
             AppState.dragNodeStartTop = parseInt(node.style.top) || 5000;
-            node.style.cursor = 'grabbing';
-            e.preventDefault();
         }
     });
-    
+
     return node;
 }
 

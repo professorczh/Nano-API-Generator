@@ -1,5 +1,6 @@
 import { BaseProvider } from './base-provider.js';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { CONFIG } from '../../config.js';
 
 /**
  * Google Gemini Provider
@@ -242,7 +243,7 @@ export class GeminiProvider extends BaseProvider {
             // 轮询状态
             const videoUrl = await this.pollVideoTask({ operationName, onProgressUpdate, onVideoGenerated, onError, debugLog });
             
-            return this._wrapResponse({ videoUrl });
+            return this._wrapResponse({ videoUrl, provider: this.id });
             
         } catch (error) {
             if (debugLog) debugLog(`[Google Veo 错误] ${error.message}`, 'error');
@@ -277,7 +278,7 @@ export class GeminiProvider extends BaseProvider {
                     const statusResponse = await fetch(`/api/google/video-status?operation=${encodeURIComponent(operationName)}&saveToDisk=${saveToDisk}`);
                     
                     if (!statusResponse.ok) {
-                        setTimeout(poll, 10000);
+                        setTimeout(poll, CONFIG.VIDEO_POLLING_INTERVAL || 30000);
                         return;
                     }
 
@@ -291,11 +292,11 @@ export class GeminiProvider extends BaseProvider {
                         
                         const videoUrl = statusData.videoUrl;
                         if (debugLog) debugLog(`[Google Veo] 完成: ${videoUrl}`, 'success');
-                        if (onVideoGenerated) onVideoGenerated(videoUrl);
+                        if (onVideoGenerated) onVideoGenerated(videoUrl, this.id);
                         resolve(videoUrl);
                     } else if (!isFinished) {
-                        // 任务未完成，10秒后进行下一轮递归轮询
-                        setTimeout(poll, 10000);
+                        // 任务未完成，根据全局配置进行下一轮递归轮询
+                        setTimeout(poll, CONFIG.VIDEO_POLLING_INTERVAL || 30000);
                     }
                 } catch (error) {
                     if (!isFinished) {
@@ -306,7 +307,7 @@ export class GeminiProvider extends BaseProvider {
             };
 
             // 开启第一轮轮询
-            setTimeout(poll, 10000);
+            setTimeout(poll, CONFIG.VIDEO_POLLING_INTERVAL || 30000);
         });
     }
 

@@ -1,4 +1,4 @@
-import { CanvasState } from './app-state.js';
+import { AppState, CanvasState } from './app-state.js';
 import { getIcon } from './icons.js';
 import { PersistenceManager } from './persistence-manager.js';
 
@@ -11,6 +11,8 @@ class UIManager {
         this.setupTabEvents();
         this.setupResizeListener();
         this.setupCanvasManager();
+        this.setupPromptPanelExpansion();
+        this.setupPromptSettingsModal();
     }
 
     setupTabEvents() {
@@ -116,6 +118,15 @@ class UIManager {
         window.addEventListener('resize', () => {
             this.refreshUI();
         });
+        // 实时同步监听：确保标签变动时货架立即响应
+        const promptInput = document.getElementById('promptInput');
+        if (promptInput) {
+            promptInput.addEventListener('input', () => {
+                if (window.PinManager && typeof window.PinManager.updateImageDataList === 'function') {
+                    window.PinManager.updateImageDataList();
+                }
+            });
+        }
     }
 
     setupCanvasManager() {
@@ -188,6 +199,116 @@ class UIManager {
                 };
             }
         }
+    }
+    
+    setupPromptPanelExpansion() {
+        const toggleBtn = document.getElementById('toggleExpandPrompt');
+        const uiPanel = document.getElementById('uiPanel');
+        
+        if (!toggleBtn || !uiPanel) return;
+        
+        toggleBtn.onclick = (e) => {
+            e.stopPropagation();
+            const isExpanded = uiPanel.classList.toggle('prompt-panel-expanded');
+            
+            // 模式切换时自动刷新UI (如货架渲染)
+            if (window.referenceManager) {
+                window.referenceManager.render();
+            }
+            
+            // 切换按钮语义化提示
+            toggleBtn.title = isExpanded ? '退出沉浸模式' : '沉浸模式';
+            
+            console.log(`[UI] 切换沉浸模式: ${isExpanded ? '开启' : '关闭'}`);
+        };
+
+        // RAW 模式切换绑定
+        const rawBtn = document.getElementById('toggleRawMode');
+        if (rawBtn) {
+            rawBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (window.promptPanelManager) {
+                    window.promptPanelManager.toggleRawMode();
+                }
+            };
+        }
+    }
+
+    setupPromptSettingsModal() {
+        const openBtn = document.getElementById('openPromptSettings');
+        const overlay = document.getElementById('promptSettingsOverlay');
+        const panel = document.getElementById('promptSettingsPanel');
+        const closeBtn = document.getElementById('closePromptSettings');
+        
+        if (!openBtn || !overlay || !panel) return;
+
+        const openModal = () => {
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            // 触发动画
+            setTimeout(() => {
+                panel.classList.replace('scale-95', 'scale-100');
+                panel.classList.replace('opacity-0', 'opacity-100');
+            }, 10);
+        };
+
+        const closeModal = () => {
+            panel.classList.replace('scale-100', 'scale-95');
+            panel.classList.replace('opacity-100', 'opacity-0');
+            // 等待动画结束
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }, 200);
+        };
+
+        openBtn.onclick = (e) => {
+            e.stopPropagation();
+            const isHidden = overlay.classList.contains('hidden');
+            if (isHidden) {
+                openModal();
+            } else {
+                closeModal();
+            }
+        };
+
+        closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            closeModal();
+        };
+
+        // 点击遮罩背景关闭
+        overlay.onclick = (e) => {
+            if (e.target === overlay) {
+                closeModal();
+            }
+        };
+
+        // 阻止面板内部点击冒泡导致关闭
+        panel.onclick = (e) => e.stopPropagation();
+
+        // --- 逻辑配置管理 (Persistence) ---
+        const settings = {
+            autoInsert: document.getElementById('settingAutoInsert'),
+            allowDuplicate: document.getElementById('settingAllowDuplicate'),
+            syncRemoval: document.getElementById('settingSyncRemoval')
+        };
+
+        // 初始化配置加载
+        const savedSettings = JSON.parse(localStorage.getItem('PromptPanelSettings') || '{"autoInsert":true,"allowDuplicate":true,"syncRemoval":true}');
+        
+        // 应用到 UI 并同步到全局状态
+        AppState.PromptSettings = savedSettings;
+        Object.keys(settings).forEach(key => {
+            if (settings[key]) {
+                settings[key].checked = savedSettings[key];
+                settings[key].onchange = () => {
+                    AppState.PromptSettings[key] = settings[key].checked;
+                    localStorage.setItem('PromptPanelSettings', JSON.stringify(AppState.PromptSettings));
+                    console.log(`[Settings] 更新配置 ${key}: ${settings[key].checked}`);
+                };
+            }
+        });
     }
 
     refreshUI() {
