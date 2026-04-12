@@ -2,7 +2,14 @@ import { AppState, CanvasState } from './app-state.js';
 import { LinkerManager } from './linker-manager.js';
 import { getIcon } from './icons.js';
 import { DebugConsole } from './debug-console.js';
-import { createNodeHeader, createNodeSidebar, createNodeInfo, renderModelTag, createNodeToolbar } from './utils.js';
+import { createNodeHeader, createNodeSidebar, createNodeInfo, renderModelTag, createNodeToolbar, formatGenerationTime } from './utils.js';
+import { promptPanelManager } from './prompt-panel-manager.js';
+
+function parseRatio(ratioStr) {
+    if (!ratioStr || !ratioStr.includes(':')) return 16/9;
+    const [w, h] = ratioStr.split(':').map(Number);
+    return (w && h) ? w / h : 16/9;
+}
 
 /* 强制注入旋转动画和视频节点布局修正 */
 if (!document.getElementById('loading-animation-style')) {
@@ -16,10 +23,15 @@ if (!document.getElementById('loading-animation-style')) {
         .canvas-node .node-filename { display: flex !important; align-items: center !important; gap: 6px !important; white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
         .canvas-node .node-filename svg { flex-shrink: 0 !important; }
 
-        /* 视频/图片/音频节点内部布局极致对齐加固 */
-        .video-node, .image-node, .audio-node { display: block !important; overflow: visible !important; }
-        .canvas-node .node-content { width: 100%; height: 100%; border-radius: 12px; overflow: hidden; position: relative; background: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.05); }
-        .canvas-node.selected .node-content { border: 2px solid #3b82f6 !important; box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+        /* 极大化对齐加固：移除所有节点的默认 Padding，让内容占满外壳 */
+        .canvas-node { padding: 0 !important; }
+        .canvas-node .node-content { width: 100%; height: 100%; border-radius: 12px; overflow: hidden; position: relative; background: transparent; box-shadow: none; border: none !important; }
+        
+        /* 针对文字节点的平衡：将外层 Padding 移至内部，确保背景颜色贴边 */
+        .text-node .text-content, .text-loading-placeholder .loading-text { padding: 16px !important; }
+        .text-node, .text-loading-placeholder { width: 400px !important; height: 300px !important; transform-origin: top left !important; }
+        .text-node .text-content { height: 100% !important; overflow-y: auto !important; }
+        /* 选中态高亮由外层 .canvas-node.selected 统一处理，不在 node-content 上叠加边框 */
 
         /* 页眉纠偏：对齐图片节点的精致感 */
         .node-header { 
@@ -34,52 +46,44 @@ if (!document.getElementById('loading-animation-style')) {
             box-shadow: 0 2px 6px rgba(0,0,0,0.05) !important; border: 1px solid rgba(0,0,0,0.05) !important;
         }
 
-        /* 侧边栏与模型标签纠偏：挪到右侧外部 (对应红框位置) */
+        /* 侧边栏与模型标签纠偏：挪到下方第一层 */
         .node-sidebar { 
             position: absolute !important; 
-            left: calc(100% + 12px) !important; 
-            top: 0 !important; 
+            left: 0 !important;
+            right: 0 !important;
+            top: calc(100% + 10px) !important; 
             display: flex !important; 
-            flex-direction: column !important; 
-            align-items: flex-start !important; 
+            flex-direction: row !important;
+            align-items: center !important; 
             gap: 8px !important; 
             z-index: 1001 !important; 
             width: auto !important;
-            max-width: 200px !important;
             pointer-events: none;
         }
-        .node-model-tag { 
-            background: rgba(15, 23, 42, 0.85) !important; 
-            color: #f1f5f9 !important; 
-            padding: 6px 10px !important; 
-            border-radius: 8px !important; 
-            font-size: 11px !important; 
-            font-weight: 600 !important; 
-            border: 1px solid rgba(255,255,255,0.1) !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important; 
-            text-align: left !important;
-            white-space: normal !important; /* 允许折行防止撑太宽 */
-            word-break: break-all;
-            backdrop-filter: blur(12px);
-            pointer-events: auto;
-        }
-        .node-generation-time { 
-            background: #3b82f6 !important; color: #fff !important; 
-            padding: 4px 10px !important; border-radius: 6px !important; 
-            font-size: 11px !important; font-weight: 700 !important; 
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
-            display: flex !important; align-items: center !important; gap: 6px !important;
-            pointer-events: auto;
-        }
-
+        
+        /* 提示词面板纠偏：挪到下方第二层，并解除 4 行截断限制 */
         .canvas-node .node-info { 
-            position: absolute !important; bottom: -54px !important; left: 50% !important; 
-            transform: translateX(-50%) !important; z-index: 1001 !important; 
-            white-space: normal !important; width: 260px !important; max-height: 80px !important;
-            display: -webkit-box !important; -webkit-line-clamp: 4 !important; -webkit-box-orient: vertical !important;
-            overflow-y: auto !important; line-height: 1.4 !important; text-align: center !important;
-            background: rgba(255,255,255,0.9) !important; padding: 6px 12px !important; border-radius: 12px !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important; font-size: 11px !important;
+            position: absolute !important; 
+            top: calc(100% + 46px) !important; 
+            left: 50% !important; 
+            transform: translateX(-50%) !important; 
+            z-index: 1001 !important; 
+            white-space: normal !important; 
+            width: 280px !important; 
+            max-height: 180px !important;
+            overflow-y: auto !important; 
+            line-height: 1.5 !important; 
+            text-align: left !important;
+            background: rgba(255,255,255,0.95) !important; 
+            padding: 8px 12px !important; 
+            border-radius: 10px !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important; 
+            font-size: 11px !important;
+            color: #475569 !important;
+            pointer-events: auto !important;
+            /* 移除截断，改用 max-height + auto scroll */
+            display: block !important;
+            -webkit-line-clamp: unset !important;
         }
         .node-toolbar { 
             position: absolute !important; 
@@ -151,7 +155,7 @@ if (!document.getElementById('loading-animation-style')) {
         /* 现代化的加载 UI */
         .loading-progress-wrapper { position: relative; margin-bottom: 20px; pointer-events: none; }
         .progress-ring { stroke-width: 3px !important; filter: drop-shadow(0 0 5px #3b82f6); }
-        .loading-progress-text { font-family: Inter, system-ui, sans-serif; font-size: 16px; font-weight: 600; color: #fff; }
+        .loading-progress-text { font-family: Inter, system-ui, sans-serif; font-size: 16px; font-weight: 600; color: var(--accent-primary); }
         .loading-status-badge { 
             background: rgba(15, 23, 42, 0.8) !important; backdrop-filter: blur(12px);
             border: 1px solid rgba(255,255,255,0.15); padding: 6px 16px; border-radius: 20px;
@@ -177,15 +181,25 @@ export function addLinkerHandle(node) {
 export const NodeFactory = {
     // --- 视频占位符 (带状态机) ---
     createVideoPlaceholder(x, y, prompt = '', modelName = '', aspectRatio = '16:9') {
-        let videoHeight = 169, nodeWidth = 300;
-        if (aspectRatio === '9:16') { videoHeight = 320; nodeWidth = 180; }
+        const ratio = parseRatio(aspectRatio);
+        const axisSize = 300;
+        let nodeWidth, nodeHeight;
+        if (ratio > 1) {
+            // 横屏：高度固定 300
+            nodeHeight = axisSize;
+            nodeWidth = Math.round(axisSize * ratio);
+        } else {
+            // 竖屏与正方形：宽度固定 300
+            nodeWidth = axisSize;
+            nodeHeight = Math.round(axisSize / ratio);
+        }
         
         const node = document.createElement('div');
         node.className = 'canvas-node video-node loading-placeholder';
         node.style.left = `${x}px`;
         node.style.top = `${y}px`;
         node.style.width = `${nodeWidth}px`;
-        node.style.height = `${videoHeight}px`; // 恢复高度
+        node.style.height = `${nodeHeight}px`; // 恢复高度
         node.dataset.nodeType = 'video';
         node.dataset.startTime = Date.now();
 
@@ -228,17 +242,15 @@ export const NodeFactory = {
             if (percentText) percentText.textContent = Math.floor(val) + '%';
         };
 
-        const timerTag = loadingContainer.querySelector('.loading-progress-text');
         const interval = setInterval(() => {
             if (!node.parentElement) { clearInterval(interval); return; }
             
-            const elapsed = Math.floor((Date.now() - node.dataset.startTime) / 1000);
-            const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
-            const s = (elapsed % 60).toString().padStart(2, '0');
+            const elapsed = (Date.now() - node.dataset.startTime) / 1000;
+            const timeStr = formatGenerationTime(elapsed).replace('⏱️', '').trim();
             
             // 确保侧边栏的计时器在生成过程中也是可见且跳动的
             const sidebarTime = node.querySelector('.node-generation-time span');
-            if (sidebarTime) sidebarTime.textContent = `${m}:${s}`;
+            if (sidebarTime) sidebarTime.textContent = timeStr;
 
             if (node._progressStage === 'generating') {
                 // 每秒增长 1%，确保在 10s 轮询周期时刚好对齐 10% 的步进
@@ -351,7 +363,7 @@ export const NodeFactory = {
         const contentArea = node.querySelector('.node-content');
         if (contentArea) {
             contentArea.innerHTML = '';
-            contentArea.style.cssText = 'position:relative; width:100%; height:100%; background:#000; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:12px; border: 1px solid rgba(255,255,255,0.1);';
+            contentArea.style.cssText = 'position:relative; width:100%; height:100%; background:rgba(15,23,42,0.9); display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:12px; border: 1px solid rgba(255,255,255,0.08);';
             
             const video = document.createElement('video');
             video.src = videoUrl;
@@ -375,9 +387,22 @@ export const NodeFactory = {
                     window.PinManager.addCanvasImageToPrompt(node);
                 }
             },
-            onCopyNode: () => {
-                if (typeof window.selectNode === 'function') window.selectNode(node);
-                if (typeof window.copySelectedNode === 'function') window.copySelectedNode();
+            onRecallNode: () => {
+                promptPanelManager.lockCommit();
+                promptPanelManager.loadFromNode(node);
+                debugLog(`[溯源] 已成功加载视频节点#${node.dataset.index}的历史参数`, 'success');
+            },
+            onPreviewStart: () => {
+                promptPanelManager.saveDraft();
+                promptPanelManager.setPreviewMode(true);
+                promptPanelManager.loadFromNode(node);
+                debugLog(`[预览] 视频节点#${node.dataset.index} 历史参数`, 'info');
+            },
+            onPreviewEnd: () => {
+                if (!promptPanelManager.isPreviewLocked) {
+                    promptPanelManager.setPreviewMode(false);
+                    promptPanelManager.restoreDraft();
+                }
             },
             onDelete: () => {
                 if (typeof window.selectNode === 'function') window.selectNode(node);
@@ -395,7 +420,7 @@ export const NodeFactory = {
             const timeTag = sidebar.querySelector('.node-generation-time');
             if (timeTag && generationTime !== null) {
                 const span = timeTag.querySelector('span') || timeTag;
-                span.textContent = `${generationTime.toFixed(1)}s`;
+                span.textContent = formatGenerationTime(generationTime).replace('⏱️', '').trim();
             }
         }
 
@@ -405,30 +430,158 @@ export const NodeFactory = {
     },
 
     // --- 音频替换 (重构为非破坏性更新) ---
-    replaceWithAudio(node, audioUrl, prompt = '', modelName = '', generationTime = null, format = 'mp3') {
+    replaceWithAudio(node, audioUrl, prompt = '', modelName = '', generationTime = null, format = 'mp3', lyrics = '', caption = '') {
         if (node._loadingInterval) { clearInterval(node._loadingInterval); delete node._loadingInterval; }
         
         // 1. 更新内容区
         const contentArea = node.querySelector('.node-content');
         if (contentArea) {
             contentArea.innerHTML = '';
-            contentArea.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f172a;position:relative;';
+            contentArea.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(239,246,255,0.95),rgba(219,234,254,0.85));position:relative;border-radius:12px;overflow:hidden;padding:40px 0 24px 0;height:300px;';
             
-            const wave = document.createElement('div');
-            wave.className = 'audio-wave-anim';
-            wave.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:4px;opacity:0.25;pointer-events:none;';
-            for(let i=0;i<20;i++) {
-                const b = document.createElement('div');
-                b.style.cssText = `width:3px;background:#60a5fa;height:${15+Math.random()*45}px;border-radius:2px;`;
-                wave.appendChild(b);
-            }
-            contentArea.appendChild(wave);
+            // 歌词显示区
+            const lyricsContainer = document.createElement('div');
+            lyricsContainer.className = 'lyrics-display';
+            lyricsContainer.style.cssText = 'flex:1;width:100%;padding:0 40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;';
             
+            const mainLyric = document.createElement('div');
+            mainLyric.style.cssText = 'font-size:26px;line-height:1.4;font-weight:800;color:#1d4ed8;text-align:center;transition:all 0.4s;max-width:100%;word-break:break-all;text-shadow:0 1px 4px rgba(255,255,255,0.6);';
+            mainLyric.textContent = '准备就绪';
+            
+            const subLyric = document.createElement('div');
+            subLyric.style.cssText = 'font-size:16px;line-height:1.4;color:#64748b;text-align:center;transition:all 0.4s;opacity:0.7;max-width:90%;word-break:break-all;';
+            subLyric.textContent = caption ? (caption.length > 40 ? caption.slice(0, 40) + '...' : caption) : '';
+
+            lyricsContainer.appendChild(mainLyric);
+            lyricsContainer.appendChild(subLyric);
+            contentArea.appendChild(lyricsContainer);
+
+            // 解析带时间戳的歌词 [0.0:] 文字 或 [0.0:3.4] 文字
+            const parseLyrics = (text) => {
+                if (!text) return [];
+                const lines = text.split('\n');
+                const parsed = [];
+                const regex = /\[(\d+\.?\d*):?(\d+\.?\d*)?\]\s*(.*)/;
+                
+                lines.forEach(line => {
+                    const match = line.match(regex);
+                    if (match) {
+                        parsed.push({
+                            start: parseFloat(match[1]),
+                            end: match[2] ? parseFloat(match[2]) : null,
+                            text: match[3].trim()
+                        });
+                    }
+                });
+                return parsed.sort((a, b) => a.start - b.start);
+            };
+            const lyricsData = parseLyrics(lyrics);
+
+            // 自定义播放器 UI
+            const playerWrap = document.createElement('div');
+            playerWrap.style.cssText = 'position:relative;z-index:10;display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.85);backdrop-filter:blur(12px);padding:10px 16px;border-radius:40px;box-shadow:0 4px 16px rgba(0,0,0,0.06);border:1px solid rgba(255,255,255,0.9);width:92%;';
+
             const audio = document.createElement('audio');
             audio.src = audioUrl;
-            audio.controls = true;
-            audio.style.cssText = 'width:85%; height:40px; z-index:10;';
-            contentArea.appendChild(audio);
+
+            // 播放同步逻辑
+            audio.ontimeupdate = () => {
+                const fmt = t => {
+                    if (isNaN(t) || !isFinite(t)) return "0:00";
+                    return `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
+                };
+
+                if (audio.duration) {
+                    progressBar.value = (audio.currentTime / audio.duration) * 100;
+                    timeLabel.textContent = `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`;
+
+                    // 寻找当前最匹配的歌词
+                    if (lyricsData.length > 0) {
+                        const currentTime = audio.currentTime;
+                        let foundIndex = -1;
+                        for (let i = 0; i < lyricsData.length; i++) {
+                            if (currentTime >= lyricsData[i].start) {
+                                foundIndex = i;
+                            } else {
+                                break;
+                            }
+                        }
+                        
+                        if (foundIndex !== -1) {
+                            const current = lyricsData[foundIndex];
+                            if (mainLyric.textContent !== current.text) {
+                                mainLyric.style.opacity = '0';
+                                setTimeout(() => {
+                                    mainLyric.textContent = current.text;
+                                    mainLyric.style.opacity = '1';
+                                }, 150);
+                            }
+                            
+                            // 预显下一句
+                            const next = lyricsData[foundIndex + 1];
+                            if (next && subLyric.textContent !== next.text) {
+                                subLyric.textContent = next.text;
+                            } else if (!next && caption) {
+                                // 如果没有下一句，切回风格描述或显示完毕
+                                // subLyric.textContent = caption;
+                            }
+                        }
+                    }
+                }
+            };
+
+            // 播放/暂停按钮
+            const playBtn = document.createElement('button');
+            playBtn.style.cssText = 'width:30px;height:30px;border-radius:50%;background:#3b82f6;border:none;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform 0.15s;';
+            playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg>';
+            playBtn.onclick = (e) => { e.stopPropagation(); audio.paused ? audio.play() : audio.pause(); };
+            audio.onplay = () => { playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'; };
+            audio.onpause = audio.onended = () => { playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg>'; };
+
+            // 进度条区域
+            const progressWrap = document.createElement('div');
+            progressWrap.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:4px;';
+            const progressBar = document.createElement('input');
+            progressBar.type = 'range'; progressBar.min = 0; progressBar.max = 100; progressBar.value = 0;
+            progressBar.style.cssText = 'width:100%;height:3px;accent-color:#3b82f6;cursor:pointer;';
+            const timeLabel = document.createElement('div');
+            timeLabel.style.cssText = 'font-size:10px;color:#64748b;font-family:monospace;';
+            timeLabel.textContent = '0:00 / 0:00';
+            
+            progressBar.oninput = (e) => { e.stopPropagation(); if(audio.duration) audio.currentTime = (e.target.value/100)*audio.duration; };
+            progressWrap.appendChild(progressBar);
+            progressWrap.appendChild(timeLabel);
+
+            // 音量控制区域
+            const volumeWrap = document.createElement('div');
+            volumeWrap.style.cssText = 'display:flex;align-items:center;gap:4px;width:70px;flex-shrink:0;margin-left:4px;';
+            const volBtn = document.createElement('button');
+            volBtn.style.cssText = 'background:none;border:none;color:#64748b;cursor:pointer;display:flex;padding:0;align-items:center;transition:color 0.2s;';
+            volBtn.innerHTML = getIcon('volume-2', 14);
+            const volSlider = document.createElement('input');
+            volSlider.type = 'range'; volSlider.min = 0; volSlider.max = 1; volSlider.step = 0.05; volSlider.value = audio.volume;
+            volSlider.style.cssText = 'width:40px;height:2px;accent-color:#64748b;cursor:pointer;';
+
+            volSlider.oninput = (e) => {
+                e.stopPropagation();
+                audio.volume = e.target.value;
+                audio.muted = (audio.volume == 0);
+                volBtn.innerHTML = getIcon(audio.muted ? 'volume-x' : 'volume-2', 14);
+            };
+            volBtn.onclick = (e) => {
+                e.stopPropagation();
+                audio.muted = !audio.muted;
+                volBtn.innerHTML = getIcon(audio.muted ? 'volume-x' : 'volume-2', 14);
+                volSlider.value = audio.muted ? 0 : audio.volume;
+            };
+
+            volumeWrap.appendChild(volBtn);
+            volumeWrap.appendChild(volSlider);
+
+            playerWrap.appendChild(playBtn);
+            playerWrap.appendChild(progressWrap);
+            playerWrap.appendChild(volumeWrap);
+            contentArea.appendChild(playerWrap);
         }
 
         // 2. 注入工具栏
@@ -442,9 +595,22 @@ export const NodeFactory = {
                     window.PinManager.addCanvasImageToPrompt(node);
                 }
             },
-            onCopyNode: () => {
-                if (window.selectNode) window.selectNode(node);
-                if (window.copySelectedNode) window.copySelectedNode();
+            onRecallNode: () => {
+                promptPanelManager.lockCommit();
+                promptPanelManager.loadFromNode(node);
+                debugLog(`[溯源] 已成功加载音频节点#${node.dataset.index}的历史参数`, 'success');
+            },
+            onPreviewStart: () => {
+                promptPanelManager.saveDraft();
+                promptPanelManager.setPreviewMode(true);
+                promptPanelManager.loadFromNode(node);
+                debugLog(`[预览] 音频节点#${node.dataset.index} 历史参数`, 'info');
+            },
+            onPreviewEnd: () => {
+                if (!promptPanelManager.isPreviewLocked) {
+                    promptPanelManager.setPreviewMode(false);
+                    promptPanelManager.restoreDraft();
+                }
             },
             onDelete: () => {
                 if (window.selectNode) window.selectNode(node);
@@ -458,8 +624,11 @@ export const NodeFactory = {
         // 3. 更新辅助信息
         const sidebar = node.querySelector('.node-sidebar');
         if (sidebar && generationTime !== null) {
-            const timeTag = sidebar.querySelector('.node-generation-time span') || sidebar.querySelector('.node-generation-time');
-            if (timeTag) timeTag.textContent = `${generationTime.toFixed(1)}s`;
+            const timeTag = sidebar.querySelector('.node-generation-time');
+            if (timeTag) {
+                const span = timeTag.querySelector('span') || timeTag;
+                span.textContent = formatGenerationTime(generationTime).replace('⏱️', '').trim();
+            }
         }
 
         node.dataset.audioUrl = audioUrl;
@@ -472,8 +641,8 @@ export const NodeFactory = {
         node.className = 'canvas-node audio-node loading-placeholder';
         node.style.left = `${x}px`;
         node.style.top = `${y}px`;
-        node.style.width = '300px';
-        node.style.height = '169px'; 
+        node.style.width = '400px';
+        node.style.height = '300px'; 
         node.dataset.nodeType = 'audio';
         node.dataset.startTime = Date.now();
 
@@ -482,8 +651,8 @@ export const NodeFactory = {
 
         const contentArea = document.createElement('div');
         contentArea.className = 'node-content';
-        contentArea.style.cssText = 'display:flex;align-items:center;justify-content:center;background:#000;';
-        contentArea.innerHTML = `<div class="loading-container" style="background:transparent;"><div class="progress-ring-wrapper">${getIcon('loader', 32, 'animate-spin')}</div><div class="loading-text" style="color:#60a5fa;font-weight:700">正在谱写旋律...</div></div>`;
+        contentArea.style.cssText = 'display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(239,246,255,0.95),rgba(219,234,254,0.85));border-radius:12px;overflow:hidden;position:relative;height:300px;';
+        contentArea.innerHTML = `<div class="loading-container" style="background:transparent;"><div class="progress-ring-wrapper" style="color:#3b82f6;">${getIcon('loader', 32, 'animate-spin')}</div><div class="loading-text" style="color:#3b82f6;font-weight:700;margin-top:8px">正在谱写旋律...</div></div>`;
         node.appendChild(contentArea);
 
         node.appendChild(createNodeInfo(prompt, '音频生成中...'));
@@ -491,12 +660,11 @@ export const NodeFactory = {
 
         const interval = setInterval(() => {
             if (!node.parentElement) { clearInterval(interval); return; }
-            const elapsed = Math.floor((Date.now() - node.dataset.startTime) / 1000);
-            const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
-            const s = (elapsed % 60).toString().padStart(2, '0');
+            const elapsed = (Date.now() - node.dataset.startTime) / 1000;
+            const timeStr = formatGenerationTime(elapsed).replace('⏱️', '').trim();
             const sidebarTime = node.querySelector('.node-generation-time span');
-            if (sidebarTime) sidebarTime.textContent = `${m}:${s}`;
-        }, 1000);
+            if (sidebarTime) sidebarTime.textContent = timeStr;
+        }, 100);
         node._loadingInterval = interval;
 
         // 绑定拖拽逻辑 (捕获模式对齐)

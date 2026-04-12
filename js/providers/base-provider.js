@@ -124,6 +124,8 @@ export class BaseProvider {
             imageData: data.imageData || null,
             videoUrl: data.videoUrl || null,
             audioUrl: data.audioUrl || null,
+            lyrics: data.lyrics || null,
+            caption: data.caption || null,
             provider: this.id.toLowerCase(),
             raw: data.raw || null
         };

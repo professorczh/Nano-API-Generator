@@ -29,8 +29,8 @@ export function selectNode(node) {
     node.classList.add('selected');
     node.style.zIndex = '100';
 
-    // 载入选中节点的溯源参数
-    promptPanelManager.loadFromNode(node);
+    // 统一清除：点选不再触发面板更新，由工具栏按钮显式触发
+    console.log(`[NodeManager] 选中节点[${node.dataset.index}]，面板保持原状`);
 }
 
 export function deselectAllNodes() {
@@ -38,8 +38,13 @@ export function deselectAllNodes() {
         CanvasState.selectedNode.classList.remove('selected');
         CanvasState.selectedNode = null;
         
-        // 恢复之前保存的草稿
-        promptPanelManager.restoreDraft();
+        // 核心加固：仅在非锁定预览状态下恢复草稿
+        if (!promptPanelManager.isPreviewLocked) {
+            promptPanelManager.restoreDraft();
+        } else {
+            // 如果已提交历史，重置锁，为下次预览做准备
+            promptPanelManager.isPreviewLocked = false;
+        }
     }
 }
 
@@ -246,7 +251,7 @@ export function pasteNode() {
 
 export function createImageNode(imageUrl, prompt = '', index = 0, filename = '', resolution = '', generationTime = null, modelName = '', errorMessage = null, x = null, y = null, revisedPrompt = null) {
     const node = document.createElement('div');
-    node.className = 'canvas-node' + (errorMessage ? ' error-node' : '');
+    node.className = 'canvas-node image-node' + (errorMessage ? ' error-node' : '');
     node.dataset.index = index;
     node.dataset.imageUrl = imageUrl;
     node.dataset.filename = filename || (errorMessage ? 'Error' : `Image ${index + 1}`);
@@ -326,13 +331,13 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
     });
     node.appendChild(resizeHandle);
 
-    // 初始化位置
-    const initialWidth = parseInt(resolution?.split('x')[0]) || 500;
-    const initialHeight = parseInt(resolution?.split('x')[1]) || 500;
+    // 初始化位置：不再硬化 5000px。如果未提供坐标，默认放置在视野左上角或由调用方决定。
+    const initialWidth = parseInt(resolution?.split('x')[0]) || 400;
+    const initialHeight = parseInt(resolution?.split('x')[1]) || 300;
     node.style.width = `${initialWidth}px`;
     node.style.height = `${initialHeight}px`;
-    node.style.left = x !== null ? `${x}px` : `${5000 - initialWidth / 2}px`;
-    node.style.top = y !== null ? `${y}px` : `${5000 - initialHeight / 2}px`;
+    node.style.left = x !== null ? `${x}px` : '0px';
+    node.style.top = y !== null ? `${y}px` : '0px';
     node.style.zIndex = '10';
 
     // 交互逻辑
@@ -392,10 +397,10 @@ export function createTextNode(text, prompt = '', index = 0, filename = '', reso
     // 侧边栏（耗时、模型）
     node.appendChild(createNodeSidebar(generationTime, modelName));
 
-    // 初始化位置与连线
+    // 坐标初始化：由调用方传入，默认不在此处硬化 5000px
     addLinkerHandle(node);
-    node.style.left = '5000px';
-    node.style.top = '5000px';
+    if (x !== null) node.style.left = `${x}px`;
+    if (y !== null) node.style.top = `${y}px`;
     node.style.zIndex = '10';
 
     node.addEventListener('mousedown', (e) => {

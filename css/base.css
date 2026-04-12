@@ -1,4 +1,4 @@
-﻿/* 
+/* 
  * 椤圭洰鍚嶇О: Nano_API_Test_Viewer
  * 鐗堟湰: 1.1.0 (Figma 2026 Refined)
  * 鏍稿績鍔熻兘: 鍩虹鏍峰紡涓庡叏灞€鍙橀噺瀹氫箟
@@ -429,6 +429,78 @@ button:active {
 @keyframes dropdownFadeIn {
     from { opacity: 0; transform: translateY(-8px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Visual Ratio Grid Picker --- */
+.ratio-grid-dropdown {
+    max-height: none !important;
+    overflow-y: visible !important;
+    padding: 12px !important;
+}
+
+.ratio-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px 4px;
+    width: 320px;
+}
+
+.ratio-grid-dropdown.video-grid .ratio-grid {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.ratio-grid-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px 2px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    background: transparent;
+    transition: background 0.15s, border-color 0.15s;
+    min-height: 34px;
+}
+
+.ratio-grid-cell:hover {
+    background: var(--bg-minimal-hover);
+    border-color: var(--border-minimal);
+}
+
+.ratio-grid-cell.selected {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: var(--accent-primary);
+}
+
+/* The proportionally-scaled rectangle preview */
+.ratio-icon {
+    border: 1.5px solid #94a3b8;
+    border-radius: 2px;
+    background: transparent;
+    transition: border-color 0.15s;
+    opacity: 0.8;
+}
+
+.ratio-grid-cell:hover .ratio-icon,
+.ratio-grid-cell.selected .ratio-icon {
+    border-color: var(--accent-primary);
+    opacity: 1;
+}
+
+.ratio-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+.ratio-grid-cell.selected .ratio-label,
+.ratio-grid-cell:hover .ratio-label {
+    color: var(--accent-primary);
+    font-weight: 600;
 }
 
 .custom-option-group {

@@ -53,10 +53,10 @@ export class ModelSelectManager {
      */
     _repositionDropdown(trigger, dropdown) {
         const rect = trigger.getBoundingClientRect();
-        const dropdownHeight = 220; // 预估含 padding 的最大高度
+        const dropdownHeight = 220; 
         const spaceBelow = window.innerHeight - rect.bottom;
         
-        // 如果下方空间不足 且 上方空间充裕，则向上弹出
+        // Vertical positioning
         if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
             dropdown.style.top = 'auto';
             dropdown.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
@@ -65,8 +65,28 @@ export class ModelSelectManager {
             dropdown.style.bottom = 'auto';
         }
         
-        dropdown.style.left = rect.left + 'px';
-        dropdown.style.width = rect.width + 'px';
+        // Robust grid detection: check class OR inner content
+        const isGrid = dropdown.classList.contains('ratio-grid-dropdown') || dropdown.querySelector('.ratio-grid');
+        const dropdownWidth = isGrid ? 344 : rect.width;
+        
+        // Horizontal positioning with edge detection
+        let left = rect.left;
+        const screenWidth = window.innerWidth;
+        if (left + dropdownWidth > screenWidth - 80) {
+            // Shift left further for a more balanced layout (avoid being too close to right edge)
+            left = Math.max(20, screenWidth - dropdownWidth - 80);
+        }
+
+        dropdown.style.left = left + 'px';
+        
+        // Apply final width
+        if (isGrid) {
+            dropdown.style.width = '344px';
+            dropdown.style.minWidth = '344px';
+        } else {
+            dropdown.style.width = rect.width + 'px';
+            dropdown.style.minWidth = 'auto';
+        }
     }
 
     /**
@@ -212,9 +232,7 @@ export class ModelSelectManager {
         }
 
         const resolutionOptions = resolutions.map(r => ({ value: r, name: r }));
-        this.populateDropdown(this.videoResolutionWrapper, resolutionOptions, (val) => {
-            CONFIG.VIDEO_RESOLUTION = val;
-        });
+        this.updateVideoResolutionOptions(modelValue, durations[0]);
         
         // 智能保持选中值
         const currentDuration = this.videoDurationWrapper.dataset.value;
@@ -274,13 +292,112 @@ export class ModelSelectManager {
     }
 
     initImageRatios() {
-        this.initSimpleDropdown(this.aspectRatioWrapper, IMAGE_RATIOS, '1:1', (value) => {
-            CONFIG.ASPECT_RATIO = value;
+        this.initRatioGridPicker(
+            this.aspectRatioWrapper,
+            IMAGE_RATIOS,
+            '1:1',
+            (value) => { CONFIG.ASPECT_RATIO = value; }
+        );
+    }
+
+    /**
+     * Visual ratio grid picker - replaces the standard text dropdown
+     */
+    initRatioGridPicker(wrapper, options, defaultKey, onSelect) {
+        if (!wrapper) return;
+
+        const trigger = wrapper.querySelector('.custom-select-trigger');
+        const selectedText = trigger.querySelector('.selected-text');
+
+        let dropdown = wrapper._fixedDropdown;
+        if (!dropdown) {
+            dropdown = document.createElement('div');
+            const isVideo = wrapper.id === 'videoRatioWrapper';
+            dropdown.className = `custom-select-dropdown ratio-grid-dropdown ${isVideo ? 'video-grid' : ''}`;
+            dropdown.id = wrapper.id + '-dropdown';
+            document.body.appendChild(dropdown);
+            wrapper._fixedDropdown = dropdown;
+            dropdown._ownerWrapper = wrapper;
+        }
+
+        this._renderRatioGrid(dropdown, options, defaultKey, onSelect, wrapper, selectedText);
+
+        const defaultOpt = options.find(o => o.value === defaultKey) || options[0];
+        if (defaultOpt) {
+            wrapper.dataset.value = defaultOpt.value;
+            selectedText.textContent = defaultOpt.value;
+        }
+
+        if (wrapper.dataset.listening) return;
+        wrapper.dataset.listening = 'true';
+
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = dropdown.classList.contains('open');
+            document.querySelectorAll('.custom-select-dropdown.open').forEach(d => d.classList.remove('open'));
+            document.querySelectorAll('.custom-select-wrapper.open').forEach(w => w.classList.remove('open'));
+            if (!isOpen) {
+                this._repositionDropdown(trigger, dropdown);
+                dropdown.classList.add('open');
+                wrapper.classList.add('open');
+            }
         });
     }
 
+    _renderRatioGrid(dropdown, options, selectedValue, onSelect, wrapper, selectedText) {
+        dropdown.innerHTML = '<div class="ratio-grid"></div>';
+        const grid = dropdown.querySelector('.ratio-grid');
+        
+        options.forEach(({ label, value }) => {
+            const parts = value.split(':').map(Number);
+            const w = parts[0] || 1;
+            const h = parts[1] || 1;
+
+            const cell = document.createElement('div');
+            cell.className = 'ratio-grid-cell';
+            if (value === selectedValue) cell.classList.add('selected');
+            cell.dataset.value = value;
+
+            // Scale the preview icon proportionally within a 18x18 container
+            const maxDim = 18;
+            let pxW, pxH;
+            if (w >= h) { pxW = maxDim; pxH = Math.round(maxDim * h / w); }
+            else        { pxH = maxDim; pxW = Math.round(maxDim * w / h); }
+            pxW = Math.max(pxW, 4);
+            pxH = Math.max(pxH, 4);
+
+            const icon = document.createElement('div');
+            icon.className = 'ratio-icon';
+            icon.style.width  = pxW + 'px';
+            icon.style.height = pxH + 'px';
+
+            const labelEl = document.createElement('div');
+            labelEl.className = 'ratio-label';
+            labelEl.textContent = value;
+
+            cell.appendChild(icon);
+            cell.appendChild(labelEl);
+
+            cell.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdown.querySelectorAll('.ratio-grid-cell').forEach(c => c.classList.remove('selected'));
+                cell.classList.add('selected');
+                if (wrapper)  wrapper.dataset.value = value;
+                if (selectedText) selectedText.textContent = value;
+                dropdown.classList.remove('open');
+                if (wrapper) wrapper.classList.remove('open');
+                if (onSelect) onSelect(value);
+            });
+
+            grid.appendChild(cell);
+        });
+
+        dropdown.appendChild(grid);
+    }
+
+
     initVideoRatios() {
-        this.initSimpleDropdown(this.videoRatioWrapper, VIDEO_RATIOS, '16:9', (value) => {
+        this.initRatioGridPicker(this.videoRatioWrapper, VIDEO_RATIOS, '16:9', (value) => {
             CONFIG.VIDEO_RATIO = value;
         });
     }

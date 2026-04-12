@@ -6,6 +6,7 @@ import { updateMinimapWithImage, updateImageCenterCoordinates } from './canvas-m
 import { formatGenerationTime, debugLog, createNodeToolbar } from './utils.js';
 import { PinManager } from './pin-manager.js';
 import { getIcon } from './icons.js';
+import { promptPanelManager } from './prompt-panel-manager.js';
 
 function incrementNodeCounter() {
     return CanvasState.nodeCounter++;
@@ -20,7 +21,7 @@ export function createTextLoadingPlaceholder(prompt, x, y, modelName = '') {
     node.style.left = `${x}px`;
     node.style.top = `${y}px`;
     node.style.width = '400px';
-    node.style.height = '200px';
+    node.style.height = '300px';
 
     // 1. 标准页眉
     const header = document.createElement('div');
@@ -30,7 +31,8 @@ export function createTextLoadingPlaceholder(prompt, x, y, modelName = '') {
     // 2. 统一内容容器
     const contentArea = document.createElement('div');
     contentArea.className = 'node-content';
-    contentArea.innerHTML = `<div class="loading-text">正在生成回复...</div>`;
+    contentArea.style.cssText = 'display:flex;align-items:center;justify-content:center;background:rgba(239,246,255,0.5);border-radius:12px;';
+    contentArea.innerHTML = `<div class="loading-text" style="color:#3b82f6;font-weight:600;">正在生成回复...</div>`;
     
     // 3. 预制工具栏
     const toolbar = createNodeToolbar('text', {
@@ -61,14 +63,26 @@ export function createTextLoadingPlaceholder(prompt, x, y, modelName = '') {
     node.appendChild(info);
     node.appendChild(sidebar);
 
-    if (modelName) {
-        const timeElement = document.createElement('div');
-        timeElement.className = 'node-generation-time';
-        sidebar.appendChild(timeElement);
+    const timeElement = document.createElement('div');
+    timeElement.className = 'node-generation-time';
+    timeElement.style.display = (typeof DebugConsole !== 'undefined' && DebugConsole.showGenerationTime === false) ? 'none' : 'flex';
+    timeElement.innerHTML = `${getIcon('clock', 12)} <span>0.0s</span>`;
+    sidebar.appendChild(timeElement);
 
+    if (modelName) {
         const modelTag = document.createElement('div');
         modelTag.className = 'node-model-tag';
-        modelTag.innerHTML = `<div class="model-name">${modelName}</div>`;
+        let _dn = modelName, _pn = '';
+        if (typeof modelName === 'object' && modelName && modelName.name) {
+            _dn = modelName.name; _pn = modelName.provider || '';
+        }
+        if (_pn) {
+            modelTag.innerHTML = `<span class="model-name">${_dn}</span><span class="model-sep">·</span><span class="model-provider">${_pn.toUpperCase()}</span>`;
+            modelTag.title = `${_dn} (${_pn})`;
+        } else {
+            modelTag.innerHTML = `<span class="model-name">${_dn}</span>`;
+            modelTag.title = _dn;
+        }
         sidebar.appendChild(modelTag);
     }
     
@@ -91,7 +105,7 @@ export function updateTextLoadingPlaceholder(node, text, prompt, generationTime 
     node.classList.add('text-node');
     node.dataset.filename = `Response #${node.dataset.index}`;
     node.dataset.nodeType = 'text';
-    node.style.height = ''; // 自适应高度
+    // 核心稳定性加固：不再在这里重置 style.height，由 CSS 或原始 inline 样式维持 300px 以对齐坐标计算。
     
     // 1. 更新核心内容区
     const contentArea = node.querySelector('.node-content');
@@ -107,18 +121,34 @@ export function updateTextLoadingPlaceholder(node, text, prompt, generationTime 
     const toolbar = node.querySelector('.node-toolbar');
     if (toolbar) {
         const buttons = toolbar.querySelectorAll('.toolbar-btn');
+        const copyBtn = toolbar.querySelector('[title="复制文本内容"]');
+        const recallBtn = toolbar.querySelector('[id="editNode"]'); // 📝
+        
         buttons.forEach(btn => {
-            btn.disabled = false;
-            btn.style.opacity = '1';
+            // 核心对齐：文字节点只有 2 号位 (@) 保持禁用，其余物理开启
+            if (btn.title.includes("引用到输入框")) {
+                btn.disabled = true;
+                btn.setAttribute('disabled', 'true');
+            } else {
+                btn.disabled = false;
+                btn.removeAttribute('disabled');
+                btn.style.opacity = '1';
+            }
         });
-        // 重新绑定复制文本的逻辑
-        const copyBtn = toolbar.querySelector('[title="复制内容"]');
+        
         if (copyBtn) {
             copyBtn.onclick = (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(text);
                 debugLog(`[复制] 文本内容: ${node.dataset.filename}`, 'info');
+                copyBtn.classList.add('text-green-500');
+                setTimeout(() => copyBtn.classList.remove('text-green-500'), 1000);
             };
+        }
+
+        if (recallBtn) {
+            // 使用全局统一逻辑绑定
+            promptPanelManager.attachRecallListeners(node, recallBtn);
         }
     }
     
@@ -128,10 +158,39 @@ export function updateTextLoadingPlaceholder(node, text, prompt, generationTime 
 
     const sidebar = node.querySelector('.node-sidebar');
     if (sidebar) {
+        // 更新时间 (使用标准结构：图标 + Span)
         const timeElement = sidebar.querySelector('.node-generation-time');
         if (timeElement && generationTime !== null) {
             timeElement.style.display = 'flex';
-            timeElement.textContent = formatGenerationTime(generationTime);
+            const displayTime = formatGenerationTime(generationTime).replace('⏱️', '').trim();
+            timeElement.innerHTML = `${getIcon('clock', 12)} <span>${displayTime}</span>`;
+            timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
+        }
+
+        // 更新提示词信息 (底部)
+        const info = node.querySelector('.node-info');
+        if (info) {
+            info.textContent = prompt || 'No prompt info';
+            info.title = prompt;
+            node.dataset.prompt = prompt;
+        }
+
+        // 更新模型标签 (如果之前没有则注入)
+        const existingModelTag = sidebar.querySelector('.node-model-tag');
+        const finalModelName = modelName || node.dataset.modelName;
+        if (finalModelName && !existingModelTag) {
+            import('./utils.js').then(utils => {
+                utils.renderModelTag(sidebar, finalModelName);
+            });
+        }
+        
+        // 更新头部信息
+        const header = node.querySelector('.node-header');
+        if (header) {
+            const filenameEl = header.querySelector('.node-filename');
+            const resolutionEl = header.querySelector('.node-resolution');
+            if (filenameEl) filenameEl.textContent = node.dataset.filename || `Text Node #${node.dataset.index}`;
+            if (resolutionEl) resolutionEl.textContent = `${text.length} 字符`;
         }
     }
 }
@@ -167,6 +226,7 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '', ty
     
     const loadingContainer = document.createElement('div');
     loadingContainer.className = 'loading-container';
+    loadingContainer.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;';
     
     const iconMap = {
         'image': getIcon('image', 32),
@@ -180,6 +240,7 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '', ty
     
     const loadingText = document.createElement('div');
     loadingText.className = 'loading-text';
+    loadingText.style.marginTop = '8px';
     loadingText.textContent = `正在生成${type === 'image' ? '图片' : type === 'text' ? '回复' : '视频'}...`;
     
     loadingContainer.appendChild(loadingIcon);
@@ -242,12 +303,13 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '', ty
     node.appendChild(info);         // 4
     node.appendChild(sidebar);      // 5
     
-    if (modelName) {
-        const timeElement = document.createElement('div');
-        timeElement.className = 'node-generation-time';
-        timeElement.style.display = DebugConsole.showGenerationTime ? 'flex' : 'none';
-        sidebar.appendChild(timeElement);
+    const timeElement = document.createElement('div');
+    timeElement.className = 'node-generation-time';
+    timeElement.style.display = (typeof DebugConsole !== 'undefined' && DebugConsole.showGenerationTime === false) ? 'none' : 'flex';
+    timeElement.innerHTML = `${getIcon('clock', 12)} <span>0.0s</span>`;
+    sidebar.appendChild(timeElement);
 
+    if (modelName) {
         const modelTag = document.createElement('div');
         modelTag.className = 'node-model-tag';
         modelTag.style.display = DebugConsole.showModelTag ? 'block' : 'none';
@@ -255,7 +317,7 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '', ty
         if (typeof modelName === 'object' && modelName && modelName.name) {
             _dn = modelName.name; _pn = modelName.provider || '';
         }
-        modelTag.innerHTML = _pn ? `<div class="model-name">${_dn}</div><div class="model-provider">${_pn}</div>` : _dn;
+        modelTag.innerHTML = _pn ? `<span class="model-name">${_dn}</span><span class="model-sep">·</span><span class="model-provider">${_pn.toUpperCase()}</span>` : `<span class="model-name">${_dn}</span>`;
         sidebar.appendChild(modelTag);
     }
     
@@ -299,6 +361,7 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
     img.src = imageUrl;
     img.alt = `Generated image ${node.dataset.index}`;
     img.draggable = false;
+    img.style.cssText = 'width: 100%; height: 100%; object-fit: cover; display: block;';
     
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'resize-handle';
@@ -333,15 +396,26 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
         const newToolbar = createNodeToolbar('image', {
             onCopyPrompt: () => navigator.clipboard.writeText(prompt || ''),
             onInsertPrompt: () => {
-                console.log(`[Referencing] Citation from generated node:`, node.dataset.index);
                 if (typeof PinManager !== 'undefined' && PinManager.addCanvasImageToPrompt) {
                     PinManager.addCanvasImageToPrompt(node);
                 }
             },
-            onCopyNode: () => { 
-                selectNode(node); 
-                copySelectedNode();
-                console.log(`%c[Copy] Generated Node #${node.dataset.index} copied.`, 'color: #10b981; font-weight: bold');
+            onRecallNode: () => {
+                promptPanelManager.lockCommit();
+                promptPanelManager.loadFromNode(node);
+                debugLog(`[溯源] 已成功加载图片节点#${node.dataset.index}的历史参数`, 'success');
+            },
+            onPreviewStart: () => {
+                promptPanelManager.saveDraft();
+                promptPanelManager.setPreviewMode(true);
+                promptPanelManager.loadFromNode(node);
+                debugLog(`[预览] 图片节点#${node.dataset.index} 历史参数`, 'info');
+            },
+            onPreviewEnd: () => {
+                if (!promptPanelManager.isPreviewLocked) {
+                    promptPanelManager.setPreviewMode(false);
+                    promptPanelManager.restoreDraft();
+                }
             },
             onDelete: () => { selectNode(node); deleteSelectedNode(); }
         });

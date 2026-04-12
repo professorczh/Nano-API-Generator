@@ -296,13 +296,10 @@ export function renderModelTag(container, modelName) {
     }
     
     if (providerName) {
-        modelTag.innerHTML = `
-            <div class="model-name">${displayName}</div>
-            <div class="model-provider">${providerName.toUpperCase()}</div>
-        `;
+        modelTag.innerHTML = `<span class="model-name">${displayName}</span><span class="model-sep">·</span><span class="model-provider">${providerName.toUpperCase()}</span>`;
         modelTag.title = `${displayName} (${providerName})`;
     } else {
-        modelTag.innerHTML = `<div class="model-name">${displayName}</div>`;
+        modelTag.innerHTML = `<span class="model-name">${displayName}</span>`;
         modelTag.title = displayName;
     }
     
@@ -384,50 +381,72 @@ export function createNodeToolbar(type, callbacks = {}) {
     const toolbar = document.createElement('div');
     toolbar.className = 'node-toolbar';
     
-    // 基础配置：根据类型决定显示哪些按钮
-    const config = {
-        image: [
-            { id: 'copyPrompt', icon: 'clipboard', title: '复制提示词', action: callbacks.onCopyPrompt },
-            { id: 'insertPrompt', icon: 'at-sign', title: '引用到输入框', action: callbacks.onInsertPrompt },
-            { id: 'copyNode', icon: 'copy', title: '复制节点 (可粘贴)', action: callbacks.onCopyNode },
-            { id: 'delete', icon: 'trash', title: '删除图片', action: callbacks.onDelete, danger: true }
-        ],
-        video: [
-            { id: 'copyPrompt', icon: 'clipboard', title: '复制提示词', action: callbacks.onCopyPrompt },
-            { id: 'insertPrompt', icon: 'at-sign', title: '引用到输入框', action: callbacks.onInsertPrompt },
-            { id: 'copyNode', icon: 'copy', title: '复制节点 (可粘贴)', action: callbacks.onCopyNode },
-            { id: 'delete', icon: 'trash', title: '删除视频', action: callbacks.onDelete, danger: true }
-        ],
-        audio: [
-            { id: 'copyPrompt', icon: 'clipboard', title: '复制提示词', action: callbacks.onCopyPrompt },
-            { id: 'insertPrompt', icon: 'at-sign', title: '引用到输入框', action: callbacks.onInsertPrompt },
-            { id: 'copyNode', icon: 'copy', title: '复制节点 (可粘贴)', action: callbacks.onCopyNode },
-            { id: 'delete', icon: 'trash', title: '删除文件', action: callbacks.onDelete, danger: true }
-        ],
-        text: [
-            { id: 'copyText', icon: 'copy', title: '复制文本', action: callbacks.onCopyText },
-            { id: 'delete', icon: 'trash', title: '删除节点', action: callbacks.onDelete, danger: true }
-        ]
-    };
-
-    const buttons = config[type] || config.text;
+    // 终极标准化：全模态固定 4 位工具栏配置
+    const buttons = [
+        { 
+            id: 'copyContent', 
+            icon: 'copy', 
+            title: (type === 'text') ? '复制文本内容' : '复制生成提示词', 
+            action: callbacks.onCopyText || callbacks.onCopyPrompt,
+            disabled: !(callbacks.onCopyText || callbacks.onCopyPrompt)
+        },
+        { 
+            id: 'insertPrompt', 
+            icon: 'at-sign', 
+            title: '引用到输入框 (@)', 
+            action: callbacks.onInsertPrompt,
+            // 文字节点目前暂不支持引用，或者待进一步指令，目前根据模态开启
+            disabled: (type === 'text') || !callbacks.onInsertPrompt 
+        },
+        { 
+            id: 'editNode', 
+            icon: 'edit', 
+            title: '加载溯源参数 (悬停预览 / 点击编辑)', 
+            action: callbacks.onRecallNode,             // 点击确认
+            enter: callbacks.onPreviewStart,          // 悬停进入
+            leave: callbacks.onPreviewEnd,            // 悬停离开
+            disabled: !callbacks.onRecallNode 
+        },
+        { 
+            id: 'deleteNode', 
+            icon: 'trash', 
+            title: '删除节点', 
+            action: callbacks.onDelete, 
+            danger: true,
+            disabled: !callbacks.onDelete 
+        }
+    ];
 
     buttons.forEach(btn => {
         const button = document.createElement('button');
         button.className = `toolbar-btn ${btn.danger ? 'danger' : ''}`;
+        button.id = btn.id;   // 核心修复：确保 btn.id 实际赋值到 DOM 的 id 属性
         button.title = btn.title;
-        // 核心修正：所有按钮使用统一的图标路径和大小
         button.innerHTML = getIcon(btn.icon, 14); 
-        // 终极加固：改用 addEventListener 提高兼容性，并增加底层探测
+        
+        if (btn.disabled) {
+            button.disabled = true;
+        }
+
         button.addEventListener('mousedown', (e) => {
-            console.log(`[Toolbar] Mousedown detected on ${btn.id}`);
-            e.stopPropagation(); // 绝对禁止穿透给画布
+            e.stopPropagation();
         }, { capture: true });
 
+        // 处理悬停预览 (核心修复：移除 !btn.disabled 判断，确保监听器始终挂载)
+        if (btn.enter) {
+            button.addEventListener('mouseenter', (e) => {
+                if (!button.disabled) btn.enter(e);
+            });
+        }
+        if (btn.leave) {
+            button.addEventListener('mouseleave', (e) => {
+                if (!button.disabled) btn.leave(e);
+            });
+        }
+
         button.addEventListener('click', (e) => {
-            console.log(`[Toolbar] Click Fired on ${btn.id}`);
             e.stopPropagation();
-            if (typeof btn.action === 'function') {
+            if (!button.disabled && typeof btn.action === 'function') {
                 btn.action(e);
             }
         });

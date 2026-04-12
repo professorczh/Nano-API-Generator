@@ -211,7 +211,7 @@ export class APIClient {
                 }
             } else if (requestConfig.isAudioGenMode) {
                 if (result.audioUrl && requestConfig.onAudioGenerated) {
-                    await requestConfig.onAudioGenerated(result.audioUrl);
+                    await requestConfig.onAudioGenerated(result.audioUrl, result);
                 }
             } else {
                 if (result.text && onTextGenerated) {

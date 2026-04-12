@@ -197,7 +197,7 @@ function getNextAudioNumber(dateFolder) {
     return maxNumber + 1;
 }
 
-async function saveAudio(audioUrl, prompt, format, duration, modelName) {
+async function saveAudio(audioUrl, prompt, format, duration, modelName, lyrics = '', caption = '') {
     const dateFolder = getDateFolder();
     const audioNumber = getNextAudioNumber(dateFolder);
     
@@ -221,7 +221,7 @@ async function saveAudio(audioUrl, prompt, format, duration, modelName) {
     
     const txtFileName = fileName.replace(`.${format}`, '.txt');
     const txtFilePath = path.join(folderPath, txtFileName);
-    const txtContent = `提示词: ${prompt}\n格式: ${format}\n时长: ${duration}秒\n模型: ${modelName}\n生成时间: ${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`;
+    const txtContent = `提示词: ${prompt}\n格式: ${format}\n时长: ${duration}秒\n模型: ${modelName}\n生成时间: ${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n\n歌词/内容:\n${lyrics}\n\n风格描述:\n${caption}`;
     fs.writeFileSync(txtFilePath, txtContent, 'utf-8');
     
     return {
@@ -440,7 +440,7 @@ const server = http.createServer((req, res) => {
         req.on('end', async () => {
             try {
                 const data = JSON.parse(body);
-                const { audioUrl, prompt, format, duration, modelName, saveToDisk = true } = data;
+                const { audioUrl, prompt, format, duration, modelName, lyrics, caption, saveToDisk = true } = data;
                 
                 if (!audioUrl) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -454,7 +454,7 @@ const server = http.createServer((req, res) => {
                     return;
                 }
                 
-                const result = await saveAudio(audioUrl, prompt, format, duration, modelName);
+                const result = await saveAudio(audioUrl, prompt, format, duration, modelName, lyrics, caption);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true, ...result }));
             } catch (e) {

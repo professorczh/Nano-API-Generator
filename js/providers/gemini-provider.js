@@ -95,11 +95,18 @@ export class GeminiProvider extends BaseProvider {
 
             const apiResponse = await response.json();
             const audioData = this.extractAudioData(apiResponse);
+            
+            // 提取歌词和描述 (假设第一个文本部分是歌词，第二个是描述)
+            const textParts = apiResponse.candidates?.[0]?.content?.parts?.filter(p => p.text) || [];
+            const lyrics = textParts[0]?.text || '';
+            const caption = textParts[1]?.text || '';
 
             return this._wrapResponse({
                 audioUrl: audioData ? `data:audio/${audioFormat || 'mp3'};base64,${audioData}` : null,
                 raw: apiResponse,
-                audioData: audioData
+                audioData: audioData,
+                lyrics: lyrics,
+                caption: caption
             });
 
         } catch (error) {

@@ -136,7 +136,11 @@ export const AUDIO_FORMATS = [
 
 export const VIDEO_RATIOS = [
     { name: "16:9", value: "16:9" },
-    { name: "9:16", value: "9:16" }
+    { name: "4:3", value: "4:3" },
+    { name: "1:1", value: "1:1" },
+    { name: "3:4", value: "3:4" },
+    { name: "9:16", value: "9:16" },
+    { name: "21:9", value: "21:9" }
 ];
 
 export const IMAGE_RATIOS = [

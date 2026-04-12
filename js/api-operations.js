@@ -8,6 +8,15 @@ import { createImageNode, createTextNode } from './node-manager.js';
 import { createLoadingPlaceholder, createTextLoadingPlaceholder, updateLoadingPlaceholder, updateTextLoadingPlaceholder } from './loading-placeholder.js';
 import { promptPanelManager } from './prompt-panel-manager.js';
 
+/**
+ * 解析比例字符串 (如 "16:9") 为数值
+ */
+function parseRatio(ratioStr) {
+    if (!ratioStr || !ratioStr.includes(':')) return 16/9;
+    const [w, h] = ratioStr.split(':').map(Number);
+    return (w && h) ? w / h : 16/9;
+}
+
 export async function handleAPICall(params) {
     const {
         promptInput,
@@ -218,106 +227,116 @@ export async function handleAPICall(params) {
     let displayWidth = 300;
     let displayHeight = 300;
     
+    // 终极坐标稳定性系统：在 handleAPICall 最前端统一计算新节点位置
+    // 确保所有模态（图片、视频、音频、文本）共享同一套精确定义的坐标参考系
+    const allExistingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
+    let targetX = 5000;
+    let targetY = 5000;
+
+    if (allExistingNodes.length > 0) {
+        const lastBaseNode = allExistingNodes[allExistingNodes.length - 1];
+        const lastBaseX = parseInt(lastBaseNode.style.left) || 5000;
+        const lastBaseY = parseInt(lastBaseNode.style.top) || 5000;
+        
+        const standardWidth = 400;
+        // 判定基准：只要是盒状媒体节点或加载占位符，一律按 300px 预留空间
+        const isStandardBox = lastBaseNode.classList.contains('text-node') || 
+                             lastBaseNode.classList.contains('audio-node') || 
+                             lastBaseNode.classList.contains('image-node') ||
+                             lastBaseNode.classList.contains('video-node') ||
+                             lastBaseNode.classList.contains('loading-placeholder') ||
+                             lastBaseNode.classList.contains('text-loading-placeholder');
+        
+        const lastBaseHeight = isStandardBox ? 300 : (lastBaseNode.offsetHeight || 300);
+        
+        targetX = lastBaseX + standardWidth + 50;
+        targetY = lastBaseY;
+        
+        if (targetX > 6000) {
+            targetX = 5000;
+            targetY = lastBaseY + lastBaseHeight + 50;
+        }
+    }
+    
     if (isImageGenMode) {
-        const aspectRatioValue = aspectRatioWrapper.dataset.value;
+        const aspectRatioValue = aspectRatioWrapper.dataset.value || '1:1';
         const imageSizeValue = imageSizeWrapper.dataset.value;
         
-        let width, height;
+        const ratio = parseRatio(aspectRatioValue);
         const baseSize = imageSizeValue === '512px' ? 512 : imageSizeValue === '1K' ? 1024 : imageSizeValue === '2K' ? 2048 : 3840;
         
-        switch (aspectRatioValue) {
-            case '1:1': width = baseSize; height = baseSize; break;
-            case '16:9': width = baseSize; height = Math.round(baseSize * 9 / 16); break;
-            case '9:16': width = Math.round(baseSize * 9 / 16); height = baseSize; break;
-            case '21:9': width = baseSize; height = Math.round(baseSize * 9 / 21); break;
-            case '4:3': width = baseSize; height = Math.round(baseSize * 3 / 4); break;
-            case '3:4': width = Math.round(baseSize * 3 / 4); height = baseSize; break;
-            case '3:2': width = baseSize; height = Math.round(baseSize * 2 / 3); break;
-            case '2:3': width = Math.round(baseSize * 2 / 3); height = baseSize; break;
-            case '5:4': width = baseSize; height = Math.round(baseSize * 4 / 5); break;
-            case '4:5': width = Math.round(baseSize * 4 / 5); height = baseSize; break;
-            default: width = baseSize; height = Math.round(baseSize * 9 / 16);
-        }
-        
-        const ratio = width / height;
-        
-        if (width > height) {
-            displayWidth = Math.min(width, 300);
-            displayHeight = Math.round(displayWidth / ratio);
+        // 1. 计算 API 要求的物理尺导
+        let width, height;
+        if (ratio >= 1) {
+            width = baseSize;
+            height = Math.round(baseSize / ratio);
         } else {
-            displayHeight = Math.min(height, 300);
-            displayWidth = Math.round(displayHeight * ratio);
+            height = baseSize;
+            width = Math.round(baseSize * ratio);
         }
         
-        const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
-        let x = 5000;
-        let y = 5000;
-        
-        if (existingNodes.length > 0) {
-            const lastNode = existingNodes[existingNodes.length - 1];
-            const lastNodeX = parseInt(lastNode.style.left) || 0;
-            const lastNodeY = parseInt(lastNode.style.top) || 0;
-            const lastNodeWidth = lastNode.offsetWidth;
-            const lastNodeHeight = lastNode.offsetHeight;
-            
-            x = lastNodeX + lastNodeWidth + 50;
-            y = lastNodeY;
-            
-            if (x > 6000) {
-                x = 5000;
-                y = lastNodeY + lastNodeHeight + 50;
-            }
+        // 2. 计算 UI 显示尺寸 (改为执行 300px 基准轴策略)
+        const axisSize = 300;
+        if (ratio > 1) {
+            // 横屏：锁定高度 300
+            displayHeight = axisSize;
+            displayWidth = Math.round(axisSize * ratio);
+        } else {
+            // 竖屏或正方形：锁定宽度 300
+            displayWidth = axisSize;
+            displayHeight = Math.round(axisSize / ratio);
         }
+
         
-        loadingPlaceholder = createLoadingPlaceholder(displayWidth, displayHeight, x, y, modelDisplayName.name);
+        // 使用统一计算出的 targetX 和 targetY
+        loadingPlaceholder = createLoadingPlaceholder(displayWidth, displayHeight, targetX, targetY, modelDisplayNameObj);
+        // 保存物理坐标到 dataset
+        loadingPlaceholder.dataset.posX = targetX;
+        loadingPlaceholder.dataset.posY = targetY;
+        
         imageResponseContainer.appendChild(loadingPlaceholder);
         updateMinimapWithImage(loadingPlaceholder);
         
         const imgGenStartTime = Date.now();
         const imgTimeElement = loadingPlaceholder.querySelector('.node-sidebar .node-generation-time');
+        const imgTimeSpan = imgTimeElement ? imgTimeElement.querySelector('span') : null;
         if (imgTimeElement) {
-            imgTimeElement.textContent = '⏱️ 0.0s';
             const imgTimer = setInterval(() => {
                 const elapsed = (Date.now() - imgGenStartTime) / 1000;
-                imgTimeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
+                import('./utils.js').then(utils => {
+                    if (imgTimeSpan) imgTimeSpan.textContent = utils.formatGenerationTime(elapsed).replace('⏱️', '').trim();
+                    else imgTimeElement.textContent = utils.formatGenerationTime(elapsed);
+                });
             }, 100);
             loadingPlaceholder._loadingInterval = imgTimer;
             loadingPlaceholder._startTime = imgGenStartTime;
         }
     } else if (currentMode !== 'video' && currentMode !== 'audio') {
-        const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
-        let x = 5000;
-        let y = 5000;
-        
-        if (existingNodes.length > 0) {
-            const lastNode = existingNodes[existingNodes.length - 1];
-            const lastNodeX = parseInt(lastNode.style.left) || 0;
-            const lastNodeY = parseInt(lastNode.style.top) || 0;
-            const lastNodeWidth = lastNode.offsetWidth;
-            const lastNodeHeight = lastNode.offsetHeight;
-            
-            x = lastNodeX + lastNodeWidth + 50;
-            y = lastNodeY;
-            
-            if (x > 6000) {
-                x = 5000;
-                y = lastNodeY + lastNodeHeight + 50;
-            }
-        }
-        
-        loadingPlaceholder = createTextLoadingPlaceholder(prompt, x, y, modelDisplayName.name);
+        // 直接使用统一排布坐标
+        loadingPlaceholder = createTextLoadingPlaceholder(prompt, targetX, targetY, modelDisplayNameObj);
+        loadingPlaceholder.dataset.posX = targetX;
+        loadingPlaceholder.dataset.posY = targetY;
         imageResponseContainer.appendChild(loadingPlaceholder);
         updateMinimapWithImage(loadingPlaceholder);
         
         const textGenStartTime = Date.now();
         const textTimeElement = loadingPlaceholder.querySelector('.node-generation-time');
         if (textTimeElement) {
-            textTimeElement.textContent = '⏱️ 0.0s';
-            const textTimer = setInterval(() => {
-                const elapsed = (Date.now() - textGenStartTime) / 1000;
-                textTimeElement.textContent = `⏱️ ${elapsed.toFixed(1)}s`;
-            }, 100);
-            loadingPlaceholder._loadingInterval = textTimer;
+            const timeSpan = textTimeElement.querySelector('span');
+            import('./utils.js').then(utils => {
+                const updateUI = (val) => {
+                    const timeStr = utils.formatGenerationTime(val).replace('⏱️', '').trim();
+                    if (timeSpan) timeSpan.textContent = timeStr;
+                    else textTimeElement.textContent = `⏱️ ${timeStr}`;
+                };
+                
+                updateUI(0);
+                const textTimer = setInterval(() => {
+                    const elapsed = (Date.now() - textGenStartTime) / 1000;
+                    updateUI(elapsed);
+                }, 100);
+                loadingPlaceholder._loadingInterval = textTimer;
+            });
             loadingPlaceholder._startTime = textGenStartTime;
         }
     }
@@ -332,27 +351,10 @@ export async function handleAPICall(params) {
                 selectedImageUrl = selectedNode.querySelector('img').src;
             }
             
-            const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
-            let nodeX = 5000;
-            let nodeY = 5000;
-            
-            if (existingNodes.length > 0) {
-                const lastNode = existingNodes[existingNodes.length - 1];
-                const lastNodeX = parseInt(lastNode.style.left) || 0;
-                const lastNodeY = parseInt(lastNode.style.top) || 0;
-                const lastNodeWidth = lastNode.offsetWidth || 300;
-                const lastNodeHeight = lastNode.offsetHeight || 169;
-                
-                nodeX = lastNodeX + lastNodeWidth + 50;
-                nodeY = lastNodeY;
-                
-                if (nodeX > 6000) {
-                    nodeX = 5000;
-                    nodeY = lastNodeY + lastNodeHeight + 50;
-                }
-            }
-            
-            const videoPlaceholder = NodeFactory.createVideoPlaceholder(nodeX, nodeY, prompt, modelDisplayName, videoRatioWrapper.dataset.value);
+            // 使用统一排布坐标，彻底修复此处变量作用域断层导致的 ReferenceError
+            const videoPlaceholder = NodeFactory.createVideoPlaceholder(targetX, targetY, prompt, modelDisplayNameObj, videoRatioWrapper.dataset.value);
+            videoPlaceholder.dataset.posX = targetX;
+            videoPlaceholder.dataset.posY = targetY;
             imageResponseContainer.appendChild(videoPlaceholder);
             updateMinimapWithImage(videoPlaceholder);
             selectNode(videoPlaceholder);
@@ -477,32 +479,11 @@ export async function handleAPICall(params) {
 
         const isAudioGenMode = currentMode === 'audio';
         if (isAudioGenMode) {
-            const existingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
-            let nodeX = 5000;
-            let nodeY = 5000;
+            // 直接使用统一排布坐标
+            const audioPlaceholder = NodeFactory.createAudioPlaceholder(targetX, targetY, prompt, modelDisplayNameObj);
+            audioPlaceholder.dataset.posX = targetX;
+            audioPlaceholder.dataset.posY = targetY;
             
-            if (existingNodes.length > 0) {
-                const lastNode = existingNodes[existingNodes.length - 1];
-                const lastNodeX = parseInt(lastNode.style.left) || 0;
-                const lastNodeY = parseInt(lastNode.style.top) || 0;
-                const lastNodeWidth = lastNode.offsetWidth;
-                const lastNodeHeight = lastNode.offsetHeight;
-                
-                nodeX = lastNodeX + lastNodeWidth + 50;
-                nodeY = lastNodeY;
-                
-                if (nodeX > 6000) {
-                    nodeX = 5000;
-                    nodeY = lastNodeY + lastNodeHeight + 50;
-                }
-            }
-            
-            const audioModel = CONFIG.AUDIO_MODEL_NAME;
-            const audioProvider = CONFIG.AUDIO_MODEL_PROVIDER;
-            const audioModelDisplayNameObj = getModelDisplayName(audioModel, audioProvider);
-            const audioModelDisplayName = audioModelDisplayNameObj.name || audioModel;
-            
-            const audioPlaceholder = NodeFactory.createAudioPlaceholder(nodeX, nodeY, prompt, audioModelDisplayName);
             imageResponseContainer.appendChild(audioPlaceholder);
             updateMinimapWithImage(audioPlaceholder);
             selectNode(audioPlaceholder);
@@ -516,11 +497,14 @@ export async function handleAPICall(params) {
                     prompt,
                     media: allMediaData,
                     isAudioGenMode: true,
-                    modelName: audioModel,
-                    modelProvider: audioProvider,
+                    modelName: modelName,
+                    modelProvider: modelProvider,
                     audioDuration: audioDurationWrapper.dataset.value,
                     audioFormat: audioFormatWrapper.dataset.value,
-                    onAudioGenerated: async (audioUrl) => {
+                    onAudioGenerated: async (audioUrl, result) => {
+                        const lyrics = result?.lyrics || '';
+                        const caption = result?.caption || '';
+                        
                         if (typeof NodeFactory !== 'undefined') {
                             NodeFactory.updateAudioLoadingStatus(audioPlaceholder, 'saving');
                         }
@@ -535,7 +519,9 @@ export async function handleAPICall(params) {
                                     prompt: prompt,
                                     format: audioFormatWrapper.dataset.value,
                                     duration: audioDurationWrapper.dataset.value,
-                                    modelName: audioModelDisplayName
+                                    modelName: modelDisplayName,
+                                    lyrics: lyrics,
+                                    caption: caption
                                 })
                             });
                             const saveResult = await saveResponse.json();
@@ -547,7 +533,16 @@ export async function handleAPICall(params) {
                         }
 
                         const genTime = (Date.now() - audioGenStartTime) / 1000;
-                        NodeFactory.replaceWithAudio(audioPlaceholder, finalAudioUrl, prompt, audioModelDisplayName, genTime, audioFormatWrapper.dataset.value);
+                        NodeFactory.replaceWithAudio(
+                            audioPlaceholder, 
+                            finalAudioUrl, 
+                            prompt, 
+                            modelDisplayName, 
+                            genTime, 
+                            audioFormatWrapper.dataset.value,
+                            lyrics,
+                            caption
+                        );
                         promptPanelManager.saveNodeSnapshot(audioPlaceholder, snapshot);
                     },
                     onError: (error) => {
@@ -629,7 +624,10 @@ export async function handleAPICall(params) {
                     loadingPlaceholder.dataset.imageUrl = finalImagePath;
                     promptPanelManager.saveNodeSnapshot(loadingPlaceholder, snapshot);
                 } else {
-                    const newNode = createImageNode(finalImagePath, prompt, 0, filename, resolutionStr, genTime, modelDisplayName, null, null, null, revisedPrompt);
+                    // 核心加固：降级创建流程。优先尝试从现有 DOM 找回坐标，否则使用 5000 默认值。
+                    const fallbackX = loadingPlaceholder?.dataset.posX || 5000;
+                    const fallbackY = loadingPlaceholder?.dataset.posY || 5000;
+                    const newNode = createImageNode(finalImagePath, prompt, 0, filename, resolutionStr, genTime, modelDisplayName, null, fallbackX, fallbackY, revisedPrompt);
                     newNode.dataset.imageUrl = finalImagePath;
                     promptPanelManager.saveNodeSnapshot(newNode, snapshot);
                     imageResponseContainer.appendChild(newNode);
@@ -650,7 +648,10 @@ export async function handleAPICall(params) {
                     updateTextLoadingPlaceholder(loadingPlaceholder, text, prompt, genTime, modelDisplayName);
                     promptPanelManager.saveNodeSnapshot(loadingPlaceholder, snapshot);
                 } else {
-                    const textNode = createTextNode(text, prompt, CanvasState.nodeCounter++, '', '', genTime, modelDisplayName);
+                    // 同样处理文本节点的降级创建坐标
+                    const fallbackX = loadingPlaceholder?.dataset.posX || 5000;
+                    const fallbackY = loadingPlaceholder?.dataset.posY || 5000;
+                    const textNode = createTextNode(text, prompt, CanvasState.nodeCounter++, '', '', genTime, modelDisplayName, fallbackX, fallbackY);
                     promptPanelManager.saveNodeSnapshot(textNode, snapshot);
                     imageResponseContainer.appendChild(textNode);
                 }

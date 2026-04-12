@@ -147,12 +147,12 @@
     justify-content: center;
     width: 60px;
     height: 60px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px dashed rgba(255, 255, 255, 0.15);
+    background: rgba(59, 130, 246, 0.03);
+    border: 1px dashed rgba(99, 142, 246, 0.35); /* 修复：提高边框可见度 */
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    order: 9999; /* 强制排在最后 */
+    order: 9999;
     flex-shrink: 0;
 }
 
@@ -256,8 +256,8 @@
 }
 
 .mode-option.selected {
-    background: #fdf2f8;
-    color: #db2777;
+    background: #eff6ff; /* 主色蓝，和整体驽色系统一致，告别粉色 */
+    color: #2563eb;
 }
 
 .opt-icon { font-size: 14px; }

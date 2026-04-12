@@ -372,8 +372,12 @@ export function findNodeByImageUrl(url, refId = null) {
         // 1. 优先通过 refId 匹配 (最可靠)
         if (refId && n.dataset.refId === refId) return n;
         
-        // 2. 兜底通过 URL 匹配
-        if (n.dataset.imageUrl === url || (n.dataset.imageUrl.length > 100 && url.length > 100 && n.dataset.imageUrl.slice(-100) === url.slice(-100))) return n;
+        // 2. 兜底通过 URL 匹配 (增强健壮性，防止 imageUrl 为空或长度不足时报错)
+        const nodeUrl = n.dataset.imageUrl;
+        if (nodeUrl && url) {
+            if (nodeUrl === url) return n;
+            if (nodeUrl.length > 100 && url.length > 100 && nodeUrl.slice(-100) === url.slice(-100)) return n;
+        }
     }
     return null;
 }

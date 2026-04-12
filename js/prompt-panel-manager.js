@@ -2,6 +2,7 @@
 import { AppState, CanvasState } from './app-state.js';
 import { referenceManager } from './reference-manager.js';
 import { CONFIG } from '../config.js';
+import { debugLog } from './utils.js'; // 引入 UI 日志工具
 
 class PromptPanelManager {
     constructor() {
@@ -12,11 +13,13 @@ class PromptPanelManager {
         this.richTextBackup = '';
         // 内存中存储节点的完整状态（包含 File 对象）
         this.nodeSnapshots = new Map();
-
+        this.isPreviewLocked = false; // 核心：防止悬浮预览结束时回弹
     }
 
     init(elements) {
         this.elements = elements;
+        // 绑定全局单例到 window 方便跨模块调用 (在某些复杂异步场景下)
+        window.promptPanelManager = this;
         console.log('%c[PromptPanelManager] 状态管理器已启动', 'color: #3b82f6; font-weight: bold');
     }
 
@@ -65,6 +68,72 @@ class PromptPanelManager {
         if (mode === 'text') return CONFIG.MODEL_PROVIDER;
         if (mode === 'audio') return CONFIG.AUDIO_MODEL_PROVIDER;
         return CONFIG.VIDEO_MODEL_PROVIDER;
+    }
+
+    /**
+     * 设置面板的预览视觉状态
+     */
+    setPreviewMode(active) {
+        if (!this.elements.panel) {
+            this.elements.panel = document.querySelector('.prompt-panel');
+        }
+        if (this.elements.panel) {
+            if (active) {
+                this.elements.panel.classList.add('preview-mode');
+            } else {
+                this.elements.panel.classList.remove('preview-mode');
+            }
+        }
+    }
+
+    /**
+     * 锁定预览状态（点击后触发）
+     */
+    lockCommit() {
+        this.isPreviewLocked = true;
+        this.setPreviewMode(false);
+        console.log('%c[PromptPanelManager] 历史参数已提交，锁定面板', 'color: #a855f7; font-weight: bold');
+    }
+
+    /**
+     * 核心加固：为节点绑定标准的溯源监听器 (预览 + 提交)
+     * @param {HTMLElement} node 节点 DOM
+     * @param {HTMLElement} recallBtn 工具栏中的 📝 按钮
+     */
+    attachRecallListeners(node, recallBtn) {
+        if (!node || !recallBtn) return;
+        
+        const nodeId = node.dataset.index;
+        const nodeType = node.classList.contains('text-node') ? '文字' : 
+                         node.classList.contains('image-node') ? '图片' :
+                         node.classList.contains('video-node') ? '视频' : '音频';
+
+        // 1. 悬停预览开始
+        recallBtn.addEventListener('mouseenter', () => {
+            if (recallBtn.disabled) return;
+            this.saveDraft();
+            this.setPreviewMode(true);
+            this.loadFromNode(node);
+            debugLog(`[预览] ${nodeType}节点#${nodeId} 历史参数`, 'info');
+        });
+
+        // 2. 悬停离开回弹
+        recallBtn.addEventListener('mouseleave', () => {
+            if (recallBtn.disabled) return;
+            if (!this.isPreviewLocked) {
+                this.setPreviewMode(false);
+                this.restoreDraft();
+            }
+        });
+
+        // 3. 点击正式提交
+        recallBtn.addEventListener('click', (e) => {
+            if (recallBtn.disabled) return;
+            e.stopPropagation();
+            this.lockCommit();
+            this.loadFromNode(node);
+            debugLog(`[溯源] 已成功加载${nodeType}节点#${nodeId}的历史参数`, 'success');
+        });
     }
 
     /**
@@ -237,6 +306,7 @@ class PromptPanelManager {
     async restoreDraft() {
         if (this.draft) {
             await this.applyState(this.draft);
+            debugLog('[面板] 已恢复之前的草稿内容', 'info');
             console.log('%c[PromptPanelManager] 草稿已恢复', 'color: #22c55e');
         } else {
             // 如果没有草稿，清空面板

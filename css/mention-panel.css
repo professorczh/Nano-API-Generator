@@ -6,13 +6,14 @@
     position: absolute;
     z-index: 999999;
     width: 220px;
-    background: #1e1e24; /* 深色背景 */
+    background: rgba(255, 255, 255, 0.90); /* 白玻清亮，告别头号深色 */
+    backdrop-filter: blur(24px) saturate(180%);
     border-radius: 12px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 4px 10px -3px rgba(0, 0, 0, 0.08);
     padding: 8px;
-    color: #f1f5f9;
+    color: var(--text-main);
     animation: mentionPaneFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 @keyframes mentionPaneFadeIn {
@@ -42,7 +43,7 @@
 }
 
 .mention-item:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(59, 130, 246, 0.06);
 }
 
 .mention-thumb {
@@ -50,7 +51,7 @@
     height: 28px;
     border-radius: 6px;
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.04);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -130,7 +131,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #000;
+    background: rgba(0, 0, 0, 0.04); /* 修复：告别纯黑，改用极淡灰 */
 }
 
 .thumbnail-vJ6ynC img {
@@ -167,14 +168,14 @@
 #mentionPreviewTooltip {
     position: absolute;
     width: 280px;
-    background: rgba(15, 23, 42, 0.85); /* 深靛蓝半透明 */
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 24px; /* 大圆角 */
+    background: rgba(255, 255, 255, 0.88); /* 修复：白玻渄钟，和整体浅色风格对齐 */
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 20px;
     padding: 16px;
-    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0,0,0,0.06);
     z-index: 1000000;
-    pointer-events: none; /* 穿透鼠标，防止遮挡标签 */
+    pointer-events: none;
     transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     animation: previewFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -191,18 +192,18 @@
 .preview-title {
     font-size: 14px;
     font-weight: 700;
-    color: white;
+    color: var(--text-main); /* 深色文字，逗当浅色背景 */
     margin-bottom: 12px;
     letter-spacing: 0.02em;
 }
 
 .preview-content {
     width: 100%;
-    border-radius: 16px;
+    border-radius: 14px;
     overflow: hidden;
-    background: #000;
+    background: rgba(15, 23, 42, 0.08); /* 修复：深鄂而非死黑，媒体内容区需要对比度 */
     position: relative;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
 .preview-content img,
