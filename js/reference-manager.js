@@ -56,10 +56,34 @@ class ReferenceManager {
         }
 
         let dataUrl = '';
+        let localPath = null;
+        let thumbnail = null;
+
         if (type === 'image') {
             dataUrl = await this._compressImage(fileOrBlob);
         } else {
             dataUrl = URL.createObjectURL(fileOrBlob);
+        }
+
+        // --- 新增：自动同步到后端 uploads (Local-First 核心步骤) ---
+        try {
+            const formData = new FormData();
+            const uploadResp = await fetch('/api/upload', {
+                method: 'POST',
+                headers: {
+                    'x-filename': encodeURIComponent(name),
+                    'content-type': fileOrBlob.type
+                },
+                body: fileOrBlob
+            });
+            const uploadResult = await uploadResp.json();
+            if (uploadResult.success) {
+                localPath = uploadResult.path;
+                thumbnail = uploadResult.thumbnail;
+                debugLog(`[货架] 资产已物理存盘: ${localPath}`, 'success');
+            }
+        } catch (e) {
+            console.error('[货架] 自动同步本地失败:', e);
         }
 
         // 核心改进：货架去重逻辑
@@ -79,9 +103,12 @@ class ReferenceManager {
             name: friendlyName,
             originalName: name,
             data: dataUrl,
+            localPath: localPath,    // 记录本地物理路径
+            thumbnail: thumbnail,    // 记录本地生成的缩略图 (主要针对视频)
             originalFile: fileOrBlob,
             timestamp: Date.now(),
-            slot: slotIndex
+            slot: slotIndex,
+            cloud_assets: {}         // 预留供应商 ID 映射 (如 { gemini: { id, expiry } })
         };
 
         if (slotIndex !== null && this.currentMode === 'start_end') {

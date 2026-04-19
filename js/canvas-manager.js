@@ -415,30 +415,53 @@ export function updateCanvasScale(newScale, x, y) {
     const uiPanel = document.getElementById('uiPanel');
     const uiPanelWidth = uiPanel ? uiPanel.offsetWidth : 400;
     
-    let focalPoint;
+    let pointX, pointY;
     
     // 如果传入了坐标（来自鼠标滚轮），则以鼠标为中心缩放
     if (x !== undefined && y !== undefined) {
-        focalPoint = { x: x, y: y };
+        pointX = x;
+        pointY = y;
     } else {
         // 否则（来自快捷键等），以屏幕中心为中心缩放
-        const focalX = (window.innerWidth - uiPanelWidth) / 2;
-        const focalY = window.innerHeight / 2;
-        focalPoint = { x: focalX, y: focalY };
+        pointX = (window.innerWidth - uiPanelWidth) / 2;
+        pointY = window.innerHeight / 2;
     }
     
-    // 优化：给滚轮缩放一个极短的缓动（100ms），兼顾丝滑感和精准度
     const isWheel = (x !== undefined);
-    CanvasState.panzoom.zoom(newScale, { 
-        focalPoint, 
+    const panzoom = CanvasState.panzoom;
+    const oldScale = panzoom.getScale();
+    
+    if (newScale === oldScale) return;
+    
+    const pan = panzoom.getPan();
+    const oldX = pan.x;
+    const oldY = pan.y;
+    
+    const ratio = newScale / oldScale;
+    const cx = 5000;
+    const cy = 5000;
+    
+    // 1. 算出完美的物理最终坐标（完全符合 5000px 中心和 CSS Transform 机制）
+    const TargetX = pointX - cx - (pointX - cx - oldX) * ratio;
+    const TargetY = pointY - cy - (pointY - cy - oldY) * ratio;
+    
+    // 2. 逆向计算出能让泛型 panzoom 库在其存在缺陷的公式中算出我们 TargetX/Y 的“伪造聚点 (Focal point)”
+    // panzoom 的公式：a = (focal.x/newS - focal.x/oldS + oldX*newS) / newS -> 让它算出 a = TargetX
+    const denominator = oldScale - newScale;
+    const focalX = newScale * (TargetX - oldX) * (newScale * oldScale) / denominator;
+    const focalY = newScale * (TargetY - oldY) * (newScale * oldScale) / denominator;
+    
+    // 3. 将伪造的焦点传回 panzoom，完美白嫖其内部的状态机和 transition 渲染动画，且仅产生一帧更新消除抖动！
+    panzoom.zoom(newScale, { 
+        focal: { x: focalX, y: focalY },
         animate: true,
-        duration: isWheel ? 100 : 200 // 滚轮更快，快捷键稍慢
+        duration: isWheel ? 100 : 200
     });
     
     if (toolbarZoomValue) {
         toolbarZoomValue.textContent = `${Math.round(newScale * 100)}%`;
     }
-    debugLog(`[缩放] 新缩放: ${Math.round(newScale * 100)}% (原点: ${x !== undefined ? '鼠标' : '中心'})`, 'info');
+    debugLog(`[缩放] 新缩放: ${Math.round(newScale * 100)}% (伪造原点修正应用)`, 'info');
 }
 
 export function updateToolbarPosition() {

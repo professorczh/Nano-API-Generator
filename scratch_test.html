@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  #container {
+    position: relative;
+    width: 2000px;
+    height: 2000px;
+  }
+  #test {
+    position: absolute;
+    width: 10000px;
+    height: 10000px;
+    left: 0;
+    top: 0;
+    transform-origin: 5000px 5000px;
+    background: #ccc;
+  }
+  #marker {
+    position: absolute;
+    left: 5200px;
+    top: 5200px;
+    width: 10px;
+    height: 10px;
+    background: red;
+  }
+</style>
+</head>
+<body>
+  <div id="container">
+    <div id="test">
+      <div id="marker"></div>
+    </div>
+  </div>
+  <script>
+    // Test 1: S then T (matching my math!)
+    // We expect marker at 960, 960.
+    const test = document.getElementById('test');
+    test.style.transform = 'translate(-4290px, -4290px) scale(1.25)';
+    const rect = document.getElementById('marker').getBoundingClientRect();
+    console.log("Marker rect:", rect.left, rect.top);
+  </script>
+</body>
+</html>

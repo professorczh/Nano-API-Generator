@@ -19,6 +19,9 @@ import { mentionManager } from './mention-manager.js';
 import { previewManager } from './preview-manager.js';
 import { LinkerManager } from './linker-manager.js';
 import { promptPanelManager } from './prompt-panel-manager.js';
+import { getIcon } from './icons.js';
+import { historyManager } from './history-manager.js';
+import { PersistenceManager } from './persistence-manager.js';
 
 class GlobalLogger {
     constructor() {
@@ -204,6 +207,24 @@ const App = {
         this.initLogo();
         await this.loadTemplates();
         
+        // V2 Project Init
+        try {
+            const initRes = await fetch('/api/project/init', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: AppState.userId, projectId: AppState.projectId })
+            });
+            const initData = await initRes.json();
+            if (initData.success) {
+                console.log(`[V2架构] 项目初始化成功: ${AppState.projectId} (isNew: ${initData.isNew})`);
+                if (initData.state && !initData.isNew) {
+                    await PersistenceManager.restoreFromData(initData.state);
+                }
+            }
+        } catch (e) {
+            console.error('[V2架构] 项目初始化严重失败:', e);
+        }
+
         // 页面加载后自动尝试恢复未完成的视频任务
         this.resumeVideoTasks();
     },
@@ -358,7 +379,9 @@ const App = {
             settingsDefaultAudioModelWrapper: document.getElementById('settingsDefaultAudioModelWrapper'),
             audioModelNameWrapper: document.getElementById('audioModelNameWrapper'),
             audioDurationWrapper: document.getElementById('audioDurationWrapper'),
-            audioFormatWrapper: document.getElementById('audioFormatWrapper')
+            audioFormatWrapper: document.getElementById('audioFormatWrapper'),
+            historyRecordsBtn: document.getElementById('historyRecordsBtn'),
+            historyIconContainer: document.getElementById('historyIconContainer')
         };
     },
 
@@ -424,6 +447,7 @@ const App = {
 
         promptPanelManager.init(this.elements);
 
+        this.initHistoryButton();
         this.initProviderToggle();
     },
 
@@ -534,6 +558,22 @@ const App = {
         }
     },
 
+    initHistoryButton() {
+        const { historyRecordsBtn, historyIconContainer } = this.elements;
+        if (historyIconContainer) {
+            historyIconContainer.innerHTML = getIcon('clock', 18);
+        }
+        if (historyRecordsBtn) {
+            historyRecordsBtn.addEventListener('click', () => {
+                if (historyManager) {
+                    historyManager.show();
+                } else {
+                    debugLog('📁 [HISTORY] 历史管理器尚未就绪', 'error');
+                }
+            });
+        }
+    },
+
     initSettingsEvents() {
         const { toolbarSettingsBtn, settingsPanel } = this.elements;
 
@@ -550,6 +590,16 @@ const App = {
 
     initProviderToggle() {
         const { providerToggle, providerToggleLabel, providerToggleLabelDynamic, providerToggleContainer, storageWarning } = this.elements;
+
+        // 注入图标
+        if (providerToggleLabel) {
+            const iconSpan = providerToggleLabel.querySelector('.toggle-icon-eye');
+            if (iconSpan) iconSpan.innerHTML = getIcon('eye', 16);
+        }
+        if (providerToggleLabelDynamic) {
+            const iconSpan = providerToggleLabelDynamic.querySelector('.toggle-icon-save');
+            if (iconSpan) iconSpan.innerHTML = getIcon('hard-drive', 16);
+        }
 
         fetch('/api/config')
             .then(res => res.json())
@@ -594,12 +644,18 @@ const App = {
 
     updateProviderToggleUI(isDynamic) {
         const { providerToggleLabel, providerToggleLabelDynamic } = this.elements;
-        
+        const activeColor = '#2563eb';
+        const inactiveColor = 'rgba(15, 23, 42, 0.4)';
+
         if (providerToggleLabel) {
-            providerToggleLabel.className = isDynamic ? 'text-xs font-medium text-gray-400' : 'text-xs font-medium text-blue-600';
+            providerToggleLabel.style.color = isDynamic ? inactiveColor : activeColor;
+            const icon = providerToggleLabel.querySelector('.toggle-icon-eye');
+            if (icon) icon.style.opacity = isDynamic ? '0.5' : '1';
         }
         if (providerToggleLabelDynamic) {
-            providerToggleLabelDynamic.className = isDynamic ? 'text-xs font-medium text-blue-600' : 'text-xs font-medium text-gray-400';
+            providerToggleLabelDynamic.style.color = isDynamic ? activeColor : inactiveColor;
+            const icon = providerToggleLabelDynamic.querySelector('.toggle-icon-save');
+            if (icon) icon.style.opacity = isDynamic ? '1' : '0.5';
         }
     },
 
@@ -844,12 +900,16 @@ const App = {
                 AppState.dragNode.style.cursor = 'grab';
                 AppState.isDraggingNode = false;
                 AppState.dragNode = null;
+                // V2: ActionTracker - Node moved
+                PersistenceManager.trackAction('MOVE');
             }
             
             if (AppState.isResizingNode && AppState.resizeNode) {
                 AppState.isResizingNode = false;
                 AppState.resizeNode = null;
                 document.body.style.cursor = '';
+                // V2: ActionTracker - Node resized
+                PersistenceManager.trackAction('RESIZE');
             }
             
             if (AppState.isMiddleMouseDown) {

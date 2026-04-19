@@ -98,7 +98,8 @@ export class APIClient {
             onVideoProgress,
             onVideoGenerated,
             onError,
-            onComplete
+            onComplete,
+            metadata // 采集元数据
         } = requestConfig;
 
         const providerId = videoProvider || this.getProvider(videoModel);
@@ -172,7 +173,8 @@ export class APIClient {
             onImageGenerated,
             onTextGenerated,
             onError,
-            onComplete
+            onComplete,
+            metadata // 采集元数据
         } = requestConfig;
 
         if (requestConfig.isVideoGenMode) {

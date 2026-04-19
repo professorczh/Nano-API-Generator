@@ -384,22 +384,43 @@ input[type="range"]::-webkit-slider-thumb:hover {
     color: #2563eb;
 }
 
-/* Provider Toggle 适配 */
+/* Provider Toggle 适配 (对齐右上角管理面板) */
 #providerToggleContainer {
-    background: rgba(0, 0, 0, 0.03) !important;
-    border: 1px solid rgba(0, 0, 0, 0.04) !important;
-    border-radius: 20px !important;
-    padding: 2px 10px !important;
-    height: 32px;
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 9999px !important;
+    padding: 0 16px !important;
+    height: 42px !important;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    transition: all 0.2s ease !important;
 }
 
-#providerToggleLabel {
-    color: rgba(15, 23, 42, 0.3) !important;
-    font-size: 10px !important;
+#providerToggleContainer:hover {
+    border-color: #3b82f6 !important;
+    background: #f8fafc !important;
 }
 
-#providerToggleLabelDynamic {
-    color: #2563eb !important;
-    font-size: 10px !important;
-    font-weight: 700;
+#providerToggleLabel, #providerToggleLabelDynamic {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    transition: color 0.3s ease !important;
+    user-select: none !important;
+}
+
+.toggle-icon-eye, .toggle-icon-save {
+    display: flex !important;
+    align-items: center !important;
+    opacity: 0.7 !important;
+}
+
+#historyRecordsBtn:hover {
+    background: #f8fafc !important;
+    border-color: #3b82f6 !important;
+    transform: translateY(-1px) !important;
 }

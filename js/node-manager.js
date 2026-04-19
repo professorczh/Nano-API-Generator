@@ -6,6 +6,8 @@ import { updateMinimapWithImage, updateImageCenterCoordinates, getPanzoom, getIm
 import { getIcon } from './icons.js';
 import { addLinkerHandle } from './node-factory.js';
 import { promptPanelManager } from './prompt-panel-manager.js';
+import { PersistenceManager } from './persistence-manager.js';
+import { PanoramaRenderer } from './panorama-renderer.js';
 
 let clipboardNode = null;
 let minimapCanvas;
@@ -167,10 +169,18 @@ export function deleteSelectedNode(skipConfirm = false) {
             promptPanelManager.nodeSnapshots.delete(nodeId);
         }
 
+        // 核心加固：处理 3D 渲染器释放
+        if (CanvasState.selectedNode.panoramaRenderer) {
+            CanvasState.selectedNode.panoramaRenderer.dispose();
+        }
+
         CanvasState.selectedNode.remove();
         CanvasState.selectedNode = null;
-        debugLog(`[删除] 图片完成`, 'info');
+        debugLog(`[删除] 节点完成`, 'info');
         
+        // V2: ActionTracker - Node deleted
+        PersistenceManager.trackAction('DELETE');
+
         // 恢复草稿
         promptPanelManager.restoreDraft();
     };
@@ -256,6 +266,8 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
     node.dataset.imageUrl = imageUrl;
     node.dataset.filename = filename || (errorMessage ? 'Error' : `Image ${index + 1}`);
     node.dataset.prompt = prompt || '';
+    node.dataset.generationTime = generationTime !== null ? generationTime : '';
+    node.dataset.modelName = typeof modelName === 'object' ? JSON.stringify(modelName) : modelName;
     if (errorMessage) node.dataset.errorMessage = errorMessage;
     if (revisedPrompt) node.dataset.revisedPrompt = revisedPrompt;
 
@@ -300,9 +312,28 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
             console.log(`[Referencing] Pure citation for node:`, node.dataset.index);
             if (errorMessage) return;
             
-            // 核心：仅执行“引用”动作 (上架货架 + 插入标签)
             if (typeof PinManager !== 'undefined' && PinManager.addCanvasImageToPrompt) {
                 PinManager.addCanvasImageToPrompt(node);
+            }
+        },
+        onRecallNode: () => {
+            if (errorMessage) return;
+            promptPanelManager.lockCommit();
+            promptPanelManager.loadFromNode(node);
+            debugLog(`[溯源] 已成功加载图片节点#${node.dataset.index}的历史参数`, 'success');
+        },
+        onPreviewStart: () => {
+            if (errorMessage) return;
+            promptPanelManager.saveDraft();
+            promptPanelManager.setPreviewMode(true);
+            promptPanelManager.loadFromNode(node);
+            debugLog(`[预览] 图片节点#${node.dataset.index} 历史参数`, 'info');
+        },
+        onPreviewEnd: () => {
+            if (errorMessage) return;
+            if (!promptPanelManager.isPreviewLocked) {
+                promptPanelManager.setPreviewMode(false);
+                promptPanelManager.restoreDraft();
             }
         },
         onCopyNode: () => { 
@@ -361,6 +392,12 @@ export function createImageNode(imageUrl, prompt = '', index = 0, filename = '',
         }
     });
 
+    node.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const img = node.querySelector('img');
+        if (img) showImageContextMenu(e, node, img);
+    });
+
     return node;
 }
 
@@ -371,6 +408,9 @@ export function createTextNode(text, prompt = '', index = 0, filename = '', reso
     node.dataset.index = index;
     node.dataset.filename = filename || `Text ${index + 1}`;
     node.dataset.nodeType = 'text';
+    node.dataset.prompt = prompt || '';
+    node.dataset.generationTime = generationTime !== null ? generationTime : '';
+    node.dataset.modelName = typeof modelName === 'object' ? JSON.stringify(modelName) : modelName;
 
     const contentArea = document.createElement('div');
     contentArea.className = 'node-content';
@@ -496,9 +536,18 @@ export function showImageContextMenu(e, node, img) {
         menu.remove();
     });
     
+    const panoramaItem = document.createElement('div');
+    panoramaItem.className = 'context-menu-item';
+    panoramaItem.innerHTML = `${getIcon('globe', 14)} 转换为 360° 全景`;
+    panoramaItem.addEventListener('click', () => {
+        createPanoramaNode(node);
+        menu.remove();
+    });
+
     menu.appendChild(copyItem);
     menu.appendChild(downloadItem);
     menu.appendChild(insertItem);
+    menu.appendChild(panoramaItem);
     document.body.appendChild(menu);
     
     setTimeout(() => {
@@ -508,4 +557,146 @@ export function showImageContextMenu(e, node, img) {
             }
         }, { once: true });
     }, 100);
+}
+
+export function createPanoramaNode(sourceNode) {
+    const imageUrl = sourceNode.dataset.imageUrl;
+    const prompt = sourceNode.dataset.prompt || '';
+    const filename = `Panorama_${sourceNode.dataset.filename || 'Source'}`;
+    
+    const rect = {
+        x: parseFloat(sourceNode.style.left) || 0,
+        y: parseFloat(sourceNode.style.top) || 0,
+        width: parseFloat(sourceNode.style.width) || 400
+    };
+
+    // 旁边创建：右侧偏移 40px
+    const newX = rect.x + rect.width + 40;
+    const newY = rect.y;
+
+    const node = document.createElement('div');
+    node.className = 'canvas-node panorama-node';
+    node.dataset.index = CanvasState.nodeCounter++;
+    node.dataset.imageUrl = imageUrl;
+    node.dataset.filename = filename;
+    node.dataset.prompt = prompt;
+    node.dataset.nodeType = 'panorama';
+
+    const contentArea = document.createElement('div');
+    contentArea.className = 'node-content';
+    contentArea.style.cssText = 'width: 100%; height: 100%; background: #000; overflow: hidden; position: relative;';
+    node.appendChild(contentArea);
+
+    // 标准页眉 (metadata 显示 "360° Pan")
+    node.appendChild(createNodeHeader('image', '360° Pan', filename));
+    
+    // 简化工具栏 (仅保留复制提示词和删除)
+    const toolbar = createNodeToolbar('image', {
+        onCopyPrompt: () => navigator.clipboard.writeText(prompt),
+        onDelete: () => { selectNode(node); deleteSelectedNode(); }
+    });
+    node.appendChild(toolbar);
+
+    node.appendChild(createNodeInfo(prompt, filename));
+    
+    // 坐标与尺寸：默认 512x512
+    node.dataset.aspectRatio = '1:1';
+    node.dataset.cameraLocked = 'false';
+    node.style.width = '512px';
+    node.style.height = '512px';
+    node.style.left = `${newX}px`;
+    node.style.top = `${newY}px`;
+    node.style.zIndex = '10';
+
+    // 画幅切换器
+    const ratioSwitcher = document.createElement('div');
+    ratioSwitcher.className = 'panorama-ratio-switcher';
+    const ratios = [
+        { label: '1:1', w: 512, h: 512 },
+        { label: '16:9', w: 640, h: 360 },
+        { label: '9:16', w: 360, h: 640 }
+    ];
+
+    ratios.forEach(r => {
+        const btn = document.createElement('button');
+        btn.className = 'ratio-btn' + (r.label === '1:1' ? ' active' : '');
+        btn.textContent = r.label;
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            ratioSwitcher.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            node.style.width = `${r.w}px`;
+            node.style.height = `${r.h}px`;
+            node.dataset.aspectRatio = r.label;
+            
+            if (node.panoramaRenderer) {
+                node.panoramaRenderer.onResize();
+            }
+        };
+        ratioSwitcher.appendChild(btn);
+    });
+    node.appendChild(ratioSwitcher);
+
+    // 相机锁定切换器
+    const lockToggle = document.createElement('div');
+    lockToggle.className = 'camera-lock-toggle';
+    lockToggle.innerHTML = `${getIcon('unlock', 14)} <span>Camera Unlocked</span>`;
+    lockToggle.onclick = (e) => {
+        e.stopPropagation();
+        const isLocked = node.dataset.cameraLocked === 'true';
+        const newLocked = !isLocked;
+        node.dataset.cameraLocked = newLocked.toString();
+        
+        lockToggle.classList.toggle('locked', newLocked);
+        lockToggle.innerHTML = `${getIcon(newLocked ? 'lock' : 'unlock', 14)} <span>${newLocked ? 'Camera Locked' : 'Camera Unlocked'}</span>`;
+        
+        // 如果锁定，不仅要更新 UI，还要立即同步到 renderer 控制器
+        if (node.panoramaRenderer && node.panoramaRenderer.controls) {
+            node.panoramaRenderer.controls.enabled = !newLocked;
+            // 如果锁定，同时停止自动旋转
+            if (newLocked) node.panoramaRenderer.controls.autoRotate = false;
+        }
+        
+        console.log(`[Panorama] Camera ${newLocked ? 'Locked (Dragging enabled)' : 'Unlocked (Rotation enabled)'}`);
+    };
+    node.appendChild(lockToggle);
+
+    const container = getImageResponseContainer();
+    if (container) {
+        container.appendChild(node);
+    }
+
+    // 启动 3D 渲染
+    node.panoramaRenderer = new PanoramaRenderer(contentArea, imageUrl);
+
+    // 交互逻辑
+    node.addEventListener('mousedown', (e) => {
+        // 如果相机锁定，点击 Canvas 应该像点击其他区域一样触发节点拖拽
+        const isCameraLocked = node.dataset.cameraLocked === 'true';
+
+        // 核心修复：如果点击的是 canvas (3D 交互区) 且相机未锁定，跳过节点拖拽逻辑，让 OrbitControls 处理
+        if (e.target.tagName.toLowerCase() === 'canvas' && !isCameraLocked) {
+            return; 
+        }
+
+        if (e.target.closest('.node-info') || e.target.closest('.node-toolbar') || 
+            e.target.closest('.panorama-ratio-switcher') || e.target.closest('.camera-lock-toggle')) return;
+        if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
+            e.stopPropagation();
+            selectNode(node);
+            AppState.isDraggingNode = true; AppState.dragNode = node; AppState.activeNode = node;
+            AppState.dragStartX = e.clientX; AppState.dragStartY = e.clientY;
+            AppState.dragNodeStartLeft = parseInt(node.style.left);
+            AppState.dragNodeStartTop = parseInt(node.style.top);
+        }
+    });
+
+    selectNode(node);
+    updateMinimapWithImage(node);
+    
+    // 触发自动保存
+    PersistenceManager.trackAction('CREATE_PANORAMA');
+    
+    return node;
 }

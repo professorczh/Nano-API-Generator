@@ -1,7 +1,7 @@
 import { AppState } from './app-state.js';
 import { CanvasState } from './app-state.js';
 import { DebugConsole } from './debug-console.js';
-import { selectNode, deleteSelectedNode, copySelectedNode } from './node-manager.js';
+import { selectNode, deleteSelectedNode, copySelectedNode, showImageContextMenu } from './node-manager.js';
 import { updateMinimapWithImage, updateImageCenterCoordinates } from './canvas-manager.js';
 import { formatGenerationTime, debugLog, createNodeToolbar } from './utils.js';
 import { PinManager } from './pin-manager.js';
@@ -10,6 +10,44 @@ import { promptPanelManager } from './prompt-panel-manager.js';
 
 function incrementNodeCounter() {
     return CanvasState.nodeCounter++;
+}
+
+/**
+ * 创建统一的 AI 情感化加载界面 (AI Vibe)
+ * @param {string} type - 模态类型 (image, video, audio, text)
+ * @param {string} statusText - 显示的状态文字
+ * @returns {HTMLElement} 加载图层容器
+ */
+export function createAILoadingUI(type, statusText) {
+    const overlay = document.createElement('div');
+    overlay.className = 'ai-processing-overlay';
+    
+    // 1. 动态扫光层
+    const sweep = document.createElement('div');
+    sweep.className = 'ai-sweep-layer';
+    
+    // 2. 状态胶囊层
+    const capsule = document.createElement('div');
+    capsule.className = 'ai-status-capsule';
+    
+    // 图标映射
+    const icons = {
+        image: 'image',
+        video: 'video',
+        audio: 'music',
+        text: 'message-square'
+    };
+    
+    const iconHtml = getIcon(icons[type] || 'zap', 16);
+    capsule.innerHTML = `
+        <span class="ai-status-icon" style="display: flex; align-items: center; color: rgba(59, 130, 246, 0.8);">${iconHtml}</span>
+        <span class="ai-shimmer-text">${statusText}</span>
+    `;
+    
+    overlay.appendChild(sweep);
+    overlay.appendChild(capsule);
+    
+    return overlay;
 }
 
 export function createTextLoadingPlaceholder(prompt, x, y, modelName = '') {
@@ -28,11 +66,11 @@ export function createTextLoadingPlaceholder(prompt, x, y, modelName = '') {
     header.className = 'node-header';
     header.innerHTML = `<div class="node-filename">${getIcon('message-square', 12)} Response</div><div class="node-resolution">Generating...</div>`;
     
-    // 2. 统一内容容器
+    // 2. 统一内容容器 (注入 AI Vibe 加载层)
     const contentArea = document.createElement('div');
     contentArea.className = 'node-content';
-    contentArea.style.cssText = 'display:flex;align-items:center;justify-content:center;background:rgba(239,246,255,0.5);border-radius:12px;';
-    contentArea.innerHTML = `<div class="loading-text" style="color:#3b82f6;font-weight:600;">正在生成回复...</div>`;
+    const loadingUI = createAILoadingUI('text', '正在生成回复...');
+    contentArea.appendChild(loadingUI);
     
     // 3. 预制工具栏
     const toolbar = createNodeToolbar('text', {
@@ -220,32 +258,13 @@ export function createLoadingPlaceholder(width, height, x, y, modelName = '', ty
     const sidebar = document.createElement('div');
     sidebar.className = 'node-sidebar';
 
-    // 引入统一的内容容器
+    // 2. 统一内容容器 (注入 AI Vibe 加载层)
     const contentArea = document.createElement('div');
     contentArea.className = 'node-content';
     
-    const loadingContainer = document.createElement('div');
-    loadingContainer.className = 'loading-container';
-    loadingContainer.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;';
-    
-    const iconMap = {
-        'image': getIcon('image', 32),
-        'text': getIcon('message', 32),
-        'video': getIcon('video', 32)
-    };
-
-    const loadingIcon = document.createElement('div');
-    loadingIcon.className = 'loading-icon';
-    loadingIcon.innerHTML = iconMap[type] || '';
-    
-    const loadingText = document.createElement('div');
-    loadingText.className = 'loading-text';
-    loadingText.style.marginTop = '8px';
-    loadingText.textContent = `正在生成${type === 'image' ? '图片' : type === 'text' ? '回复' : '视频'}...`;
-    
-    loadingContainer.appendChild(loadingIcon);
-    loadingContainer.appendChild(loadingText);
-    contentArea.appendChild(loadingContainer);
+    const statusText = `正在生成${type === 'image' ? '图片' : type === 'text' ? '回复' : type === 'audio' ? '音频' : '视频'}...`;
+    const loadingUI = createAILoadingUI(type, statusText);
+    contentArea.appendChild(loadingUI);
     
     // 3. 统一使用工厂函数创建预制工具栏
     const toolbar = createNodeToolbar('image', {
@@ -526,8 +545,8 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
     node.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         const img = node.querySelector('img');
-        if (typeof window.showImageContextMenu === 'function') {
-            window.showImageContextMenu(e, node, img);
+        if (typeof showImageContextMenu === 'function') {
+            showImageContextMenu(e, node, img);
         }
     });
     

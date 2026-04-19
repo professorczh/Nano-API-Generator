@@ -4,6 +4,24 @@ export let minimapDragStartY = 0;
 export let minimapPanStartX = 0;
 export let minimapPanStartY = 0;
 
+// ── V2: 项目身份标识（localStorage 持久化）
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+}
+
+function initProjectIdentity() {
+    const DEFAULT_USER_ID = 'admin';
+    const stored = localStorage.getItem('nano_project_id');
+    const projectId = stored || generateUUID();
+    if (!stored) localStorage.setItem('nano_project_id', projectId);
+    return { userId: DEFAULT_USER_ID, projectId };
+}
+
+const _identity = initProjectIdentity();
+
 // 应用状态管理
 export const AppState = {
     mode: 'VIEW',
@@ -26,17 +44,27 @@ export const AppState = {
     resizeStart: { x: 0, y: 0, width: 0, height: 0 },
     resizeNode: null,
     nodes: new Map(),
-    
+
     // 连线引用状态
     isLinking: false,
     linkStartNode: null,
     linkCurrentX: 0,
     linkCurrentY: 0,
-    
+
+    // ── V2: 项目身份
+    userId: _identity.userId,
+    projectId: _identity.projectId,
+
     updateScale: function(newScale) {
         this.scale = newScale;
     },
-    
+
+    /** 切换项目 (更新 id 并持久化) */
+    switchProject: function(projectId) {
+        this.projectId = projectId;
+        localStorage.setItem('nano_project_id', projectId);
+    },
+
     reset: function() {
         this.mode = 'VIEW';
         this.activeNode = null;

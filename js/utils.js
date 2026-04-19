@@ -11,16 +11,16 @@ export function maskApiKey(apiKey) {
 
 export function formatGenerationTime(seconds) {
     if (seconds < 60) {
-        return `⏱️ ${seconds.toFixed(1)}s`;
+        return `${seconds.toFixed(1)}s`;
     } else if (seconds < 3600) {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
-        return `⏱️ ${mins}:${secs.toString().padStart(2, '0')}`;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
     } else {
         const hours = Math.floor(seconds / 3600);
         const mins = Math.floor((seconds % 3600) / 60);
         const secs = Math.floor(seconds % 60);
-        return `⏱️ ${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
 }
 
@@ -342,7 +342,7 @@ export function createNodeSidebar(generationTime, modelName) {
     // 默认可见，除非 DEBUG 模式明确关闭
     timeElement.style.display = (typeof DebugConsole !== 'undefined' && DebugConsole.showGenerationTime === false) ? 'none' : 'flex';
     
-    const displayTime = generationTime ? formatGenerationTime(generationTime).replace('⏱️', '').trim() : '0.0s';
+    const displayTime = generationTime ? formatGenerationTime(generationTime).trim() : '0.0s';
     timeElement.innerHTML = `${getIcon('clock', 12)} <span>${displayTime}</span>`;
     timeElement.title = generationTime ? `生成耗时: ${generationTime.toFixed(2)}秒` : '计时中...';
     sidebar.appendChild(timeElement);

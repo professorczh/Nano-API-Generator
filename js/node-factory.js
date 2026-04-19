@@ -4,8 +4,9 @@ import { getIcon } from './icons.js';
 import { DebugConsole } from './debug-console.js';
 import { createNodeHeader, createNodeSidebar, createNodeInfo, renderModelTag, createNodeToolbar, formatGenerationTime } from './utils.js';
 import { promptPanelManager } from './prompt-panel-manager.js';
+import { createAILoadingUI } from './loading-placeholder.js';
 
-function parseRatio(ratioStr) {
+export function parseRatio(ratioStr) {
     if (!ratioStr || !ratioStr.includes(':')) return 16/9;
     const [w, h] = ratioStr.split(':').map(Number);
     return (w && h) ? w / h : 16/9;
@@ -85,62 +86,6 @@ if (!document.getElementById('loading-animation-style')) {
             display: block !important;
             -webkit-line-clamp: unset !important;
         }
-        .node-toolbar { 
-            position: absolute !important; 
-            left: calc(100% + 14px) !important; 
-            top: 50% !important; 
-            transform: translateY(-50%) translateX(-10px) !important;
-            display: none !important; 
-            flex-direction: column !important; 
-            align-items: center !important;
-            gap: 10px !important; 
-            z-index: 1002 !important; 
-            background: rgba(255,255,255,0.85) !important; 
-            backdrop-filter: blur(20px) saturate(180%) !important; 
-            padding: 12px 0 !important; 
-            width: 34px !important;
-            border-radius: 20px !important; 
-            border: 1px solid rgba(255,255,255,0.5) !important; 
-            box-shadow: 0 10px 30px -5px rgba(0,0,0,0.1), 0 4px 12px -2px rgba(0,0,0,0.05) !important;
-            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1) !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-        .canvas-node.selected .node-toolbar,
-        .always-show-toolbar .node-toolbar { 
-            display: flex !important; 
-            transform: translateY(-50%) translateX(0) !important;
-            opacity: 1 !important;
-            pointer-events: auto !important;
-        }
-        .node-toolbar .toolbar-btn {
-            width: 26px !important;
-            height: 26px !important;
-            border-radius: 8px !important;
-            border: none !important;
-            background: transparent !important;
-            color: #64748b !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-            cursor: pointer !important;
-            position: relative !important;
-        }
-        .node-toolbar .toolbar-btn:hover {
-            background: rgba(59, 130, 246, 0.1) !important;
-            color: #2563eb !important;
-            transform: scale(1.1) !important;
-        }
-        .node-toolbar .toolbar-btn.danger:hover {
-            background: rgba(239, 68, 68, 0.1) !important;
-            color: #ef4444 !important;
-        }
-        .node-toolbar .toolbar-btn svg {
-            width: 16px !important;
-            height: 16px !important;
-            stroke-width: 2.2 !important;
-        }
 
         /* 错误状态样式 */
         .node-error-container {
@@ -209,22 +154,29 @@ export const NodeFactory = {
         const contentArea = document.createElement('div');
         contentArea.className = 'node-content';
         
-        const loadingContainer = document.createElement('div');
-        loadingContainer.className = 'loading-container';
-        loadingContainer.innerHTML = `
-            <div class='loading-progress-wrapper progress-ring-wrapper'>
-                <svg width='64' height='64' viewBox='0 0 80 80'>
-                    <circle cx='40' cy='40' r='35' fill='none' stroke='rgba(255,255,255,0.05)' stroke-width='6'></circle>
-                    <circle class='progress-ring' cx='40' cy='40' r='35' fill='none' stroke='var(--accent-primary)' stroke-width='6' stroke-linecap='round' stroke-dasharray='220' stroke-dashoffset='220' transform='rotate(-90 40 40)' style='transition: stroke-dashoffset 0.8s;'></circle>
-                </svg>
-                <div class='loading-progress-text'>0%</div>
-            </div>
-            <div class='loading-status-badge'>
-                <span class='status-icon'>${getIcon('sparkles', 14)}</span>
-                <span class='loading-status-text queuing'>正在准备...</span>
-            </div>
+        // 1. 使用统一的 AI Vibe 基础层
+        const loadingUI = createAILoadingUI('video', '正在准备...');
+        contentArea.appendChild(loadingUI);
+        
+        // 2. 在 AI 面板中注入视频特有的环形进度条
+        const progressRingWrapper = document.createElement('div');
+        progressRingWrapper.className = 'progress-ring-wrapper';
+        progressRingWrapper.style.cssText = 'position: relative; margin-bottom: 24px; pointer-events: none; display: flex; align-items: center; justify-content: center;';
+        progressRingWrapper.innerHTML = `
+            <svg width='80' height='80' viewBox='0 0 80 80' style="transform: scale(1.1);">
+                <circle cx='40' cy='40' r='35' fill='none' stroke='rgba(255,255,255,0.05)' stroke-width='6'></circle>
+                <circle class='progress-ring' cx='40' cy='40' r='35' fill='none' stroke='var(--accent-primary)' stroke-width='6' stroke-linecap='round' stroke-dasharray='220' stroke-dashoffset='220' transform='rotate(-90 40 40)' style='transition: stroke-dashoffset 0.8s;'></circle>
+            </svg>
+            <div class='loading-progress-text' style="position: absolute; font-family: Inter, system-ui, sans-serif; font-size: 16px; font-weight: 700; color: white;">0%</div>
         `;
-        contentArea.appendChild(loadingContainer);
+        
+        // 插入到状态胶囊上方
+        const capsule = loadingUI.querySelector('.ai-status-capsule');
+        if (capsule) {
+            loadingUI.insertBefore(progressRingWrapper, capsule);
+        } else {
+            loadingUI.appendChild(progressRingWrapper);
+        }
         node.appendChild(contentArea);
 
         node.appendChild(createNodeInfo(prompt, '视频生成中...'));
@@ -236,8 +188,8 @@ export const NodeFactory = {
         node._progressStage = 'generating';
 
         const updateRingUI = (val) => {
-            const ring = loadingContainer.querySelector('.progress-ring');
-            const percentText = loadingContainer.querySelector('.loading-progress-text');
+            const ring = loadingUI.querySelector('.progress-ring');
+            const percentText = loadingUI.querySelector('.loading-progress-text');
             if (ring) ring.style.strokeDashoffset = 220 - (val / 100) * 220;
             if (percentText) percentText.textContent = Math.floor(val) + '%';
         };
@@ -290,23 +242,21 @@ export const NodeFactory = {
 
     // --- 状态更新逻辑 ---
     updateVideoLoadingStatus(node, status, progress) {
-        const container = node.querySelector('.loading-container');
-        if (!container) return;
-        const textTag = container.querySelector('.loading-status-text');
-        const iconTag = container.querySelector('.status-icon');
+        const overlay = node.querySelector('.ai-processing-overlay');
+        if (!overlay) return;
+        const textTag = overlay.querySelector('.ai-shimmer-text');
+        const iconTag = overlay.querySelector('.ai-status-icon');
 
         if (status === 'generating') {
             node._progressStage = 'generating';
-            if (textTag) { textTag.textContent = '生成中...'; textTag.className = 'loading-status-text generating'; }
+            if (textTag) { textTag.textContent = '生成中...'; }
             if (iconTag) iconTag.innerHTML = getIcon('loader', 14, 'animate-spin');
             if (progress !== undefined && progress > node._progressValue) node._progressValue = Math.floor(progress);
         } else if (status === 'saving') {
             node._progressStage = 'saving';
             node._progressValue = Math.max(90, node._progressValue);
-            if (textTag) { textTag.textContent = '正在本地保存...'; textTag.className = 'loading-status-text saving'; }
+            if (textTag) { textTag.textContent = '正在本地保存...'; }
             if (iconTag) iconTag.innerHTML = getIcon('download', 14);
-            const timerDisplay = container.querySelector('.loading-timer-display');
-            if (timerDisplay) timerDisplay.style.color = '#4ade80';
         }
     },
 
@@ -320,15 +270,15 @@ export const NodeFactory = {
                 delete node._loadingInterval;
             }
 
-            const loadingText = node.querySelector('.loading-text');
-            const ringWrapper = node.querySelector('.progress-ring-wrapper');
+            const shimmerText = node.querySelector('.ai-shimmer-text');
+            const ringWrapper = node.querySelector('.progress-ring-wrapper') || node.querySelector('.ai-status-icon');
             
-            if (loadingText) {
-                loadingText.textContent = '正在保存到本地...';
-                loadingText.style.color = '#60a5fa'; // 统一存盘蓝
+            if (shimmerText) {
+                shimmerText.textContent = '正在保存到本地...';
+                shimmerText.style.cssText = 'background: linear-gradient(90deg, #60a5fa 0%, #3b82f6 50%, #60a5fa 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent;';
             }
             if (ringWrapper) {
-                ringWrapper.innerHTML = getIcon('download', 32);
+                ringWrapper.innerHTML = getIcon('download', ringWrapper.className.includes('progress-ring-wrapper') ? 32 : 16);
                 ringWrapper.style.color = '#60a5fa';
             }
 
@@ -425,6 +375,8 @@ export const NodeFactory = {
         }
 
         node.dataset.prompt = prompt;
+        node.dataset.generationTime = generationTime !== null ? generationTime : (node.dataset.generationTime || '');
+        if (modelName) node.dataset.modelName = typeof modelName === 'object' ? JSON.stringify(modelName) : modelName;
         if (typeof updateMinimapWithImage === 'function') updateMinimapWithImage(node);
         return node;
     },
@@ -633,6 +585,8 @@ export const NodeFactory = {
 
         node.dataset.audioUrl = audioUrl;
         node.dataset.prompt = prompt;
+        node.dataset.generationTime = generationTime !== null ? generationTime : (node.dataset.generationTime || '');
+        if (modelName) node.dataset.modelName = typeof modelName === 'object' ? JSON.stringify(modelName) : modelName;
         return node;
     },
     // --- 音频占位符 (同构版) ---
@@ -651,8 +605,16 @@ export const NodeFactory = {
 
         const contentArea = document.createElement('div');
         contentArea.className = 'node-content';
-        contentArea.style.cssText = 'display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(239,246,255,0.95),rgba(219,234,254,0.85));border-radius:12px;overflow:hidden;position:relative;height:300px;';
-        contentArea.innerHTML = `<div class="loading-container" style="background:transparent;"><div class="progress-ring-wrapper" style="color:#3b82f6;">${getIcon('loader', 32, 'animate-spin')}</div><div class="loading-text" style="color:#3b82f6;font-weight:700;margin-top:8px">正在谱写旋律...</div></div>`;
+        
+        // 使用统一的 AI Vibe 基础层
+        const loadingUI = createAILoadingUI('audio', '正在谱写旋律...');
+        contentArea.appendChild(loadingUI);
+        
+        // 为音频添加一个特有的脉冲动效图标
+        const audioPulse = document.createElement('div');
+        audioPulse.style.cssText = 'margin-bottom: 20px; color: #3b82f6; animation: ai-processing-pulse 2s infinite ease-in-out;';
+        audioPulse.innerHTML = getIcon('music', 48);
+        loadingUI.insertBefore(audioPulse, loadingUI.querySelector('.ai-status-capsule'));
         node.appendChild(contentArea);
 
         node.appendChild(createNodeInfo(prompt, '音频生成中...'));

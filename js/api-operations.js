@@ -1,3 +1,50 @@
+/**
+ * 静默续期：检查并确保所有参考资产在目标云端均有效 (Local-First 核心逻辑)
+ */
+async function ensureReferencesAreCloudReady(refs, providerId) {
+    for (const ref of refs) {
+        if (!ref.localPath) continue;
+
+        const cloudInfo = ref.cloud_assets?.[providerId];
+        const now = Date.now();
+        
+        // 如果 ID 存在且未过期 (预留 5 分钟缓冲)，直接复用
+        if (cloudInfo && cloudInfo.id && cloudInfo.expiresAt > (now + 300000)) {
+            console.log(`✅ [CloudSync] 命中缓存, 直接复用 ${providerId} ID: ${cloudInfo.id}`);
+            continue;
+        }
+
+        // 否则进行静默重传/续期
+        console.log(`🔄 [CloudSync] ${providerId} 资产缺失或已过期，正在执行静默续期: ${ref.name}`);
+        try {
+            // V2: 通过 /api/upload 进行静默重传（后端具备 Hash 去重能力）
+            // 我们去获取本地文件 Blob 并上传
+            const response = await fetch(ref.localPath);
+            if (!response.ok) throw new Error('Local file not found');
+            const blob = await response.blob();
+            
+            const uploadResponse = await fetch('/api/upload', {
+                method: 'POST',
+                headers: {
+                    'x-filename': ref.name || 'reupload.bin',
+                    'Content-Type': blob.type || 'application/octet-stream',
+                    'x-user-id': AppState.userId,
+                    'x-project-id': AppState.projectId
+                },
+                body: blob
+            });
+            const result = await uploadResponse.json();
+            if (result.success) {
+                console.log(`✅ [CloudSync] 静默续期成功 (Hash: ${result.hash})`);
+                // 注：此处虽然重新上传，但服务器会返回去重后的哈希路径
+                ref.localPath = '/DL/' + result.path;
+            }
+        } catch (e) {
+            console.error(`❌ [CloudSync] 静默续期失败: ${ref.name}`, e);
+        }
+    }
+}
+
 import { CONFIG, getModelDisplayName } from '../config.js';
 import { AppState, CanvasState } from './app-state.js';
 import { PinManager, updateImageDataList } from './pin-manager.js';
@@ -41,6 +88,31 @@ export async function handleAPICall(params) {
 
     debugLog(`[开始调用] handleAPICall 函数`, 'info');
     
+    // --- 0. 终极位置预判 (坐标先行) ---
+    const allExistingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
+    let targetX = 5000;
+    let targetY = 5000;
+
+    if (allExistingNodes.length > 0) {
+        const lastBaseNode = allExistingNodes[allExistingNodes.length - 1];
+        const lastBaseX = parseInt(lastBaseNode.style.left) || 5000;
+        const lastBaseY = parseInt(lastBaseNode.style.top) || 5000;
+        const standardWidth = 400;
+        const isStandardBox = lastBaseNode.classList.contains('text-node') || 
+                             lastBaseNode.classList.contains('audio-node') || 
+                             lastBaseNode.classList.contains('image-node') ||
+                             lastBaseNode.classList.contains('video-node') ||
+                             lastBaseNode.classList.contains('loading-placeholder') ||
+                             lastBaseNode.classList.contains('text-loading-placeholder');
+        const lastBaseHeight = isStandardBox ? 300 : (lastBaseNode.offsetHeight || 300);
+        targetX = lastBaseX + standardWidth + 50;
+        targetY = lastBaseY;
+        if (targetX > 6000) {
+            targetX = 5000;
+            targetY = lastBaseY + lastBaseHeight + 50;
+        }
+    }
+
     // 捕获当前面板快照 (Snapshot)
     const snapshot = promptPanelManager.captureState();
     
@@ -81,7 +153,7 @@ export async function handleAPICall(params) {
     
     let modelName;
     let modelProvider;
-    
+
     if (currentMode === 'image') {
         modelName = CONFIG.IMAGE_MODEL_NAME;
         modelProvider = CONFIG.IMAGE_MODEL_PROVIDER;
@@ -95,6 +167,27 @@ export async function handleAPICall(params) {
         modelName = CONFIG.VIDEO_MODEL_NAME;
         modelProvider = CONFIG.VIDEO_MODEL_PROVIDER;
     }
+
+    // --- 新增：采集血缘引用 (Lineage Tracking) 包含 V2 项目身份 ---
+    const allRefs = window.referenceManager?.getAllReferences() || [];
+    const referencesMetadata = allRefs.map(ref => ({
+        type: ref.type,
+        name: ref.name,
+        localPath: ref.localPath,
+        thumbnail: ref.thumbnail,
+        slot: ref.slot
+    })).filter(ref => ref.localPath);
+
+    const lineageMetadata = {
+        userId: AppState.userId,
+        projectId: AppState.projectId,
+        references: referencesMetadata,
+        canvas_pos: { x: targetX, y: targetY },
+        cloud_assets: {}
+    };
+
+    // --- 执行：静默续期校验 ---
+    await ensureReferencesAreCloudReady(allRefs, modelProvider);
     
     const modelDisplayNameObj = getModelDisplayName(modelName, modelProvider);
     const modelDisplayName = modelDisplayNameObj.name || modelName;
@@ -227,37 +320,6 @@ export async function handleAPICall(params) {
     let displayWidth = 300;
     let displayHeight = 300;
     
-    // 终极坐标稳定性系统：在 handleAPICall 最前端统一计算新节点位置
-    // 确保所有模态（图片、视频、音频、文本）共享同一套精确定义的坐标参考系
-    const allExistingNodes = imageResponseContainer.querySelectorAll('.canvas-node');
-    let targetX = 5000;
-    let targetY = 5000;
-
-    if (allExistingNodes.length > 0) {
-        const lastBaseNode = allExistingNodes[allExistingNodes.length - 1];
-        const lastBaseX = parseInt(lastBaseNode.style.left) || 5000;
-        const lastBaseY = parseInt(lastBaseNode.style.top) || 5000;
-        
-        const standardWidth = 400;
-        // 判定基准：只要是盒状媒体节点或加载占位符，一律按 300px 预留空间
-        const isStandardBox = lastBaseNode.classList.contains('text-node') || 
-                             lastBaseNode.classList.contains('audio-node') || 
-                             lastBaseNode.classList.contains('image-node') ||
-                             lastBaseNode.classList.contains('video-node') ||
-                             lastBaseNode.classList.contains('loading-placeholder') ||
-                             lastBaseNode.classList.contains('text-loading-placeholder');
-        
-        const lastBaseHeight = isStandardBox ? 300 : (lastBaseNode.offsetHeight || 300);
-        
-        targetX = lastBaseX + standardWidth + 50;
-        targetY = lastBaseY;
-        
-        if (targetX > 6000) {
-            targetX = 5000;
-            targetY = lastBaseY + lastBaseHeight + 50;
-        }
-    }
-    
     if (isImageGenMode) {
         const aspectRatioValue = aspectRatioWrapper.dataset.value || '1:1';
         const imageSizeValue = imageSizeWrapper.dataset.value;
@@ -379,6 +441,7 @@ export async function handleAPICall(params) {
                 selectedImageUrl: selectedImageUrl,
                 media: allReferences,
                 referenceMode: referenceMode,
+                metadata: lineageMetadata, // 注入血缘元数据
                 onVideoProgress: (progress) => {
                     if (videoPlaceholder && typeof NodeFactory !== 'undefined') {
                         NodeFactory.updateVideoLoadingStatus(videoPlaceholder, 'generating', progress);
@@ -412,8 +475,10 @@ export async function handleAPICall(params) {
                                     prompt: prompt,
                                     aspectRatio: videoRatioWrapper.dataset.value,
                                     duration: videoDurationWrapper.dataset.value,
-                                    modelName: modelDisplayName.name,
-                                    protocol: protocol || 'gemini'
+                                    modelName: modelName,
+                                    protocol: modelProvider,
+                                    generationTime: genTime,
+                                    metadata: lineageMetadata
                                 })
                             });
                             const saveResult = await saveResponse.json();
@@ -502,6 +567,7 @@ export async function handleAPICall(params) {
                     audioDuration: audioDurationWrapper.dataset.value,
                     audioFormat: audioFormatWrapper.dataset.value,
                     onAudioGenerated: async (audioUrl, result) => {
+                        const genTime = (Date.now() - audioGenStartTime) / 1000;
                         const lyrics = result?.lyrics || '';
                         const caption = result?.caption || '';
                         
@@ -521,7 +587,8 @@ export async function handleAPICall(params) {
                                     duration: audioDurationWrapper.dataset.value,
                                     modelName: modelDisplayName,
                                     lyrics: lyrics,
-                                    caption: caption
+                                    caption: caption,
+                                    metadata: lineageMetadata
                                 })
                             });
                             const saveResult = await saveResponse.json();
@@ -532,7 +599,6 @@ export async function handleAPICall(params) {
                             console.error('[音频保存] 失败:', saveError);
                         }
 
-                        const genTime = (Date.now() - audioGenStartTime) / 1000;
                         NodeFactory.replaceWithAudio(
                             audioPlaceholder, 
                             finalAudioUrl, 
@@ -571,11 +637,15 @@ export async function handleAPICall(params) {
             isAudioGenMode, 
             aspectRatio: aspectRatioWrapper.dataset.value,
             imageSize: imageSizeWrapper.dataset.value,
+            metadata: lineageMetadata, // 注入血缘元数据
             onImageGenerated: async (result) => {
                 const imageData = result.imageData;
                 const apiResponse = result.response;
                 const revisedPrompt = apiResponse?.candidates?.[0]?.content?.parts?.[0]?.revisedPrompt || '';
                 
+                // 核心修复：提前计算 genTime 避免 ReferenceError
+                const genTime = loadingPlaceholder._startTime ? (Date.now() - loadingPlaceholder._startTime) / 1000 : 0;
+
                 let filename = '';
                 let resolutionStr = `${displayWidth}x${displayHeight}`;
                 let saveResult = null;
@@ -593,7 +663,9 @@ export async function handleAPICall(params) {
                                 prompt: prompt,
                                 aspectRatio: aspectRatioWrapper.dataset.value,
                                 imageSize: imageSizeWrapper.dataset.value,
-                                saveToDisk: saveToDisk
+                                saveToDisk: saveToDisk,
+                                generationTime: genTime,
+                                metadata: { ...lineageMetadata, model: modelName }
                             })
                         });
                         saveResult = await saveResponse.json();
@@ -610,8 +682,6 @@ export async function handleAPICall(params) {
                     clearInterval(loadingPlaceholder._loadingInterval);
                     loadingPlaceholder._loadingInterval = null;
                 }
-                
-                const genTime = loadingPlaceholder._startTime ? (Date.now() - loadingPlaceholder._startTime) / 1000 : 0;
                 
                 let finalImagePath = `data:image/png;base64,${imageData}`;
                 if (saveResult && saveResult.path) {
