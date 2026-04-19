@@ -211,7 +211,51 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
+}
+
+.hl-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.hl-card-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--hl-text-dim);
+}
+
+.hl-card-meta-item.model {
+    color: #93c5fd;
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.hl-card-meta-item.time {
+    color: #fcd34d;
+    background: rgba(251, 191, 36, 0.1);
+}
+
+.hl-card-meta-item.res {
+    color: #c084fc;
+    background: rgba(168, 85, 247, 0.1);
+}
+
+.hl-card-meta-item.ratio {
+    color: #2dd4bf;
+    background: rgba(20, 184, 166, 0.1);
+}
+
+.hl-card-meta-item.len {
+    color: #fb7185;
+    background: rgba(244, 63, 94, 0.1);
 }
 
 .hl-card-actions {

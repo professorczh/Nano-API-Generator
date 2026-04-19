@@ -213,6 +213,31 @@ class HistoryManager {
             <div class="hl-card-preview">${previewHtml}</div>
             <div class="hl-card-info">
                 <div class="hl-card-time">${timeStr}</div>
+                <div class="hl-card-meta">
+                    <div class="hl-card-meta-item model" title="使用模型: ${record.params?.model || '未知'}">
+                        ${getIcon('cpu', 12)}
+                        <span>${(record.params?.model || '未知').split('/').pop().split('-').slice(0,2).join('-')}</span>
+                    </div>
+                    ${record.params?.ratio || record.params?.aspectRatio ? `
+                    <div class="hl-card-meta-item ratio" title="纵横比">
+                        ${getIcon('crop', 10)}
+                        <span>${record.params.ratio || record.params.aspectRatio}</span>
+                    </div>` : ''}
+                    ${record.params?.size ? `
+                    <div class="hl-card-meta-item res" title="分辨率/规格">
+                        ${getIcon('maximize', 10)}
+                        <span>${record.params.size}</span>
+                    </div>` : ''}
+                    ${record.params?.duration ? `
+                    <div class="hl-card-meta-item len" title="时长">
+                        ${getIcon('play', 10)}
+                        <span>${record.params.duration}s</span>
+                    </div>` : ''}
+                    <div class="hl-card-meta-item time" title="生成耗时">
+                        ${getIcon('clock', 12)}
+                        <span>${record.generation_time ? record.generation_time.toFixed(1) + 's' : '--'}</span>
+                    </div>
+                </div>
                 <div class="hl-card-prompt">${displayPrompt}</div>
                 <div class="hl-card-actions">
                     <button class="hl-btn-reuse" data-action="reuse">
@@ -401,10 +426,16 @@ class HistoryManager {
             // 5. 注入元数据 (确保溯源功能正常)
             // 将历史参数回填至节点 dataset
             if (record.params) {
-                node.dataset.modelName = record.params.model || '';
+                node.dataset.modelName = typeof record.params.model === 'object' ? JSON.stringify(record.params.model) : (record.params.model || '');
                 node.dataset.protocol = record.params.protocol || '';
                 node.dataset.aspectRatio = record.params.ratio || '';
                 node.dataset.duration = record.params.duration || '';
+            }
+            if (record.generation_time !== undefined) {
+                node.dataset.generationTime = record.generation_time; 
+            }
+            if (record.prompt) {
+                node.dataset.prompt = record.prompt;
             }
         }
     }

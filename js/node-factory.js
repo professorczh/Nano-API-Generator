@@ -375,7 +375,9 @@ export const NodeFactory = {
         }
 
         node.dataset.prompt = prompt;
-        node.dataset.generationTime = generationTime !== null ? generationTime : (node.dataset.generationTime || '');
+        if (generationTime !== null) {
+            node.dataset.generationTime = generationTime; // 核心修复：确保同步到 dataset 用于持久化
+        }
         if (modelName) node.dataset.modelName = typeof modelName === 'object' ? JSON.stringify(modelName) : modelName;
         if (typeof updateMinimapWithImage === 'function') updateMinimapWithImage(node);
         return node;
@@ -585,7 +587,9 @@ export const NodeFactory = {
 
         node.dataset.audioUrl = audioUrl;
         node.dataset.prompt = prompt;
-        node.dataset.generationTime = generationTime !== null ? generationTime : (node.dataset.generationTime || '');
+        if (generationTime !== null) {
+            node.dataset.generationTime = generationTime; // 核心修复：确保同步到 dataset 用于持久化
+        }
         if (modelName) node.dataset.modelName = typeof modelName === 'object' ? JSON.stringify(modelName) : modelName;
         return node;
     },

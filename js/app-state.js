@@ -61,8 +61,11 @@ export const AppState = {
 
     /** 切换项目 (更新 id 并持久化) */
     switchProject: function(projectId) {
+        if (this.projectId === projectId) return;
         this.projectId = projectId;
         localStorage.setItem('nano_project_id', projectId);
+        // 派发全局事件
+        window.dispatchEvent(new CustomEvent('projectSwitched', { detail: { projectId } }));
     },
 
     reset: function() {

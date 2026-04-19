@@ -685,33 +685,42 @@
                 style="font-size: 14px !important; font-weight: 700 !important; color: #374151 !important; white-space: nowrap !important;">历史记录</span>
         </button>
 
-        <!-- Provider 切换 Toggle -->
-        <label id="providerToggleContainer" for="providerToggle" class="cursor-pointer">
-            <input type="checkbox" id="providerToggle" class="sr-only peer">
 
-            <!-- 仅预览侧 -->
-            <div id="providerToggleLabel" class="flex items-center gap-2">
-                <span class="toggle-icon-eye"></span>
-                <span>仅预览</span>
-            </div>
 
-            <!-- 开关滑块 -->
-            <div class="relative flex items-center">
-                <div
-                    class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:outline-none peer-checked:bg-blue-600 transition-colors duration-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full">
+        <div class="pointer-events-auto absolute top-4 right-4 flex items-center gap-3">
+            <!-- 项目管理器 (Project Manager) -->
+            <div style="position: relative !important;" id="projectManagerWrapper">
+                <button id="projectManagerBtn"
+                    style="display: flex !important; align-items: center !important; gap: 10px !important; padding: 10px 20px !important; background: white !important; border: 1px solid #e5e7eb !important; border-radius: 9999px !important; cursor: pointer !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important; outline: none !important;">
+                    <span id="projectIconContainer" style="display: flex !important; align-items: center !important;"></span>
+                    <span id="activeProjectName"
+                        style="font-size: 14px !important; font-weight: 700 !important; color: #1e40af !important; white-space: nowrap !important; max-width: 150px; overflow: hidden; text-overflow: ellipsis;">加载中...</span>
+                    <svg style="width: 14px !important; height: 14px !important; color: #9ca3af !important;" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+
+                <!-- 项目列表面板 (Glassmorphism) -->
+                <div id="projectManagerPanel" class="hidden"
+                    style="position: absolute !important; top: 100% !important; right: 0px !important; width: 320px !important; background: rgba(255, 255, 255, 0.8) !important; backdrop-filter: blur(12px) !important; margin-top: 12px !important; border-radius: 16px !important; border: 1px solid rgba(255, 255, 255, 0.3) !important; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1) !important; overflow: hidden !important; z-index: 1000001 !important;">
+                    
+                    <div style="padding: 20px !important; border-bottom: 1px solid rgba(0,0,0,0.05) !important; display: flex !important; align-items: center !important; justify-content: space-between !important;">
+                        <div style="display: flex !important; align-items: center !important; gap: 12px !important;">
+                            <div style="width: 4px !important; height: 24px !important; background: #3b82f6 !important; border-radius: 2px !important;"></div>
+                            <span style="font-size: 15px !important; font-weight: 900 !important; color: #111827 !important;">我的项目</span>
+                        </div>
+                        <button id="createNewProjectBtn" style="padding: 4px 8px; background: #eff6ff; color: #2563eb; border: none; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">[+] 新建</button>
+                    </div>
+
+                    <div id="projectListContainer" style="max-height: 400px; overflow-y: auto; padding: 8px !important; display: flex !important; flex-direction: column !important; gap: 4px !important;">
+                        <!-- 动态渲染项目项 -->
+                    </div>
                 </div>
             </div>
 
-            <!-- 本地存盘侧 -->
-            <div id="providerToggleLabelDynamic" class="flex items-center gap-2">
-                <span class="toggle-icon-save"></span>
-                <span>本地存盘</span>
-                <span id="storageWarning" class="hidden text-amber-500 text-xs ml-1"
-                    title="当前环境（如 Serverless）不支持本地文件写入">⚠️</span>
-            </div>
-        </label>
-
-        <div style="position: relative !important;" id="canvasManagerWrapper">
+            <!-- 画布快照管理 (Existing) -->
+            <div style="position: relative !important;" id="canvasManagerWrapper">
 
             <!-- 触发按钮：固定尺寸与样式 -->
             <button id="canvasManagerBtn"
@@ -792,6 +801,7 @@
                     <span id="lastActionStatus"
                         style="font-size: 10px !important; color: #3b82f6 !important; font-weight: 800 !important;">v1.1.2</span>
                 </div>
+            </div>
             </div>
         </div>
     </div>
@@ -892,6 +902,7 @@
     <input type="file" id="canvasImportInput" accept=".json" style="display: none;">
 
     <!-- 引入核心管理库 (必须以 module 形式) -->
+    <script type="module" src="js/project-manager.js"></script>
     <script type="module" src="js/history-manager.js"></script>
 </body>
 

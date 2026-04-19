@@ -677,6 +677,7 @@ export function createPanoramaNode(sourceNode) {
 
         // 核心修复：如果点击的是 canvas (3D 交互区) 且相机未锁定，跳过节点拖拽逻辑，让 OrbitControls 处理
         if (e.target.tagName.toLowerCase() === 'canvas' && !isCameraLocked) {
+            selectNode(node);
             return; 
         }
 

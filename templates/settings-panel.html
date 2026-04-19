@@ -5,6 +5,31 @@
                 <span class="text-lg">⚙️</span>
                 <h3 class="text-base font-semibold text-gray-800">设置</h3>
             </div>
+
+            <!-- Provider 切换 Toggle (Moved from Toolbar) -->
+            <label id="providerToggleContainer" for="providerToggle" class="flex items-center gap-3 cursor-pointer bg-gray-50 px-4 py-1.5 rounded-full border border-gray-100 hover:bg-gray-100 transition-colors">
+                <input type="checkbox" id="providerToggle" class="sr-only peer">
+
+                <!-- 仅预览侧 -->
+                <div id="providerToggleLabel" class="flex items-center gap-2 text-xs font-medium transition-colors">
+                    <span class="toggle-icon-eye"></span>
+                    <span>仅预览</span>
+                </div>
+
+                <!-- 开关滑块 -->
+                <div class="relative flex items-center">
+                    <div class="w-9 h-5 bg-gray-200 rounded-full peer peer-focus:outline-none peer-checked:bg-blue-500 transition-colors duration-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full">
+                    </div>
+                </div>
+
+                <!-- 本地存盘侧 -->
+                <div id="providerToggleLabelDynamic" class="flex items-center gap-2 text-xs font-medium transition-colors">
+                    <span class="toggle-icon-save"></span>
+                    <span>本地存盘</span>
+                    <span id="storageWarning" class="hidden text-amber-500 text-[10px] ml-0.5" title="当前环境（如 Serverless）不支持本地文件写入">⚠️</span>
+                </div>
+            </label>
+
             <div class="flex items-center gap-3">
                 <button id="saveSettingsBtn" disabled class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-1.5 rounded-full text-sm font-medium shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all opacity-50 cursor-not-allowed">
                     保存设置

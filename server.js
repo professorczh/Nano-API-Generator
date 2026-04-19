@@ -47,6 +47,7 @@ const THUMBNAILS_DIR = './DL/thumbnails';
 // ── V2 路径常量
 const DL_ROOT = './DL';
 const GLOBAL_ASSETS_DIR = './DL/assets';     // 全局哈希池（★ 项目删除时严禁触碰此目录）
+const PROJECTS_ROOT = path.join(DL_ROOT, 'admin', 'projects'); // 核心修复：定义项目根目录路径
 const DEFAULT_USER_ID = 'admin';
 const DEFAULT_PROJECT_ID = 'default';
 
@@ -1494,6 +1495,133 @@ const server = http.createServer((req, res) => {
                 res.end(JSON.stringify({ error: error.message }));
             }
         })();
+        return;
+    }
+
+    // =============================================================
+    // ── V2: 项目管理 API (Project Management)
+    // =============================================================
+
+    // 获取项目列表
+    if (req.url.startsWith('/api/projects') && req.method === 'GET') {
+        try {
+            const projectsDir = PROJECTS_ROOT;
+            ensureDirectoryExists(projectsDir);
+            const folders = fs.readdirSync(projectsDir).filter(f => fs.statSync(path.join(projectsDir, f)).isDirectory());
+
+            const projectList = folders.map(folderId => {
+                const metaPath = path.join(projectsDir, folderId, 'metadata.json');
+                let name = folderId === 'default' ? '默认项目' : folderId;
+                let createdAt = null;
+
+                if (fs.existsSync(metaPath)) {
+                    try {
+                        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+                        name = meta.name || name;
+                        createdAt = meta.createdAt;
+                    } catch (e) {
+                        console.error(`[Project] Failed to parse meta for ${folderId}`);
+                    }
+                }
+                return { id: folderId, name, createdAt };
+            });
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(projectList));
+        } catch (error) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: error.message }));
+        }
+        return;
+    }
+
+    // 创建新项目 (新功能：开启空白画布)
+    if (req.url === '/api/project/create' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk.toString(); });
+        req.on('end', () => {
+            try {
+                const { name } = JSON.parse(body);
+                const projectId = crypto.randomUUID(); // 使用内置 crypto
+                const projectDir = ensureProjectDir(DEFAULT_USER_ID, projectId);
+                
+                // 初始化元数据
+                const meta = {
+                    name: name || '未命名项目',
+                    createdAt: new Date().toISOString()
+                };
+                fs.writeFileSync(path.join(projectDir, 'metadata.json'), JSON.stringify(meta, null, 2));
+
+                // 初始化一个空的画布状态
+                const emptyState = {
+                    version: "1.1.2",
+                    timestamp: Date.now(),
+                    global: { scale: 1, pan: { x: 0, y: 0 } },
+                    nodes: []
+                };
+                fs.writeFileSync(path.join(projectDir, 'canvas_state.json'), JSON.stringify(emptyState, null, 2));
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, projectId, name: meta.name }));
+            } catch (error) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: error.message }));
+            }
+        });
+        return;
+    }
+
+    // 重命名项目
+    if (req.url === '/api/project/rename' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk.toString(); });
+        req.on('end', () => {
+            try {
+                const { projectId, newName } = JSON.parse(body);
+                const projectDir = ensureProjectDir(DEFAULT_USER_ID, projectId);
+                const metaPath = path.join(projectDir, 'metadata.json');
+                
+                let meta = { name: newName, createdAt: new Date().toISOString() };
+                if (fs.existsSync(metaPath)) {
+                    meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+                    meta.name = newName;
+                }
+                
+                fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, name: newName }));
+            } catch (error) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: error.message }));
+            }
+        });
+        return;
+    }
+
+    // 批量初始化元数据 (补全缺失的 metadata.json)
+    if (req.url === '/api/project/init-all' && req.method === 'POST') {
+        try {
+            const projectsDir = PROJECTS_ROOT;
+            const folders = fs.readdirSync(projectsDir).filter(f => fs.statSync(path.join(projectsDir, f)).isDirectory());
+            let count = 0;
+            folders.forEach(folderId => {
+                const metaPath = path.join(projectsDir, folderId, 'metadata.json');
+                if (!fs.existsSync(metaPath)) {
+                    const meta = {
+                        name: folderId === 'default' ? '默认项目' : `项目_${folderId.slice(0, 4)}`,
+                        createdAt: new Date().toISOString(),
+                        isAutoGenerated: true
+                    };
+                    fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+                    count++;
+                }
+            });
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, initializedCount: count }));
+        } catch (error) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: error.message }));
+        }
         return;
     }
 

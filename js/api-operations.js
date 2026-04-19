@@ -706,6 +706,11 @@ export async function handleAPICall(params) {
                 updateMinimapWithImage(loadingPlaceholder);
                 selectNode(loadingPlaceholder);
                 incrementNodeCounter();
+                
+                // 核心修复：生成完成后立即触发快照保存，确保刷新后元数据一致
+                if (typeof PersistenceManager !== 'undefined') {
+                    PersistenceManager.trackAction('FINALIZE_IMAGE_NODE');
+                }
             },
             onTextGenerated: (text) => {
                 if (loadingPlaceholder && loadingPlaceholder._loadingInterval) {
@@ -729,6 +734,11 @@ export async function handleAPICall(params) {
                 updateMinimapWithImage(loadingPlaceholder);
                 selectNode(loadingPlaceholder);
                 incrementNodeCounter();
+
+                // 核心修复：文本生成完成后立即同步到云端存档
+                if (typeof PersistenceManager !== 'undefined') {
+                    PersistenceManager.trackAction('FINALIZE_TEXT_NODE');
+                }
             },
             onError: (error) => {
                 if (loadingPlaceholder) {

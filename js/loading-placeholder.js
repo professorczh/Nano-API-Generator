@@ -199,9 +199,15 @@ export function updateTextLoadingPlaceholder(node, text, prompt, generationTime 
         // 更新时间 (使用标准结构：图标 + Span)
         const timeElement = sidebar.querySelector('.node-generation-time');
         if (timeElement && generationTime !== null) {
+            node.dataset.generationTime = generationTime; // 核心修复：同步到 dataset
             timeElement.style.display = 'flex';
-            const displayTime = formatGenerationTime(generationTime).replace('⏱️', '').trim();
-            timeElement.innerHTML = `${getIcon('clock', 12)} <span>${displayTime}</span>`;
+            const displayTime = formatGenerationTime(generationTime).trim();
+            const timeSpan = timeElement.querySelector('span');
+            if (timeSpan) {
+                timeSpan.textContent = displayTime;
+            } else {
+                timeElement.innerHTML = `${getIcon('clock', 12)} <span>${displayTime}</span>`;
+            }
             timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
         }
 
@@ -214,8 +220,10 @@ export function updateTextLoadingPlaceholder(node, text, prompt, generationTime 
         }
 
         // 更新模型标签 (如果之前没有则注入)
-        const existingModelTag = sidebar.querySelector('.node-model-tag');
         const finalModelName = modelName || node.dataset.modelName;
+        if (finalModelName) {
+            node.dataset.modelName = typeof finalModelName === 'object' ? JSON.stringify(finalModelName) : finalModelName;
+        }
         if (finalModelName && !existingModelTag) {
             import('./utils.js').then(utils => {
                 utils.renderModelTag(sidebar, finalModelName);
@@ -364,7 +372,7 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
     node.dataset.imageUrl = imageUrl;
     node.dataset.filename = filename || `Image ${node.dataset.index}`;
     if (modelName) {
-        node.dataset.modelName = modelName;
+        node.dataset.modelName = typeof modelName === 'object' ? JSON.stringify(modelName) : modelName;
     }
     if (revisedPrompt) {
         node.dataset.revisedPrompt = revisedPrompt;
@@ -500,6 +508,9 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
     
         const sidebar = node.querySelector('.node-sidebar');
         if (sidebar) {
+             if (generationTime !== null) {
+                node.dataset.generationTime = generationTime; // 核心修复：同步到 dataset
+            }
             const existingModelTag = sidebar.querySelector('.node-model-tag');
             if (modelName && !existingModelTag) {
                 const modelTag = document.createElement('div');
@@ -524,9 +535,15 @@ export function updateLoadingPlaceholder(node, imageUrl, prompt, filename, resol
             
             const timeElement = sidebar.querySelector('.node-generation-time');
             if (timeElement && generationTime !== null) {
-                timeElement.textContent = formatGenerationTime(generationTime);
+                const displayTime = formatGenerationTime(generationTime).trim();
+                const timeSpan = timeElement.querySelector('span');
+                if (timeSpan) {
+                    timeSpan.textContent = displayTime;
+                } else {
+                    timeElement.innerHTML = `${getIcon('clock', 12)} <span>${displayTime}</span>`;
+                }
                 timeElement.title = `生成耗时: ${generationTime.toFixed(2)}秒`;
-        }
+            }
     }
 
     resizeHandle.addEventListener('mousedown', (e) => {

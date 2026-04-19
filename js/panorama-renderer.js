@@ -70,7 +70,7 @@ export class PanoramaRenderer {
         this.controls.enableDamping = true; // Premium smooth inertia
         this.controls.dampingFactor = 0.05;
         this.controls.rotateSpeed = -0.25; // Invert rotation for better feel inside sphere
-        this.controls.enableZoom = true;
+        this.controls.enableZoom = false; // Disable dolly zoom to exclusively use FOV zoom
         this.controls.enablePan = false; // Disable panning for panorama
         
         // FOV / Zoom limits to prevent distortion

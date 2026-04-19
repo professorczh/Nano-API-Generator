@@ -448,7 +448,6 @@ const App = {
         promptPanelManager.init(this.elements);
 
         this.initHistoryButton();
-        this.initProviderToggle();
     },
 
     initEventListeners() {
@@ -589,7 +588,17 @@ const App = {
     },
 
     initProviderToggle() {
-        const { providerToggle, providerToggleLabel, providerToggleLabelDynamic, providerToggleContainer, storageWarning } = this.elements;
+        // 重新获取元素，因为它们是动态加载的
+        const providerToggle = document.getElementById('providerToggle');
+        const providerToggleLabel = document.getElementById('providerToggleLabel');
+        const providerToggleLabelDynamic = document.getElementById('providerToggleLabelDynamic');
+        const storageWarning = document.getElementById('storageWarning');
+
+        // 更新 elements 引用
+        this.elements.providerToggle = providerToggle;
+        this.elements.providerToggleLabel = providerToggleLabel;
+        this.elements.providerToggleLabelDynamic = providerToggleLabelDynamic;
+        this.elements.storageWarning = storageWarning;
 
         // 注入图标
         if (providerToggleLabel) {
@@ -995,7 +1004,6 @@ const App = {
         new UIManager();
         new EventHandler();
         new SettingsPanel();
-        
         initCanvasEvents({
             promptInput: this.elements.promptInput,
             debugConsole: this.elements.debugConsole,
@@ -1014,6 +1022,9 @@ const App = {
         if (window.modelSelectManager) {
             window.modelSelectManager.populateModelSelects();
         }
+        
+        // 初始化存储切换开关 (现在它在大设置面板里)
+        this.initProviderToggle();
         
         const closeSettingsBtnAfterLoad = document.getElementById('closeSettingsBtn');
         if (closeSettingsBtnAfterLoad) {
