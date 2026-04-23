@@ -674,20 +674,16 @@
         </path>
         <circle id="linkerEndCircle" r="5" fill="#3b82f6" style="display: none;" />
     </svg>
-    <!-- 终极硬化版：右上角管理面板 (不再依赖外部CSS类提供尺寸) -->
     <div style="position: fixed !important; top: 20px !important; right: 20px !important; z-index: 999999 !important; font-family: sans-serif !important;"
         class="pointer-events-auto flex items-center gap-3">
-        <!-- 历史记录按钮 (新增) -->
-        <button id="historyRecordsBtn"
-            style="display: flex !important; align-items: center !important; gap: 8px !important; padding: 0 16px !important; height: 42px !important; background: white !important; border: 1px solid #e5e7eb !important; border-radius: 9999px !important; cursor: pointer !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important; outline: none !important; transition: all 0.2s ease !important;">
-            <span id="historyIconContainer" style="display: flex; align-items: center; color: #475569;"></span>
-            <span
-                style="font-size: 14px !important; font-weight: 700 !important; color: #374151 !important; white-space: nowrap !important;">历史记录</span>
-        </button>
+            <!-- 历史记录按钮 (新增) -->
+            <button id="historyRecordsBtn"
+                style="display: flex !important; align-items: center !important; gap: 8px !important; padding: 0 16px !important; height: 42px !important; background: white !important; border: 1px solid #e5e7eb !important; border-radius: 9999px !important; cursor: pointer !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important; outline: none !important; transition: all 0.2s ease !important;">
+                <span id="historyIconContainer" style="display: flex; align-items: center; color: #475569;"></span>
+                <span
+                    style="font-size: 14px !important; font-weight: 700 !important; color: #374151 !important; white-space: nowrap !important;">历史记录</span>
+            </button>
 
-
-
-        <div class="pointer-events-auto absolute top-4 right-4 flex items-center gap-3">
             <!-- 项目管理器 (Project Manager) -->
             <div style="position: relative !important;" id="projectManagerWrapper">
                 <button id="projectManagerBtn"
@@ -804,7 +800,7 @@
             </div>
             </div>
         </div>
-    </div>
+
 
     <!-- 提示词面板设置模态框 (Prompt Settings Modal) -->
     <div id="promptSettingsOverlay"
