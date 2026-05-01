@@ -1,6 +1,7 @@
 import { AppState } from './app-state.js';
 import { getIcon } from './icons.js';
 import { PersistenceManager } from './persistence-manager.js';
+import { getCanvasInitialPan } from './canvas-manager.js';
 
 /**
  * 项目管理器 - 负责项目切换、新建与重命名
@@ -230,14 +231,18 @@ export const ProjectManager = {
         // 核心：触发持久化层重新加载画布
         const success = await PersistenceManager.loadProjectState();
         if (!success) {
-            // 如果加载失败（比如是全新项目还没状态），则清空当前画布
-            PersistenceManager.restoreFromData({ nodes: [], global: { scale: 1, pan: { x: 0, y: 0 } } });
+            // 如果加载失败（比如是全新项目还没状态），则清空当前画布并居中
+            const initialPan = getCanvasInitialPan();
+            PersistenceManager.restoreFromData({ 
+                nodes: [], 
+                global: { scale: 1, pan: initialPan } 
+            });
         }
         
         // 可选：如果历史记录面板也是按项目隔离的，通知它刷新
         if (window.historyManager) {
             window.historyManager.currentPage = 1;
-            window.historyManager.loadHistory();
+            window.historyManager.loadData(projectId);
         }
     }
 };

@@ -141,6 +141,7 @@ export class SettingsPanel {
                 <option value="openai" ${openaiSelected} title="OpenAI格式">O</option>
                 <option value="gemini" ${geminiSelected} title="Gemini格式">G</option>
                 <option value="volces" title="火山方舟">V</option>
+                <option value="vertex" title="Vertex AI">X</option>
             </select>
             <input type="text" placeholder="模型名称" class="flex-1 px-2 py-1 text-xs rounded border border-gray-200">
             <button type="button" class="text-red-500 hover:text-red-700 text-xs model-delete-btn">×</button>

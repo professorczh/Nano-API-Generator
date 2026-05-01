@@ -683,7 +683,7 @@ export async function handleAPICall(params) {
                     loadingPlaceholder._loadingInterval = null;
                 }
                 
-                let finalImagePath = `data:image/png;base64,${imageData}`;
+                let finalImagePath = imageData.startsWith('data:') ? imageData : `data:image/png;base64,${imageData}`;
                 if (saveResult && saveResult.path) {
                     const dlIndex = saveResult.path.indexOf('/DL/');
                     if (dlIndex !== -1) finalImagePath = saveResult.path.substring(dlIndex);

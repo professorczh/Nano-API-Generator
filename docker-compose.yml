@@ -6,6 +6,16 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      # 挂载宿主机的 ADC 凭据
+      - C:\Users\info\AppData\Roaming\gcloud\application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro
     environment:
       - NODE_ENV=development
+      # 告诉容器内的 SDK 去哪里找凭据
+      - GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
+      # 传递 GCP 配置
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
+      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION}
+      # 传递代理设置
+      - HTTP_PROXY=http://host.docker.internal:10808
+      - HTTPS_PROXY=http://host.docker.internal:10808
     restart: unless-stopped

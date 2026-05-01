@@ -108,13 +108,21 @@ class HistoryManager {
         this.hideDrawer();
     }
 
-    async loadData() {
+    async loadData(projectId) {
         this.elements.stats.textContent = '正在读取数据库...';
         
+        const targetProjectId = projectId || AppState.projectId;
+        const userId = AppState.userId || 'admin';
+        
         try {
-            // 环境检测：尝试读取生产环境 JSONL
-            let response = await fetch('./DL/history.jsonl');
+            // 环境检测：优先尝试读取当前项目所属的历史记录 (V2 路径)
+            let response = await fetch(`./DL/${userId}/projects/${targetProjectId}/history.jsonl`);
             let isOnline = false;
+
+            if (!response.ok) {
+                console.warn(`[History] 项目[${targetProjectId}] 历史记录未找到，尝试读取根目录 history.jsonl`);
+                response = await fetch('./DL/history.jsonl');
+            }
 
             if (!response.ok) {
                 console.warn('[History] 生产环境 history.jsonl 未找到，切换至 Demo 模式');

@@ -2,6 +2,7 @@ import { BaseProvider } from './base-provider.js';
 import { GeminiProvider } from './gemini-provider.js';
 import { OpenAIProvider } from './openai-provider.js';
 import { VolcesProvider } from './volces-provider.js';
+import { VertexProvider } from './vertex-provider.js';
 import { VideoProvider } from './video-provider.js';
 
 class DynamicProviderManager {
@@ -87,13 +88,14 @@ class DynamicProviderManager {
             }
         });
         
-        // 根据协议类型选择Provider类
         protocols.forEach(protocol => {
             let ProviderClass;
             if (protocol === 'gemini') {
                 ProviderClass = GeminiProvider;
             } else if (protocol === 'volces') {
                 ProviderClass = VolcesProvider;
+            } else if (protocol === 'vertex') {
+                ProviderClass = VertexProvider;
             } else {
                 ProviderClass = OpenAIProvider;
             }
@@ -233,6 +235,7 @@ class DynamicProviderManager {
             openai: provider.protocol === 'openai' ? 'checked' : '',
             gemini: provider.protocol === 'gemini' ? 'checked' : '',
             volces: provider.protocol === 'volces' ? 'checked' : '',
+            vertex: provider.protocol === 'vertex' ? 'checked' : '',
             mix: provider.protocol === 'mix' ? 'checked' : ''
         };
         
@@ -240,6 +243,7 @@ class DynamicProviderManager {
             gemini: 'G',
             openai: 'O',
             volces: 'V',
+            vertex: 'X',
             mix: 'M'
         })[provider.protocol || 'openai'];
         
@@ -312,9 +316,14 @@ class DynamicProviderManager {
                         <span class="text-sm text-gray-600">火山方舟</span>
                     </label>
                     <label class="flex items-center gap-1">
+                        <input type="radio" name="settings${provider.id}Format" value="vertex" ${protocolChecked.vertex} 
+                            class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                        <span class="text-sm text-gray-600">Vertex</span>
+                    </label>
+                    <label class="flex items-center gap-1">
                         <input type="radio" name="settings${provider.id}Format" value="mix" ${protocolChecked.mix} 
                             class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
-                        <span class="text-sm text-gray-600">混合</span>
+                        <span class="text-sm text-gray-600">混合模式</span>
                     </label>
                 </div>
             </div>
@@ -421,7 +430,7 @@ class DynamicProviderManager {
                 this.markDirty();
                 const value = radio.value;
                 if (protocolIndicator) {
-                    const indicatorMap = { gemini: 'G', openai: 'O', volces: 'V', mix: 'M' };
+                    const indicatorMap = { gemini: 'G', openai: 'O', volces: 'V', vertex: 'X', mix: 'M' };
                     protocolIndicator.textContent = indicatorMap[value] || 'O';
                     protocolIndicator.title = `当前协议: ${value}`;
                 }
@@ -562,6 +571,7 @@ class DynamicProviderManager {
                         <option value="openai" ${protocolToShow === 'openai' ? 'selected' : ''}>O</option>
                         <option value="gemini" ${protocolToShow === 'gemini' ? 'selected' : ''}>G</option>
                         <option value="volces" ${protocolToShow === 'volces' ? 'selected' : ''}>V</option>
+                        <option value="vertex" ${protocolToShow === 'vertex' ? 'selected' : ''}>X</option>
                     </select>
                     <input type="text" value="${model.name || ''}" 
                         class="flex-1 px-2 py-1 text-xs rounded border border-gray-200" 
@@ -587,6 +597,7 @@ class DynamicProviderManager {
                 <option value="openai">O</option>
                 <option value="gemini">G</option>
                 <option value="volces">V</option>
+                <option value="vertex">X</option>
             </select>
             <input type="text" class="flex-1 px-2 py-1 text-xs rounded border border-gray-200" placeholder="模型名称" data-provider-id="${providerId}">
             <button type="button" class="text-red-500 hover:text-red-700 text-xs model-delete-btn" 

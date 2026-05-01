@@ -8,6 +8,7 @@ import { NodeFactory } from './node-factory.js';
 import { debugLog, createNodeHeader, createNodeToolbar, createNodeSidebar, createNodeInfo } from './utils.js';
 import { createImageNode, createTextNode } from './node-manager.js';
 import { getIcon } from './icons.js';
+import { clearMinimap } from './canvas-manager.js';
 
 export const PersistenceManager = {
     // ── V2: 动作防抖与云端保存 ──
@@ -98,6 +99,9 @@ export const PersistenceManager = {
         const container = document.getElementById('imageResponseContainer');
         if (!container) throw new Error('找不到画布容器。');
         
+        // 清空缩略图
+        clearMinimap();
+
         const existingNodes = container.querySelectorAll('.canvas-node');
         existingNodes.forEach(n => n.remove());
 

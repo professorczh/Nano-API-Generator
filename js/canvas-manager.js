@@ -18,6 +18,31 @@ export function initCanvasElements() {
     debugConsole = document.getElementById('debugConsole');
 }
 
+/**
+ * 清空缩略图上的所有节点预览
+ */
+export function clearMinimap() {
+    if (!minimapCanvas) return;
+    const items = minimapCanvas.querySelectorAll('.minimap-image');
+    items.forEach(item => item.remove());
+    console.log('[CanvasManager] 缩略图已清空');
+}
+
+/**
+ * 获取画布初始居中坐标 (逻辑中心 5000, 5000 对齐视口中心)
+ */
+export function getCanvasInitialPan() {
+    const uiPanel = document.getElementById('uiPanel');
+    const uiPanelWidth = uiPanel ? uiPanel.offsetWidth : 400;
+    const viewportWidth = window.innerWidth - uiPanelWidth;
+    const viewportHeight = window.innerHeight;
+    
+    return {
+        x: viewportWidth / 2 - 5000,
+        y: viewportHeight / 2 - 5000
+    };
+}
+
 export function initCanvas() {
     console.log('Initializing canvas...');
     

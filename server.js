@@ -1262,6 +1262,183 @@ const server = http.createServer((req, res) => {
         return;
     }
     
+    // Vertex AI 代理网关
+    if (req.url === '/api/vertex/proxy-command' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk.toString());
+        req.on('end', async () => {
+            try {
+                console.log(`[Vertex Env Debug] HTTP_PROXY: ${process.env.HTTP_PROXY}`);
+                console.log(`[Vertex Env Debug] HTTPS_PROXY: ${process.env.HTTPS_PROXY}`);
+                
+                const { model, action, params } = JSON.parse(body);
+                
+                // 强制指定 ADC 凭据路径 (针对 Windows 环境优化)
+                const homeDir = process.env.USERPROFILE || process.env.HOME || '';
+                const appData = process.env.APPDATA || path.join(homeDir, 'AppData', 'Roaming');
+                const adcPath = path.join(appData, 'gcloud', 'application_default_credentials.json');
+                
+                console.log(`[Vertex Debug] 正在检查凭据路径: ${adcPath}`);
+                if (fs.existsSync(adcPath)) {
+                    process.env.GOOGLE_APPLICATION_CREDENTIALS = adcPath;
+                    console.log(`[Vertex Debug] 成功找到凭据，已设置环境变量。`);
+                } else {
+                    console.warn(`[Vertex Debug] 未找到凭据文件，请检查路径是否正确。`);
+                    // 兜底尝试：检查用户目录下是否有 .config/gcloud (Linux/WSL风格)
+                    const fallbackPath = path.join(homeDir, '.config', 'gcloud', 'application_default_credentials.json');
+                    if (fs.existsSync(fallbackPath)) {
+                        process.env.GOOGLE_APPLICATION_CREDENTIALS = fallbackPath;
+                        console.log(`[Vertex Debug] 找到备选凭据路径: ${fallbackPath}`);
+                    }
+                }
+
+                // 初始化 Vertex 客户端 (尝试混合模式：API Key + VertexAI)
+                const client = new GoogleGenAI({
+                    apiKey: process.env.GOOGLE_CLOUD_API_KEY,
+                    vertexai: true,
+                    project: process.env.GOOGLE_CLOUD_PROJECT || 'maphi-2026',
+                    location: process.env.GOOGLE_CLOUD_LOCATION || 'global'
+                });
+
+                console.log(`[Vertex Proxy] [${action}] 调用模型: ${model}`);
+
+                if (action === 'generateContent' || action === 'generateText' || action === 'generateImage') {
+                    // 构造正确的 parts 数组
+                    const parts = [];
+                    if (params.prompt) {
+                        parts.push({ text: params.prompt });
+                    }
+                    
+                    if (params.media && params.media.length > 0) {
+                        params.media.forEach(item => {
+                            let data = item.data;
+                            if (data.includes(',')) data = data.split(',')[1];
+                            parts.push({ 
+                                inlineData: { 
+                                    data: data, 
+                                    mimeType: item.mimeType || 'image/png' 
+                                } 
+                            });
+                        });
+                    }
+
+                    // 构造配置项
+                    const generationConfig = { ...(params.generationConfig || {}) };
+                    
+                    // 如果是 Gemini 3.1 且包含 image 关键字，自动补全生图参数
+                    if (model.includes('gemini-3.1') && model.includes('image')) {
+                        generationConfig.responseModalities = ["TEXT", "IMAGE"];
+                        // 修正 imageConfig
+                        if (!generationConfig.imageConfig) {
+                            generationConfig.imageConfig = {
+                                aspectRatio: "auto",
+                                imageSize: "1K",
+                                outputMimeType: "image/png"
+                            };
+                        } else {
+                            // 强制修正 imageSize 格式 (1K, 2K 等)
+                            if (generationConfig.imageConfig.imageSize === '512px') {
+                                generationConfig.imageConfig.imageSize = '1K';
+                            }
+                        }
+                    }
+
+                    const requestObj = {
+                        model: model,
+                        contents: [{ role: 'user', parts: parts }],
+                        config: generationConfig
+                    };
+
+                    console.log('[Vertex Debug Request]', JSON.stringify(requestObj, null, 2));
+
+                    const result = await client.models.generateContent(requestObj);
+                    
+                    // 构造返回给前端的平铺对象
+                    const responseData = {
+                        text: '',
+                        imageData: null,
+                        raw: result
+                    };
+
+                    try {
+                        console.log('[Vertex Proxy] 收到模型响应，开始解析...');
+                        
+                        // 提取文本
+                        if (result.text) {
+                            responseData.text = typeof result.text === 'function' ? result.text() : result.text;
+                            console.log('[Vertex Proxy] 提取到文本长度:', responseData.text.length);
+                        }
+                        
+                        // 提取图片 (从 candidates -> parts -> inlineData)
+                        if (result.candidates && result.candidates[0] && result.candidates[0].content) {
+                            const parts = result.candidates[0].content.parts;
+                            console.log(`[Vertex Proxy] 响应包含 ${parts.length} 个 Parts`);
+                            
+                            const imagePart = parts.find(p => p.inlineData);
+                            if (imagePart) {
+                                console.log('[Vertex Proxy] 发现图片数据, MimeType:', imagePart.inlineData.mimeType);
+                                responseData.imageData = imagePart.inlineData.data;
+                            }
+                            
+                            if (!responseData.text) {
+                                const textPart = parts.find(p => p.text);
+                                if (textPart) {
+                                    responseData.text = textPart.text;
+                                    console.log('[Vertex Proxy] 从 Parts 中提取到文本');
+                                }
+                            }
+                        }
+                        
+                        if (!responseData.text && !responseData.imageData) {
+                            console.warn('[Vertex Proxy] 警告: 未能从响应中提取到任何文本或图片内容');
+                        }
+
+                    } catch (e) {
+                        console.error('[Vertex Proxy] 解析响应体时发生崩溃:', e);
+                        // 即使解析失败，也尽量把 raw 数据发回去，避免连接断开
+                    }
+
+                    console.log('[Vertex Proxy] 准备发送响应给前端...');
+
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(responseData));
+
+                } else if (action === 'listModels') {
+                    // 查询可用模型列表
+                    try {
+                        const modelsResponse = await client.models.list();
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify(modelsResponse));
+                    } catch (listErr) {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: listErr.message }));
+                    }
+                } else if (action === 'testConnection') {
+                    // 简单的连接测试
+                    try {
+                        const testResult = await client.models.generateContent({
+                            model: model || 'gemini-1.5-flash',
+                            contents: 'hi'
+                        });
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true, message: 'Vertex AI 连接成功' }));
+                    } catch (testErr) {
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: false, message: testErr.message }));
+                    }
+                } else {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: `Unsupported action: ${action}` }));
+                }
+            } catch (e) {
+                console.error('[Vertex Proxy] Error:', e);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: e.message }));
+            }
+        });
+        return;
+    }
+
     // 火山方舟视频生成 API
     if (req.url === '/api/volces/generate-video' && req.method === 'POST') {
         let body = '';

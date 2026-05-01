@@ -224,6 +224,7 @@ export function updateTextLoadingPlaceholder(node, text, prompt, generationTime 
         if (finalModelName) {
             node.dataset.modelName = typeof finalModelName === 'object' ? JSON.stringify(finalModelName) : finalModelName;
         }
+        const existingModelTag = sidebar.querySelector('.node-model-tag');
         if (finalModelName && !existingModelTag) {
             import('./utils.js').then(utils => {
                 utils.renderModelTag(sidebar, finalModelName);
