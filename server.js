@@ -1355,11 +1355,6 @@ const server = http.createServer((req, res) => {
                                 imageSize: "1K",
                                 outputMimeType: "image/png"
                             };
-                        } else {
-                            // 修正 imageSize 为 SDK 要求的格式 (1K, 2K 等)
-                            if (generationConfig.imageConfig.imageSize && generationConfig.imageConfig.imageSize.includes('px')) {
-                                generationConfig.imageConfig.imageSize = "1K";
-                            }
                         }
                     }
 
