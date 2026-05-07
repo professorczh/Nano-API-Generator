@@ -1292,15 +1292,34 @@ const server = http.createServer((req, res) => {
                     }
                 }
 
-                // 初始化 Vertex 客户端 (尝试混合模式：API Key + VertexAI)
-                const client = new GoogleGenAI({
-                    apiKey: process.env.GOOGLE_CLOUD_API_KEY,
-                    vertexai: true,
-                    project: process.env.GOOGLE_CLOUD_PROJECT || 'maphi-2026',
-                    location: process.env.GOOGLE_CLOUD_LOCATION || 'global'
-                });
+                // 设置 SDK 所需的环境变量
+                if (process.env.GOOGLE_CLOUD_PROJECT) {
+                    process.env.GOOGLE_GENAI_USE_VERTEXAI = 'True';
+                }
 
-                console.log(`[Vertex Proxy] [${action}] 调用模型: ${model}`);
+                // 初始化 Vertex 客户端
+                let finalLocation = params.location || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+                
+                // 强制路由：针对 3.1/2.5 预览版模型，强制使用 global 区域以匹配 Enterprise 平台
+                if (model.includes('3.1') || model.includes('2.5')) {
+                    finalLocation = 'global';
+                }
+
+                const clientConfig = {
+                    vertexai: true,
+                    project: params.projectId || process.env.GOOGLE_CLOUD_PROJECT || 'maphi-2026',
+                    location: finalLocation
+                };
+
+                // 如果有 API Key 则使用，否则依赖 ADC (由 GOOGLE_APPLICATION_CREDENTIALS 提供)
+                const apiKey = params.apiKey || process.env.GOOGLE_API_KEY || process.env.GOOGLE_CLOUD_API_KEY;
+                if (apiKey) {
+                    clientConfig.apiKey = apiKey;
+                }
+
+                const client = new GoogleGenAI(clientConfig);
+
+                console.log(`[Vertex Proxy] [${action}] 调用模型: ${model}, 区域: ${clientConfig.location}`);
 
                 if (action === 'generateContent' || action === 'generateText' || action === 'generateImage') {
                     // 构造正确的 parts 数组
@@ -1325,20 +1344,21 @@ const server = http.createServer((req, res) => {
                     // 构造配置项
                     const generationConfig = { ...(params.generationConfig || {}) };
                     
-                    // 如果是 Gemini 3.1 且包含 image 关键字，自动补全生图参数
-                    if (model.includes('gemini-3.1') && model.includes('image')) {
+                    // 针对生图模型或请求生图时，必须设置 responseModalities
+                    const isImageModel = model.includes('image') || model.includes('imagen') || action === 'generateImage';
+                    if (isImageModel) {
                         generationConfig.responseModalities = ["TEXT", "IMAGE"];
-                        // 修正 imageConfig
+                        // 补全或修正 imageConfig
                         if (!generationConfig.imageConfig) {
                             generationConfig.imageConfig = {
-                                aspectRatio: "auto",
+                                aspectRatio: "1:1",
                                 imageSize: "1K",
                                 outputMimeType: "image/png"
                             };
                         } else {
-                            // 强制修正 imageSize 格式 (1K, 2K 等)
-                            if (generationConfig.imageConfig.imageSize === '512px') {
-                                generationConfig.imageConfig.imageSize = '1K';
+                            // 修正 imageSize 为 SDK 要求的格式 (1K, 2K 等)
+                            if (generationConfig.imageConfig.imageSize && generationConfig.imageConfig.imageSize.includes('px')) {
+                                generationConfig.imageConfig.imageSize = "1K";
                             }
                         }
                     }
@@ -1351,7 +1371,13 @@ const server = http.createServer((req, res) => {
 
                     console.log('[Vertex Debug Request]', JSON.stringify(requestObj, null, 2));
 
-                    const result = await client.models.generateContent(requestObj);
+                    let result;
+                    if (isImageModel) {
+                        // 生图建议使用流式或确认支持的 generateContent
+                        result = await client.models.generateContent(requestObj);
+                    } else {
+                        result = await client.models.generateContent(requestObj);
+                    }
                     
                     // 构造返回给前端的平铺对象
                     const responseData = {
@@ -1363,13 +1389,23 @@ const server = http.createServer((req, res) => {
                     try {
                         console.log('[Vertex Proxy] 收到模型响应，开始解析...');
                         
-                        // 提取文本
+                        // 1. 尝试直接从 SDK 顶级属性获取 (新版 SDK 风格)
                         if (result.text) {
                             responseData.text = typeof result.text === 'function' ? result.text() : result.text;
-                            console.log('[Vertex Proxy] 提取到文本长度:', responseData.text.length);
                         }
                         
-                        // 提取图片 (从 candidates -> parts -> inlineData)
+                        // 针对生图，新版 SDK 可能直接在顶级 result.data 中
+                        if (result.data) {
+                            console.log('[Vertex Proxy] 发现顶级数据字段 (可能是图片)');
+                            // 如果是 Buffer，转为 base64
+                            if (Buffer.isBuffer(result.data)) {
+                                responseData.imageData = result.data.toString('base64');
+                            } else {
+                                responseData.imageData = result.data;
+                            }
+                        }
+                        
+                        // 2. 传统提取方式 (从 candidates -> parts -> inlineData)
                         if (result.candidates && result.candidates[0] && result.candidates[0].content) {
                             const parts = result.candidates[0].content.parts;
                             console.log(`[Vertex Proxy] 响应包含 ${parts.length} 个 Parts`);
@@ -1380,22 +1416,30 @@ const server = http.createServer((req, res) => {
                                 responseData.imageData = imagePart.inlineData.data;
                             }
                             
-                            if (!responseData.text) {
-                                const textPart = parts.find(p => p.text);
-                                if (textPart) {
-                                    responseData.text = textPart.text;
-                                    console.log('[Vertex Proxy] 从 Parts 中提取到文本');
-                                }
+                            const textPart = parts.find(p => p.text);
+                            if (textPart && !responseData.text) {
+                                responseData.text = textPart.text;
+                                console.log('[Vertex Proxy] 从 Parts 中提取到文本');
                             }
                         }
                         
                         if (!responseData.text && !responseData.imageData) {
                             console.warn('[Vertex Proxy] 警告: 未能从响应中提取到任何文本或图片内容');
+                            console.log('[Vertex Proxy] 原始响应摘要:', JSON.stringify(result).substring(0, 500));
+                        } else {
+                            console.log('[Vertex Proxy] 解析成功: 文本长度=', responseData.text?.length || 0, '有无图片=', !!responseData.imageData);
+                        }
+
+                        if (result.error) {
+                            console.error('[Vertex Proxy] 业务逻辑错误:', JSON.stringify(result.error, null, 2));
+                            throw new Error(result.error.message || 'Vertex AI 业务错误');
                         }
 
                     } catch (e) {
-                        console.error('[Vertex Proxy] 解析响应体时发生崩溃:', e);
-                        // 即使解析失败，也尽量把 raw 数据发回去，避免连接断开
+                        console.error('[Vertex Proxy] 请求或解析过程发生错误:', e);
+                        res.writeHead(e.status || 500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: e.message }));
+                        return;
                     }
 
                     console.log('[Vertex Proxy] 准备发送响应给前端...');
@@ -1899,8 +1943,11 @@ const server = http.createServer((req, res) => {
                 
                 const currentEnvConfig = {
                     GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+                    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || process.env.GOOGLE_CLOUD_API_KEY || '',
                     GEMINI_MODEL_NAME: process.env.GEMINI_MODEL_NAME || 'gemini-3-flash-preview',
-                    GEMINI_IMAGE_MODEL_NAME: process.env.GEMINI_IMAGE_MODEL_NAME || 'gemini-3-pro-image-preview'
+                    GEMINI_IMAGE_MODEL_NAME: process.env.GEMINI_IMAGE_MODEL_NAME || 'gemini-3.1-flash-image-preview',
+                    GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT || '',
+                    GOOGLE_CLOUD_LOCATION: process.env.GOOGLE_CLOUD_LOCATION || ''
                 };
                 
                 const envScript = `<script>window.ENV = ${JSON.stringify(currentEnvConfig)};</script>`;
@@ -1915,7 +1962,20 @@ const server = http.createServer((req, res) => {
     });
 });
 
+function verifyVertexCredentials() {
+    const adcPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || path.join(__dirname, 'AppData', 'Roaming', 'gcloud', 'application_default_credentials.json');
+    console.log(`[SYSTEM] [Vertex] 正在检查凭据路径: ${adcPath}`);
+    if (fs.existsSync(adcPath)) {
+        console.log(`[SYSTEM] [Vertex] ✅ 成功找到凭据文件，ADC 认证已就绪。`);
+        process.env.GOOGLE_APPLICATION_CREDENTIALS = adcPath;
+    } else {
+        console.warn(`[SYSTEM] [Vertex] ❌ 未能找到凭据文件。如果使用 Vertex AI，请检查 Docker 卷挂载。`);
+        console.warn(`[SYSTEM] [Vertex] 当前尝试路径: ${adcPath}`);
+    }
+}
+
 server.listen(PORT, '0.0.0.0', () => {
+    verifyVertexCredentials();
     checkDiskWritePermission();
     console.log(`Server running at http://0.0.0.0:${PORT}/`);
     console.log(`Generated images will be saved to: ${path.resolve(GENERATED_IMAGES_DIR)}`);
