@@ -276,10 +276,15 @@ export const PersistenceManager = {
     },
 
     createFinalImageNode(data) {
-        const { rect, prompt, modelName, resourceUrl, filename, metadata } = data;
+        let { rect, prompt, modelName, resourceUrl, filename, metadata } = data;
         const genTime = this.parseTimeToSeconds(metadata?.generationTime);
         
         console.log(`[持久化/CREATE] 正在重建图片节点... 来源: ${resourceUrl?.slice(0,30)}...`);
+        
+        // 自动修复旧版可能遗留的相对路径问题
+        if (resourceUrl && resourceUrl.startsWith('assets/')) {
+            resourceUrl = `/DL/${resourceUrl}`;
+        }
         
         // 直接使用标准的创建函数，确保 UI 组件一致
         const node = createImageNode(

@@ -30,3 +30,6 @@ build/
 
 # DL 文件夹
 DL/
+
+# Rembg 抠图模型文件
+rembg_models/*.onnx

@@ -88,6 +88,14 @@ docker build -t nano-generator .
 docker run -d -p 8000:8000 -v "$(pwd)/DL:/app/DL" --name nano-generator nano-generator
 ```
 
+### 💡 智能抠图服务 (Rembg) 说明
+
+本项目支持本地智能抠图（背景消除）功能。该服务依赖 `U2-Net` 模型（约 167MB）：
+- **自动下载**：首次在画布上使用抠图功能时，后台容器会自动尝试从 GitHub 下载模型文件并保存到本地的 `rembg_models/` 目录下（后续运行将直接读取本地，无需重复下载）。
+- **手动加速下载（推荐）**：如果自动下载缓慢或失败，您可以：
+  1. 点击下载模型文件：[u2net.onnx (GitHub 官方链接)](https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx)
+  2. 将下载完成的 `u2net.onnx` 文件直接放入项目根目录下的 `rembg_models/` 文件夹中即可。
+
 ================================================================================
 
 ## 🛡️ 隐私与安全

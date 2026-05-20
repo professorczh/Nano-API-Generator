@@ -443,6 +443,7 @@ export class ModelSelectManager {
         this.imageModelNameWrapper = document.getElementById('imageModelNameWrapper');
         this.videoModelNameWrapper = document.getElementById('videoModelNameWrapper');
         this.audioModelNameWrapper = document.getElementById('audioModelNameWrapper');
+        this.aiDetectModelNameWrapper = document.getElementById('aiDetectModelNameWrapper');
 
         const allModels = window.dynamicProviderManager ? window.dynamicProviderManager.getAllModels() : { text: TEXT_MODELS, image: IMAGE_MODELS, video: VIDEO_MODELS, audio: AUDIO_MODELS };
 
@@ -454,6 +455,19 @@ export class ModelSelectManager {
             (value, provider) => {
                 CONFIG.MODEL_NAME = value;
                 CONFIG.MODEL_PROVIDER = provider;
+            }
+        );
+
+        this.populateMainCustomSelect(
+            this.aiDetectModelNameWrapper,
+            allModels.text,
+            CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER,
+            CONFIG.MODEL_NAME, CONFIG.MODEL_PROVIDER,
+            (value, provider) => {
+                if (this.aiDetectModelNameWrapper) {
+                    this.aiDetectModelNameWrapper.dataset.value = value;
+                    this.aiDetectModelNameWrapper.dataset.provider = provider;
+                }
             }
         );
 
@@ -603,6 +617,8 @@ export class ModelSelectManager {
 
         if (currentModel) {
             selectedText.textContent = currentModel.name;
+            wrapper.dataset.value = currentModel.value;
+            wrapper.dataset.provider = currentModel.provider;
         }
 
         if (wrapper.dataset.listening) return;

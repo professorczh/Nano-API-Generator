@@ -8,64 +8,111 @@ import { CONFIG } from '../../config.js';
 export class GeminiProvider extends BaseProvider {
     constructor(config = {}) {
         super(config);
-        
-        if (this.apiKey) {
-            this.genAI = new GoogleGenerativeAI(this.apiKey);
-        }
+        // 不再强依赖 SDK 实例，改用灵活的 REST 调用
     }
 
     /**
-     * 实现：文本生成 (利用 SDK)
+     * 实现：文本生成 (切换为原生 REST 接口)
      */
     async generateText(params) {
         const { modelName, prompt, media = [], generationConfig, debugLog } = params;
-        if (!this.genAI) throw new Error("Google SDK 未初始化 (API Key缺失)");
+        
+        const contentParts = await this.buildTextContent(prompt, media);
+        
+        // 构造标准的 Gemini REST 负载
+        const payload = {
+            contents: [{
+                role: "user",
+                parts: Array.isArray(contentParts) ? contentParts : [{ text: contentParts }]
+            }],
+            generationConfig: {
+                temperature: generationConfig?.temperature ?? 0.7,
+                topP: generationConfig?.topP ?? 0.95,
+                maxOutputTokens: generationConfig?.maxOutputTokens ?? 2048,
+                ...generationConfig
+            }
+        };
 
-        const model = this.genAI.getGenerativeModel({ model: modelName, generationConfig });
-        const content = await this.buildTextContent(prompt, media);
+        if (debugLog) debugLog(`[Gemini] 发送文本请求 (REST), 模型: ${modelName}`, 'info');
 
-        if (debugLog) debugLog(`[Gemini] 发送文本请求, 模型: ${modelName}`, 'info');
+        const data = await this._callGeminiRest(`${modelName}:generateContent`, payload, debugLog);
 
-        const result = await model.generateContent(content);
-        const response = await result.response;
+        // 提取结果 (兼容不同版本的返回结构)
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
         return this._wrapResponse({
-            text: response.text(),
-            raw: response
+            text: text,
+            raw: data
         });
     }
 
     /**
-     * 实现：图片生成 (利用 SDK)
+     * 实现：图片生成 (切换为原生 REST 接口)
      */
     async generateImage(params) {
         const { modelName, prompt, media = [], generationConfig, aspectRatio, imageSize, debugLog } = params;
-        if (!this.genAI) throw new Error("Google SDK 未初始化 (API Key缺失)");
 
-        const model = this.genAI.getGenerativeModel({ 
-            model: modelName,
+        const contentParts = await this.buildImageGenContent(prompt, media, params);
+
+        const payload = {
+            contents: [{
+                role: "user",
+                parts: Array.isArray(contentParts) ? contentParts : [{ text: contentParts }]
+            }],
             generationConfig: {
                 ...generationConfig,
                 responseModalities: ['TEXT', 'IMAGE'],
                 imageConfig: { aspectRatio, imageSize }
             }
-        });
+        };
 
-        const content = await this.buildImageGenContent(prompt, media, params);
+        if (debugLog) debugLog(`[Gemini] 发送生图请求 (REST), 模型: ${modelName}`, 'info');
 
-        if (debugLog) debugLog(`[Gemini] 发送生图请求, 模型: ${modelName}`, 'info');
-
-        const result = await model.generateContent(content);
-        const response = await result.response;
+        const data = await this._callGeminiRest(`${modelName}:generateContent`, payload, debugLog);
 
         return this._wrapResponse({
-            imageData: this.extractImageData(response),
-            raw: response
+            imageData: this.extractImageData(data),
+            raw: data
         });
     }
 
     /**
-     * 实现：音频生成 (通过代理)
+     * 内部方法：统一的 Gemini REST 调用逻辑
+     */
+    async _callGeminiRest(action, payload, debugLog = null) {
+        // 核心修复：如果填写了 baseUrl 则使用，否则回退到官方地址
+        const baseUrl = this.baseUrl || 'https://generativelanguage.googleapis.com';
+        
+        // 自动处理 API 版本：如果 URL 包含 v1 则不加，否则默认加 v1beta
+        const apiVersion = baseUrl.includes('/v1') ? '' : '/v1beta';
+        const url = `${baseUrl}${apiVersion}/models/${action}?key=${this.apiKey}`;
+
+        if (debugLog) debugLog(`[Gemini REST] 请求 URL: ${url.split('?')[0]}...`, 'info');
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorJson;
+                try { errorJson = JSON.parse(errorText); } catch(e) {}
+                const msg = errorJson?.error?.message || `HTTP ${response.status}: ${errorText}`;
+                throw new Error(msg);
+            }
+
+            return await response.json();
+        } catch (error) {
+            if (debugLog) debugLog(`[Gemini REST 错误] ${error.message}`, 'error');
+            throw error;
+        }
+    }
+
+    /**
+     * 实现：音频生成 (保持原有代理逻辑)
      */
     async generateAudio(params) {
         const { modelName, prompt, media = [], audioFormat, debugLog } = params;
@@ -319,13 +366,16 @@ export class GeminiProvider extends BaseProvider {
     }
 
     /**
-     * 实现：连接测试 (利用 SDK)
+     * 实现：连接测试 (原生 REST 实现)
      */
     async testConnection(debugLog = null) {
         if (!this.apiKey) return { success: false, message: '未配置 API Key' };
         try {
-            // 通过直连 Google API 验证 Key 的有效性 (SDK 暂无简单的 listModels 接口)
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`);
+            const baseUrl = this.baseUrl || 'https://generativelanguage.googleapis.com';
+            const apiVersion = baseUrl.includes('/v1') ? '' : '/v1beta';
+            const url = `${baseUrl}${apiVersion}/models?key=${this.apiKey}`;
+            
+            const response = await fetch(url);
             const data = await response.json();
             
             if (!response.ok) {
@@ -379,7 +429,7 @@ export class GeminiProvider extends BaseProvider {
             }
 
             // 最后加入文字
-            parts.push(prompt);
+            parts.push({ text: prompt });
             return parts;
         }
         return prompt;
@@ -430,7 +480,7 @@ export class GeminiProvider extends BaseProvider {
             }
 
             const fullPrompt = prompt ? `${prompt}。${note}` : `请美化这张图片。${note}`;
-            parts.push(fullPrompt);
+            parts.push({ text: fullPrompt });
             return parts;
         }
         return prompt;
@@ -471,3 +521,4 @@ export class GeminiProvider extends BaseProvider {
         };
     }
 }
+

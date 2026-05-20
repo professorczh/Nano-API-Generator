@@ -128,6 +128,7 @@ const mimeTypes = {
     '.js': 'text/javascript',
     '.css': 'text/css',
     '.json': 'application/json',
+    '.jsonl': 'text/plain',
     '.png': 'image/png',
     '.jpg': 'image/jpg',
     '.gif': 'image/gif',
@@ -479,6 +480,30 @@ const server = http.createServer((req, res) => {
     }
 
     // =============================================================
+    // API 索引：查看所有可用接口
+    // =============================================================
+    if (req.url === '/api' || req.url === '/api/') {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+            name: "Nano API Test Viewer Backend",
+            status: "running",
+            endpoints: {
+                "/api/project/state": "GET/POST - 画布状态保存与恢复 (JSON)",
+                "/api/rembg": "POST - Rembg 智能抠图 (FormData 提交)",
+                "/api/google/proxy-command": "POST - Google AI 统一代理网关",
+                "/api/google/veo-status": "GET - Google Veo 视频生成任务状态查询",
+                "/api/upload": "POST - 二进制文件静默上传 (Hash 池)",
+                "/save-audio": "POST - TTS 音频持久化保存",
+                "/open-folder": "POST - 触发宿主机资源管理器打开 DL 目录"
+            },
+            docker_services: {
+                "rembg": process.env.REMBG_URL || "configured"
+            }
+        }, null, 4));
+        return;
+    }
+
+    // =============================================================
     // V2 项目状态持久化：读写 canvas_state.json
     // =============================================================
     if (req.url.startsWith('/api/project/state') && (req.method === 'GET' || req.method === 'POST')) {
@@ -543,6 +568,22 @@ const server = http.createServer((req, res) => {
                 const buffer = Buffer.concat(chunks);
                 const asset = resolveAssetPath(buffer, ext);
                 
+                // 新增：如果前端要求，将记录追加到历史面板
+                if (req.headers['x-add-history'] === 'true') {
+                    const prompt = req.headers['x-prompt'] ? decodeURIComponent(req.headers['x-prompt']) : '上传的图片';
+                    const modelName = req.headers['x-model'] || 'Upload';
+                    
+                    appendToHistory({
+                        type: 'image',
+                        prompt: prompt,
+                        path: asset.relativePath,
+                        width: 0,
+                        height: 0,
+                        modelName: modelName,
+                        filename: filename
+                    }, {}, userId, projectId);
+                }
+
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
                     success: true,
@@ -788,6 +829,40 @@ const server = http.createServer((req, res) => {
         return;
     }
     
+    // =============================================================
+    // Smart Matting Proxy: 转发请求至 Rembg 服务
+    // =============================================================
+    if (req.url.startsWith('/api/rembg') && req.method === 'POST') {
+        // 提取原始请求中的查询参数并拼接
+        const queryString = req.url.includes('?') ? req.url.split('?')[1] : '';
+        const baseRembgUrl = process.env.REMBG_URL || 'http://rembg-service:7000/api/remove';
+        const rembgUrl = queryString ? `${baseRembgUrl}?${queryString}` : baseRembgUrl;
+
+        console.log(`[RembgProxy] Forwarding to: ${rembgUrl}`);
+
+        // 构造转发请求头，移除可能导致冲突的 host 和 connection
+        const proxyHeaders = { ...req.headers };
+        delete proxyHeaders['host'];
+        delete proxyHeaders['connection'];
+
+        const proxyReq = http.request(rembgUrl, {
+            method: 'POST',
+            headers: proxyHeaders
+        }, (proxyRes) => {
+            res.writeHead(proxyRes.statusCode, proxyRes.headers);
+            proxyRes.pipe(res);
+        });
+
+        proxyReq.on('error', (err) => {
+            console.error('[RembgProxy] Error:', err.message);
+            res.writeHead(502, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Rembg service unreachable', details: err.message }));
+        });
+
+        req.pipe(proxyReq);
+        return;
+    }
+
     if (req.url === '/open-folder' && req.method === 'POST') {
         const dateFolder = getDateFolder();
         const folderPath = path.resolve(path.join(GENERATED_IMAGES_DIR, dateFolder));
@@ -1920,6 +1995,9 @@ const server = http.createServer((req, res) => {
 
     const extname = String(path.extname(filePath)).toLowerCase();
     const contentType = mimeTypes[extname] || 'application/octet-stream';
+
+    // 增加统一的 CORS 响应头，防止前端 Canvas 采样时的跨域安全拦截 (Tainted Canvas)
+    res.setHeader('Access-Control-Allow-Origin', '*');
 
     fs.readFile(filePath, (error, content) => {
         if (error) {

@@ -18,4 +18,15 @@ services:
       # 传递代理设置
       - HTTP_PROXY=http://host.docker.internal:10808
       - HTTPS_PROXY=http://host.docker.internal:10808
+      - REMBG_URL=http://rembg-service:7000/api/remove
+    restart: unless-stopped
+
+  rembg-service:
+    image: danielgatis/rembg
+    container_name: rembg-service
+    command: s --host 0.0.0.0 --port 7000 --no-ui
+    volumes:
+      - ./rembg_models:/root/.u2net
+    ports:
+      - "7000:7000"
     restart: unless-stopped

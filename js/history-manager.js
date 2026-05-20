@@ -115,18 +115,18 @@ class HistoryManager {
         const userId = AppState.userId || 'admin';
         
         try {
-            // 环境检测：优先尝试读取当前项目所属的历史记录 (V2 路径)
-            let response = await fetch(`./DL/${userId}/projects/${targetProjectId}/history.jsonl`);
+            // 环境检测：优先尝试读取当前项目所属的历史记录 (V2 路径)，附加时间戳禁用缓存
+            let response = await fetch(`./DL/projects/${userId}/${targetProjectId}/history.jsonl?t=${Date.now()}`);
             let isOnline = false;
 
             if (!response.ok) {
                 console.warn(`[History] 项目[${targetProjectId}] 历史记录未找到，尝试读取根目录 history.jsonl`);
-                response = await fetch('./DL/history.jsonl');
+                response = await fetch(`./DL/history.jsonl?t=${Date.now()}`);
             }
 
             if (!response.ok) {
                 console.warn('[History] 生产环境 history.jsonl 未找到，切换至 Demo 模式');
-                response = await fetch('./DL/demo_history.jsonl');
+                response = await fetch(`./DL/demo_history.jsonl?t=${Date.now()}`);
                 isOnline = true;
             }
 
